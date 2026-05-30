@@ -18,8 +18,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: uv sync
+      - run: uv run yapf -d -r --style google ./bitcoin && echo "yapf: no formatting changes needed" || (echo "yapf: formatting changes detected"; exit 1)
       - run: uv run ruff check bitcoin/
-      - run: uv run ruff format --check bitcoin/
       - run: uv run mypy bitcoin/
 
   test:
@@ -33,4 +33,4 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: uv sync
-      - run: uv run pytest bitcoin/tests/ -v --cov=bitcoin --cov-report=term-missing --cov-fail-under=99
+      - run: uv run pytest tests/ -v --cov=bitcoin --cov-report=term-missing --cov-fail-under=99

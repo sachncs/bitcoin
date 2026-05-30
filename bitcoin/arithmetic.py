@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 __all__ = [
     "NotInvertibleError",
     "inverse_mod",

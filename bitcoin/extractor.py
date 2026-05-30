@@ -33,7 +33,6 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from bitcoin.transaction import Transaction
 
-
 __all__ = [
     "build_records",
     "extract_input_signatures",
@@ -58,10 +57,8 @@ def extract_signatures(
     records: list[SignatureRecord] = []
     for input_index, txin in enumerate(transaction.inputs):
         records.extend(
-            extract_input_signatures(
-                transaction, input_index, txin, transaction.context, script_pubkeys
-            )
-        )
+            extract_input_signatures(transaction, input_index, txin,
+                                     transaction.context, script_pubkeys))
     return SignatureCollection(records=tuple(records))
 
 
@@ -102,23 +99,22 @@ def extract_input_signatures(
 
     if not witness_items:
         if is_p2pkh_pushes(script_pushes):
-            return extract_legacy_p2pkh(transaction, input_index, txin, script_pushes)
+            return extract_legacy_p2pkh(transaction, input_index, txin,
+                                        script_pushes)
         if script_pushes and script_pushes[-1]:
-            return extract_legacy_p2sh_multisig(
-                transaction, input_index, txin, script_pushes
-            )
-        logger.error("Unsupported non-SegWit script path at input %d", input_index)
+            return extract_legacy_p2sh_multisig(transaction, input_index, txin,
+                                                script_pushes)
+        logger.error("Unsupported non-SegWit script path at input %d",
+                     input_index)
         raise UnsupportedScriptPathError("Unsupported non-SegWit script path.")
 
     if not txin.script_sig:
         if len(witness_items) == 2 and len(witness_items[1]) in {33, 65}:
-            return extract_native_p2wpkh(
-                transaction, input_index, txin, witness_items, context
-            )
+            return extract_native_p2wpkh(transaction, input_index, txin,
+                                         witness_items, context)
         if len(witness_items) >= 2:
-            return extract_native_p2wsh_multisig(
-                transaction, input_index, txin, witness_items, context
-            )
+            return extract_native_p2wsh_multisig(transaction, input_index, txin,
+                                                 witness_items, context)
         logger.error(
             "Unsupported SegWit witness stack at input %d: %d items",
             input_index,
@@ -129,13 +125,11 @@ def extract_input_signatures(
     if len(script_pushes) == 1 and is_witness_program(script_pushes[0]):
         program = script_pushes[0]
         if len(program) == 22:
-            return extract_p2sh_p2wpkh(
-                transaction, input_index, txin, witness_items, context
-            )
+            return extract_p2sh_p2wpkh(transaction, input_index, txin,
+                                       witness_items, context)
         if len(program) == 34:
-            return extract_p2sh_p2wsh_multisig(
-                transaction, input_index, txin, witness_items, context
-            )
+            return extract_p2sh_p2wsh_multisig(transaction, input_index, txin,
+                                               witness_items, context)
 
     logger.error(
         "Unsupported script path at input %d: witness=%s, script_sig_len=%d",
@@ -167,13 +161,11 @@ def build_records(
     for index, raw_sig in enumerate(raw_signatures):
         parsed = parse_der_signature(raw_sig)
         if use_segwit:
-            digest = segwit_sighash(
-                transaction, input_index, script_code, amount, parsed.sighash_flag
-            )
+            digest = segwit_sighash(transaction, input_index, script_code,
+                                    amount, parsed.sighash_flag)
         else:
-            digest = legacy_sighash(
-                transaction, input_index, script_code, parsed.sighash_flag
-            )
+            digest = legacy_sighash(transaction, input_index, script_code,
+                                    parsed.sighash_flag)
         public_key = pubkeys[index] if index < len(pubkeys) else None
         records.append(
             SignatureRecord(
@@ -182,10 +174,10 @@ def build_records(
                 z=bytes_to_hex(digest),
                 sighash_flag=parsed.sighash_flag,
                 input_index=input_index,
-                public_key=bytes_to_hex(public_key) if public_key is not None else None,
+                public_key=bytes_to_hex(public_key)
+                if public_key is not None else None,
                 script_type=script_type,
-            )
-        )
+            ))
     return records
 
 
@@ -271,7 +263,8 @@ def extract_p2sh_p2wpkh(
 ) -> list[SignatureRecord]:
     """Extract a signature from a P2SH-wrapped P2WPKH input."""
     if len(witness_items) != 2:
-        raise UnsupportedScriptPathError("P2SH-P2WPKH witness stack is invalid.")
+        raise UnsupportedScriptPathError(
+            "P2SH-P2WPKH witness stack is invalid.")
     signature = witness_items[0]
     pubkey = witness_items[1]
     return build_records(
@@ -356,13 +349,11 @@ def extract_taproot_key_path(
     if amount is None:
         raise MissingInputValueError(
             f"Taproot key path spend at input {input_index} "
-            f"needs the spent output value."
-        )
+            f"needs the spent output value.")
     internal_pubkey = script_pubkey[2:34]
     spk_list = list(script_pubkeys) if script_pubkeys else [script_pubkey]
-    digest = taproot_sighash(
-        transaction, input_index, script_pubkey, amount, parsed.sighash_flag, spk_list
-    )
+    digest = taproot_sighash(transaction, input_index, script_pubkey, amount,
+                             parsed.sighash_flag, spk_list)
     return [
         SignatureRecord(
             r=bytes_to_hex(parsed.r),
@@ -397,8 +388,7 @@ def extract_taproot_script_path(
     if amount is None:
         raise MissingInputValueError(
             f"Taproot script path spend at input {input_index} "
-            f"needs the spent output value."
-        )
+            f"needs the spent output value.")
 
     spk_list = list(script_pubkeys) if script_pubkeys else [script_pubkey]
 
@@ -422,22 +412,20 @@ def extract_taproot_script_path(
                 z=bytes_to_hex(digest),
                 sighash_flag=parsed.sighash_flag,
                 input_index=input_index,
-                public_key=bytes_to_hex(public_key) if public_key is not None else None,
+                public_key=bytes_to_hex(public_key)
+                if public_key is not None else None,
                 script_type="segwit-v1-taproot-scriptpath",
-            )
-        )
+            ))
     return records
 
 
-def resolve_input_value(
-    context: TransactionContext | None, input_index: int
-) -> int | None:
+def resolve_input_value(context: TransactionContext | None,
+                        input_index: int) -> int | None:
     """Return the spent output value for an input from the transaction context."""
     if context is None:
         return None
     if input_index >= len(context.input_values):
         raise MissingInputValueError(
             f"Input index {input_index} exceeds context "
-            f"({len(context.input_values)} values available)."
-        )
+            f"({len(context.input_values)} values available).")
     return context.input_values[input_index]

@@ -41,9 +41,10 @@ def _hex_scalar(value: int) -> str:
     return value.to_bytes(length, "big").hex()
 
 
-def _make_signature_record(
-    r: int, s: int, z: int, input_index: int = 0
-) -> SignatureRecord:
+def _make_signature_record(r: int,
+                           s: int,
+                           z: int,
+                           input_index: int = 0) -> SignatureRecord:
     return SignatureRecord(
         r=_hex_scalar(r),
         s=_hex_scalar(s),
@@ -80,13 +81,10 @@ def test_sec_parsing_and_serialization_roundtrip() -> None:
 
     assert parse_sec_public_key(compressed) == G
     assert parse_sec_public_key(uncompressed) == G
-    assert (
-        serialize_sec_public_key(parse_sec_public_key(compressed), True) == compressed
-    )
-    assert (
-        serialize_sec_public_key(parse_sec_public_key(uncompressed), False)
-        == uncompressed
-    )
+    assert (serialize_sec_public_key(parse_sec_public_key(compressed),
+                                     True) == compressed)
+    assert (serialize_sec_public_key(parse_sec_public_key(uncompressed),
+                                     False) == uncompressed)
 
 
 def test_invalid_points_and_encodings_are_rejected() -> None:
@@ -112,12 +110,12 @@ def test_point_space_relation_verification() -> None:
 
     public_key_point = scalar_multiply(d, G)
     nonce_point = scalar_multiply(k, G)
-    relation = derive_point_relation(_make_signature_record(r, s, z), public_key_point)
+    relation = derive_point_relation(_make_signature_record(r, s, z),
+                                     public_key_point)
 
     assert relation.equation == "D + \u03b2G = \u03b1K"
     assert relation.transformed_public_key == point_add(
-        public_key_point, scalar_multiply(relation.beta, G)
-    )
+        public_key_point, scalar_multiply(relation.beta, G))
     assert relation.verify(nonce_point)
 
 
@@ -129,12 +127,14 @@ def test_point_relation_collection_integration() -> None:
     assert collection.records[0].equation == "D + \u03b2G = \u03b1K"
     assert collection.records[0].transformed_public_key.infinity is False
 
-    payload = json.loads(point_relation_collection_to_json(collection, pretty=True))
+    payload = json.loads(
+        point_relation_collection_to_json(collection, pretty=True))
     assert payload["count"] == 1
     assert payload["records"][0]["equation"] == "D + \u03b2G = \u03b1K"
 
 
-def test_cli_points_prints_single_record(capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_points_prints_single_record(
+        capsys: pytest.CaptureFixture[str]) -> None:
     raw_hex, _, _ = build_p2pkh_transaction()
 
     exit_code = cli_main(["points", "--tx", raw_hex])
@@ -248,7 +248,8 @@ def test_verify_relation_rejects_infinity_nonce() -> None:
     z = (s * k - d * r) % SECP256K1_ORDER
 
     public_key_point = scalar_multiply(d, G)
-    relation = derive_point_relation(_make_signature_record(r, s, z), public_key_point)
+    relation = derive_point_relation(_make_signature_record(r, s, z),
+                                     public_key_point)
 
     with pytest.raises(InvalidSecp256k1PointError):
         relation.verify(SECP256K1_INFINITY)
@@ -260,7 +261,8 @@ def test_ecc_inverse_mod_rejects_non_int_modulus() -> None:
 
 
 def test_ecc_inverse_mod_rejects_non_invertible() -> None:
-    with pytest.raises(InvalidSecp256k1PointError, match="not invertible modulo"):
+    with pytest.raises(InvalidSecp256k1PointError,
+                       match="not invertible modulo"):
         inverse_mod(7, 14)
 
 
@@ -335,7 +337,8 @@ def test_parse_sec_non_bytes_input() -> None:
 
 def test_derive_point_relation_rejects_infinity_public_key() -> None:
     with pytest.raises(InvalidSecp256k1PointError, match="cannot be infinity"):
-        derive_point_relation(_make_signature_record(1, 2, 3), SECP256K1_INFINITY)
+        derive_point_relation(_make_signature_record(1, 2, 3),
+                              SECP256K1_INFINITY)
 
 
 def test_linear_point_relation_collection_alpha_beta() -> None:
@@ -451,7 +454,8 @@ def test_derive_transformed_point_on_curve() -> None:
 
 def test_derive_transformed_point_rejects_infinity() -> None:
     with pytest.raises(InvalidSecp256k1PointError, match="cannot be infinity"):
-        derive_transformed_point(_make_signature_record(1, 2, 3), SECP256K1_INFINITY)
+        derive_transformed_point(_make_signature_record(1, 2, 3),
+                                 SECP256K1_INFINITY)
 
 
 def test_derive_transformed_point_rejects_zero_r() -> None:
@@ -474,7 +478,8 @@ def test_transformed_point_collection() -> None:
         s = 11
         z = (s * k - d * r) % SECP256K1_ORDER
         pk = scalar_multiply(d, G)
-        records.append(derive_transformed_point(_make_signature_record(r, s, z), pk))
+        records.append(
+            derive_transformed_point(_make_signature_record(r, s, z), pk))
     collection = TransformedPointCollection(records=tuple(records))
     assert len(collection.records) == 2
     assert collection.records[0].alpha == collection.records[1].alpha

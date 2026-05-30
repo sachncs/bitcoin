@@ -54,7 +54,7 @@ __all__ = [
     "Psbt",
     "PsbtInput",
     "PsbtOutput",
-    "extract_signatures_from_psbt",
+    "psbt_extract_signatures",
     "parse_keypath_value",
     "parse_psbt",
     "parse_psbt_hex",
@@ -170,7 +170,8 @@ def read_input_map(reader: ByteReader) -> PsbtInput:
             fingerprint, path = parse_keypath_value(value)
             keypaths[pubkey_hex] = (fingerprint,) + path
         else:
-            logger.warning("Unknown input key type 0x%02x in PSBT input map", key_type)
+            logger.warning("Unknown input key type 0x%02x in PSBT input map",
+                           key_type)
 
     return PsbtInput(
         non_witness_utxo=non_witness_utxo,
@@ -205,7 +206,8 @@ def read_output_map(reader: ByteReader) -> PsbtOutput:
             fingerprint, path = parse_keypath_value(value)
             keypaths[pubkey_hex] = (fingerprint,) + path
         else:
-            logger.warning("Unknown output key type 0x%02x in PSBT output map", key_type)
+            logger.warning("Unknown output key type 0x%02x in PSBT output map",
+                           key_type)
 
     return PsbtOutput(
         redeem_script=redeem_script,
@@ -233,8 +235,7 @@ def parse_psbt(data: bytes) -> Psbt:
     magic = reader.read(5)
     if magic != b"psbt\xff":
         raise BitcoinError(
-            f"Invalid PSBT magic: expected b'psbt\\xff', got {magic!r}"
-        )
+            f"Invalid PSBT magic: expected b'psbt\\xff', got {magic!r}")
 
     # ── Global map ─────────────────────────────────────────────────────
     unsigned_tx: Transaction | None = None
@@ -319,8 +320,7 @@ def psbt_extract_signatures(
             except ValueError as error:
                 raise InvalidHexError(
                     f"Invalid DER signature hex for input {input_index}, "
-                    f"pubkey {pubkey_hex}: {error}"
-                ) from error
+                    f"pubkey {pubkey_hex}: {error}") from error
             parsed = parse_der_signature(der_sig)
             sighash_flag = parsed.sighash_flag
 
@@ -338,7 +338,11 @@ def psbt_extract_signatures(
                 else:
                     script_code = script_pubkey
                 z = segwit_sighash(
-                    tx, input_index, script_code, amount, sighash_flag,
+                    tx,
+                    input_index,
+                    script_code,
+                    amount,
+                    sighash_flag,
                 )
                 script_type = "psbt-segwit"
 
@@ -349,8 +353,7 @@ def psbt_extract_signatures(
                 if prevout_index >= len(prevout_tx.outputs):
                     raise BitcoinError(
                         f"Non-witness UTXO for input {input_index} "
-                        f"has no output at index {prevout_index}."
-                    )
+                        f"has no output at index {prevout_index}.")
                 outpoint = prevout_tx.outputs[prevout_index]
                 script_code = outpoint.script_pubkey
                 z = legacy_sighash(tx, input_index, script_code, sighash_flag)
@@ -361,15 +364,15 @@ def psbt_extract_signatures(
                 amount = values[input_index]
                 if amount is None:
                     raise MissingInputValueError(
-                        f"No value available for input {input_index}."
-                    )
-                script_code = (
-                    psbt_in.witness_script
-                    if psbt_in.witness_script is not None
-                    else b""
-                )
+                        f"No value available for input {input_index}.")
+                script_code = (psbt_in.witness_script
+                               if psbt_in.witness_script is not None else b"")
                 z = segwit_sighash(
-                    tx, input_index, script_code, amount, sighash_flag,
+                    tx,
+                    input_index,
+                    script_code,
+                    amount,
+                    sighash_flag,
                 )
                 script_type = "psbt-unknown"
 
@@ -377,8 +380,7 @@ def psbt_extract_signatures(
             else:
                 raise MissingInputValueError(
                     f"Cannot determine sighash for input {input_index}: "
-                    f"no UTXO data available."
-                )
+                    f"no UTXO data available.")
 
             records.append(
                 SignatureRecord(
@@ -389,7 +391,6 @@ def psbt_extract_signatures(
                     input_index=input_index,
                     public_key=pubkey_hex,
                     script_type=script_type,
-                )
-            )
+                ))
 
     return SignatureCollection(records=tuple(records))

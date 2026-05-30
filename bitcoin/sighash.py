@@ -70,7 +70,8 @@ def legacy_sighash(
 ) -> bytes:
     """Compute the legacy (pre-SegWit) signature hash."""
     plan = parse_sighash_flag(sighash_flag)
-    if plan.base_type == FLAG_SINGLE and input_index >= len(transaction.outputs):
+    if plan.base_type == FLAG_SINGLE and input_index >= len(
+            transaction.outputs):
         logger.warning(
             "Legacy SINGLE sighash at input %d has no matching output; "
             "returning consensus-mandated sentinel 0x00...01",
@@ -86,48 +87,45 @@ def legacy_sighash(
     if plan.anyone_can_pay:
         current = inputs[input_index]
         input_chunks.append(
-            current.prevout_hash
-            + int_to_little_endian_bytes(current.prevout_index, 4)
-            + serialize_script(script_code)
-            + int_to_little_endian_bytes(current.sequence, 4)
-        )
+            current.prevout_hash +
+            int_to_little_endian_bytes(current.prevout_index, 4) +
+            serialize_script(script_code) +
+            int_to_little_endian_bytes(current.sequence, 4))
     else:
         for index, current in enumerate(inputs):
             script = script_code if index == input_index else b""
             sequence = current.sequence
-            if index != input_index and plan.base_type in {FLAG_NONE, FLAG_SINGLE}:
+            if index != input_index and plan.base_type in {
+                    FLAG_NONE, FLAG_SINGLE
+            }:
                 sequence = 0
             input_chunks.append(
-                current.prevout_hash
-                + int_to_little_endian_bytes(current.prevout_index, 4)
-                + serialize_script(script)
-                + int_to_little_endian_bytes(sequence, 4)
-            )
+                current.prevout_hash +
+                int_to_little_endian_bytes(current.prevout_index, 4) +
+                serialize_script(script) +
+                int_to_little_endian_bytes(sequence, 4))
 
     if plan.base_type == FLAG_ALL:
         for output in transaction.outputs:
             output_chunks.append(
-                serialize_transaction_output(output.value, output.script_pubkey)
-            )
+                serialize_transaction_output(output.value,
+                                             output.script_pubkey))
     elif plan.base_type == FLAG_SINGLE:
         for index in range(input_index + 1):
             if index < input_index:
                 output_chunks.append(
-                    serialize_transaction_output(0xFFFFFFFFFFFFFFFF, b"")
-                )
+                    serialize_transaction_output(0xFFFFFFFFFFFFFFFF, b""))
             else:
                 output = transaction.outputs[index]
                 output_chunks.append(
-                    serialize_transaction_output(output.value, output.script_pubkey)
-                )
+                    serialize_transaction_output(output.value,
+                                                 output.script_pubkey))
 
-    payload = (
-        int_to_little_endian_bytes(transaction.version, 4)
-        + serialize_varint_and_join(input_chunks)
-        + serialize_varint_and_join(output_chunks)
-        + int_to_little_endian_bytes(transaction.locktime, 4)
-        + int_to_little_endian_bytes(sighash_flag, 4)
-    )
+    payload = (int_to_little_endian_bytes(transaction.version, 4) +
+               serialize_varint_and_join(input_chunks) +
+               serialize_varint_and_join(output_chunks) +
+               int_to_little_endian_bytes(transaction.locktime, 4) +
+               int_to_little_endian_bytes(sighash_flag, 4))
     return sha256d(payload)
 
 
@@ -140,7 +138,8 @@ def segwit_sighash(
 ) -> bytes:
     """Compute the SegWit v0 signature hash (BIP-143)."""
     if amount is None:
-        logger.error("Missing input value for SegWit sighash at input %d", input_index)
+        logger.error("Missing input value for SegWit sighash at input %d",
+                     input_index)
         raise MissingInputValueError("SegWit inputs need a spent output value.")
     plan = parse_sighash_flag(sighash_flag)
     script_code = remove_code_separators(script_code)
@@ -149,7 +148,8 @@ def segwit_sighash(
         hash_prevouts = b"\x00" * 32
     else:
         prevout_parts = [
-            current.prevout_hash + int_to_little_endian_bytes(current.prevout_index, 4)
+            current.prevout_hash +
+            int_to_little_endian_bytes(current.prevout_index, 4)
             for current in transaction.inputs
         ]
         hash_prevouts = sha256d(b"".join(prevout_parts))
@@ -165,34 +165,29 @@ def segwit_sighash(
 
     if plan.base_type == FLAG_ALL:
         output_parts = [
-            int_to_little_endian_bytes(output.value, 8)
-            + serialize_script(output.script_pubkey)
+            int_to_little_endian_bytes(output.value, 8) +
+            serialize_script(output.script_pubkey)
             for output in transaction.outputs
         ]
         hash_outputs = sha256d(b"".join(output_parts))
-    elif plan.base_type == FLAG_SINGLE and input_index < len(transaction.outputs):
+    elif plan.base_type == FLAG_SINGLE and input_index < len(
+            transaction.outputs):
         output = transaction.outputs[input_index]
         hash_outputs = sha256d(
-            int_to_little_endian_bytes(output.value, 8)
-            + serialize_script(output.script_pubkey)
-        )
+            int_to_little_endian_bytes(output.value, 8) +
+            serialize_script(output.script_pubkey))
     else:
         hash_outputs = b"\x00" * 32
 
     current = transaction.inputs[input_index]
-    payload = (
-        int_to_little_endian_bytes(transaction.version, 4)
-        + hash_prevouts
-        + hash_sequence
-        + current.prevout_hash
-        + int_to_little_endian_bytes(current.prevout_index, 4)
-        + serialize_script(script_code)
-        + int_to_little_endian_bytes(amount, 8)
-        + int_to_little_endian_bytes(current.sequence, 4)
-        + hash_outputs
-        + int_to_little_endian_bytes(transaction.locktime, 4)
-        + int_to_little_endian_bytes(sighash_flag, 4)
-    )
+    payload = (int_to_little_endian_bytes(transaction.version, 4) +
+               hash_prevouts + hash_sequence + current.prevout_hash +
+               int_to_little_endian_bytes(current.prevout_index, 4) +
+               serialize_script(script_code) +
+               int_to_little_endian_bytes(amount, 8) +
+               int_to_little_endian_bytes(current.sequence, 4) + hash_outputs +
+               int_to_little_endian_bytes(transaction.locktime, 4) +
+               int_to_little_endian_bytes(sighash_flag, 4))
     return sha256d(payload)
 
 
@@ -248,13 +243,10 @@ def taproot_sighash(
     amounts = transaction.context.input_values if transaction.context else None
     if amounts is None:
         raise MissingInputValueError(
-            f"Taproot sighash at input {input_index} needs input values."
-        )
+            f"Taproot sighash at input {input_index} needs input values.")
     if any(a is None for a in amounts):
-        raise MissingInputValueError(
-            f"Taproot sighash at input {input_index}: "
-            f"some input values are None."
-        )
+        raise MissingInputValueError(f"Taproot sighash at input {input_index}: "
+                                     f"some input values are None.")
 
     plan = parse_sighash_flag(sighash_flag)
 
@@ -264,21 +256,24 @@ def taproot_sighash(
         sha_scriptpubkeys = b"\x00" * 32
         sha_sequences = b"\x00" * 32
     else:
-        prevouts = b"".join(
-            i.prevout_hash + int_to_little_endian_bytes(i.prevout_index, 4)
-            for i in transaction.inputs
-        )
+        prevouts = b"".join(i.prevout_hash +
+                            int_to_little_endian_bytes(i.prevout_index, 4)
+                            for i in transaction.inputs)
         sha_prevouts = tagged_hash("TapSighash", prevouts)
 
-        amount_bytes = b"".join(int_to_little_endian_bytes(a, 8) for a in amounts)
+        amount_parts: list[bytes] = []
+        for a in amounts:
+            assert a is not None
+            amount_parts.append(int_to_little_endian_bytes(a, 8))
+        amount_bytes = b"".join(amount_parts)
         sha_amounts = tagged_hash("TapSighash", amount_bytes)
 
         spk_bytes = b"".join(serialize_script(spk) for spk in script_pubkeys)
         sha_scriptpubkeys = tagged_hash("TapSighash", spk_bytes)
 
         seq_bytes = b"".join(
-            int_to_little_endian_bytes(i.sequence, 4) for i in transaction.inputs
-        )
+            int_to_little_endian_bytes(i.sequence, 4)
+            for i in transaction.inputs)
         sha_sequences = tagged_hash("TapSighash", seq_bytes)
 
     if plan.base_type == FLAG_NONE:
@@ -299,24 +294,16 @@ def taproot_sighash(
     else:
         out_bytes = b"".join(
             serialize_transaction_output(o.value, o.script_pubkey)
-            for o in transaction.outputs
-        )
+            for o in transaction.outputs)
         sha_outputs = tagged_hash("TapSighash", out_bytes)
 
     hash_annex = tagged_hash("TapSighash", annex) if annex else b"\x00" * 32
 
-    sigmsg = (
-        bytes([sighash_flag])
-        + int_to_little_endian_bytes(transaction.version, 4)
-        + int_to_little_endian_bytes(transaction.locktime, 4)
-        + sha_prevouts
-        + sha_amounts
-        + sha_scriptpubkeys
-        + sha_sequences
-        + sha_outputs
-        + bytes([spend_type])
-        + int_to_little_endian_bytes(input_index, 4)
-        + hash_annex
-    )
+    sigmsg = (bytes([sighash_flag]) +
+              int_to_little_endian_bytes(transaction.version, 4) +
+              int_to_little_endian_bytes(transaction.locktime, 4) +
+              sha_prevouts + sha_amounts + sha_scriptpubkeys + sha_sequences +
+              sha_outputs + bytes([spend_type]) +
+              int_to_little_endian_bytes(input_index, 4) + hash_annex)
 
     return tagged_hash("TapSighash", sigmsg)

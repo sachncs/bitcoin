@@ -1,8 +1,7 @@
 """Bitcoin transaction signature extraction package."""
 
-from bitcoin.coincurve_backend import CoincurveBackend
-from bitcoin.ecc_backend import EccBackend, get_backend, set_backend
 from bitcoin.batch import BatchProcessor, SignatureStream, batch_process
+from bitcoin.coincurve_backend import CoincurveBackend
 from bitcoin.config import Config
 from bitcoin.ecc import (
     SECP256K1_INFINITY,
@@ -26,6 +25,7 @@ from bitcoin.ecc import (
     scalar_multiply,
     serialize_sec_public_key,
 )
+from bitcoin.ecc_backend import EccBackend, get_backend, set_backend
 from bitcoin.linear import LinearCoefficientCollection, LinearCoefficientRecord
 from bitcoin.models import SignatureRecord
 from bitcoin.psbt import Psbt, PsbtInput, PsbtOutput, parse_psbt, parse_psbt_hex

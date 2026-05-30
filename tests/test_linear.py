@@ -147,15 +147,13 @@ def test_linear_relation_holds_for_randomized_vectors() -> None:
         z = (s * k - d * r) % SECP256K1_ORDER
 
         record = derive_linear_coefficients(
-            _make_signature_record(r, s, z, input_index=input_index)
-        )
+            _make_signature_record(r, s, z, input_index=input_index))
 
         r_inverse = inverse_mod(r, SECP256K1_ORDER)
         assert record.alpha == (s * r_inverse) % SECP256K1_ORDER
         assert record.beta == (z * r_inverse) % SECP256K1_ORDER
-        assert ((d + record.beta) % SECP256K1_ORDER) == (
-            (record.alpha * k) % SECP256K1_ORDER
-        )
+        assert ((d + record.beta) % SECP256K1_ORDER) == ((record.alpha * k) %
+                                                         SECP256K1_ORDER)
         assert record.verify_linear_relation(k, d)
         assert d == ((s * k - z) * r_inverse) % SECP256K1_ORDER
 
@@ -185,8 +183,10 @@ def test_boundary_values_near_curve_order() -> None:
 
     record = derive_linear_coefficients(_make_signature_record(r, s, z))
 
-    assert record.alpha == (s * inverse_mod(r, SECP256K1_ORDER)) % SECP256K1_ORDER
-    assert record.beta == (z * inverse_mod(r, SECP256K1_ORDER)) % SECP256K1_ORDER
+    assert record.alpha == (s *
+                            inverse_mod(r, SECP256K1_ORDER)) % SECP256K1_ORDER
+    assert record.beta == (z *
+                           inverse_mod(r, SECP256K1_ORDER)) % SECP256K1_ORDER
     assert record.verify_linear_relation(k, d)
 
 
@@ -209,8 +209,7 @@ def test_derivation_rejects_invalid_signature_scalars() -> None:
                 input_index=0,
                 public_key=None,
                 script_type="legacy-p2pkh",
-            )
-        )
+            ))
 
     with pytest.raises(InvalidLinearCoefficientError):
         derive_linear_coefficients(
@@ -222,8 +221,7 @@ def test_derivation_rejects_invalid_signature_scalars() -> None:
                 input_index=0,
                 public_key=None,
                 script_type="legacy-p2pkh",
-            )
-        )
+            ))
 
 
 def test_transaction_extract_linear_integration() -> None:
@@ -254,30 +252,31 @@ def test_linear_relation_property_based() -> None:
         z = (s * k - d * r) % SECP256K1_ORDER
 
         record = derive_linear_coefficients(
-            _make_signature_record(r, s, z, input_index=0)
-        )
+            _make_signature_record(r, s, z, input_index=0))
 
         left = (d + record.beta) % SECP256K1_ORDER
         right = (record.alpha * k) % SECP256K1_ORDER
         assert left == right, (
             f"Linear relation failed: d={d}, k={k}, alpha={record.alpha}, "
-            f"beta={record.beta}"
-        )
+            f"beta={record.beta}")
         assert record.verify_linear_relation(k, d)
 
 
 def test_normalize_non_negative_rejects_non_int() -> None:
-    with pytest.raises(InvalidLinearCoefficientError, match="must be an integer"):
+    with pytest.raises(InvalidLinearCoefficientError,
+                       match="must be an integer"):
         inverse_mod(1.5, SECP256K1_ORDER)  # type: ignore[arg-type]
 
 
 def test_inverse_mod_rejects_negative_value() -> None:
-    with pytest.raises(InvalidLinearCoefficientError, match="must be non-negative"):
+    with pytest.raises(InvalidLinearCoefficientError,
+                       match="must be non-negative"):
         inverse_mod(-5, SECP256K1_ORDER)
 
 
 def test_inverse_mod_rejects_non_int_modulus() -> None:
-    with pytest.raises(InvalidLinearCoefficientError, match="must be an integer"):
+    with pytest.raises(InvalidLinearCoefficientError,
+                       match="must be an integer"):
         inverse_mod(1, "not-int")  # type: ignore[arg-type]
 
 
@@ -287,7 +286,8 @@ def test_inverse_mod_rejects_modulus_le_one() -> None:
 
 
 def test_inverse_mod_rejects_non_invertible_after_modulo() -> None:
-    with pytest.raises(NonInvertibleLinearCoefficientError, match="not invertible"):
+    with pytest.raises(NonInvertibleLinearCoefficientError,
+                       match="not invertible"):
         inverse_mod(SECP256K1_ORDER, SECP256K1_ORDER)
 
 
@@ -329,8 +329,7 @@ def test_parse_signature_scalar_accepts_0x_prefix() -> None:
             input_index=0,
             public_key=None,
             script_type="legacy-p2pkh",
-        )
-    )
+        ))
     assert record.r == 1
 
 
@@ -345,14 +344,12 @@ def test_parse_signature_scalar_rejects_empty_0x() -> None:
                 input_index=0,
                 public_key=None,
                 script_type="legacy-p2pkh",
-            )
-        )
+            ))
 
 
 def test_parse_signature_scalar_rejects_non_str() -> None:
-    with pytest.raises(
-        InvalidLinearCoefficientError, match="must be a hexadecimal string"
-    ):
+    with pytest.raises(InvalidLinearCoefficientError,
+                       match="must be a hexadecimal string"):
         derive_linear_coefficients(
             SignatureRecord(
                 r=123,  # type: ignore[arg-type]
@@ -362,8 +359,7 @@ def test_parse_signature_scalar_rejects_non_str() -> None:
                 input_index=0,
                 public_key=None,
                 script_type="legacy-p2pkh",
-            )
-        )
+            ))
 
 
 def test_verify_linear_relation_rejects_non_int() -> None:
@@ -381,7 +377,8 @@ def test_verify_linear_relation_rejects_non_int() -> None:
         record.verify_linear_relation("not-k", 1)  # type: ignore[arg-type]
 
 
-def test_cli_linear_prints_single_record(capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_linear_prints_single_record(
+        capsys: pytest.CaptureFixture[str]) -> None:
     raw_hex, _, _ = build_p2pkh_transaction()
 
     exit_code = cli_main(["linear", "--tx", raw_hex])

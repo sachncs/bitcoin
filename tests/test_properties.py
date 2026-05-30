@@ -29,9 +29,7 @@ from bitcoin.ecc import (
 from bitcoin.models import SignatureRecord, TransactionContext, TransactionInput, TransactionOutput
 from bitcoin.transaction import Transaction
 
-
 from tests.test_transaction import build_p2pkh_transaction
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -49,7 +47,6 @@ finite_point_scalar = st.integers(min_value=1, max_value=SECP256K1_ORDER - 1)
 finite_points = finite_point_scalar.map(lambda s: scalar_multiply(s, G))
 points = st.one_of(st.just(SECP256K1_INFINITY), st.just(G), finite_points)
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # 1. Field arithmetic
 # ═══════════════════════════════════════════════════════════════════════════
@@ -66,8 +63,7 @@ def test_normalize_non_negative_idempotent(value: int) -> None:
     st.one_of(
         st.sampled_from(SMALL_PRIMES),
         st.integers(min_value=1, max_value=SECP256K1_ORDER - 1),
-    )
-)
+    ))
 def test_inverse_mod_involution(x: int) -> None:
     assume(math.gcd(x, SECP256K1_ORDER) == 1)
     inv = inverse_mod(x, SECP256K1_ORDER)
@@ -134,7 +130,8 @@ def test_sec_serialize_parse_bytes_roundtrip(scalar: int) -> None:
     for compressed in [True, False]:
         sec_bytes = serialize_sec_public_key(point, compressed=compressed)
         parsed = parse_sec_public_key(sec_bytes)
-        assert serialize_sec_public_key(parsed, compressed=compressed) == sec_bytes
+        assert serialize_sec_public_key(parsed,
+                                        compressed=compressed) == sec_bytes
 
 
 @given(finite_point_scalar)
@@ -164,7 +161,8 @@ def test_scalar_multiply_order_boundary(scalar: int) -> None:
 @given(st.integers(), finite_point_scalar)
 def test_scalar_multiply_mod_equivalence(n: int, point_scalar: int) -> None:
     point = scalar_multiply(point_scalar, G)
-    assert scalar_multiply(n, point) == scalar_multiply(n % SECP256K1_ORDER, point)
+    assert scalar_multiply(n, point) == scalar_multiply(n % SECP256K1_ORDER,
+                                                        point)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -180,9 +178,8 @@ def test_scalar_multiply_mod_equivalence(n: int, point_scalar: int) -> None:
     st.integers(min_value=1, max_value=SECP256K1_ORDER - 1),  # s1
     st.integers(min_value=1, max_value=SECP256K1_ORDER - 1),  # s2
 )
-def test_point_relation_same_nonce(
-    k: int, d1: int, d2: int, r: int, s1: int, s2: int
-) -> None:
+def test_point_relation_same_nonce(k: int, d1: int, d2: int, r: int, s1: int,
+                                   s2: int) -> None:
     z1 = (s1 * k - d1 * r) % SECP256K1_ORDER
     z2 = (s2 * k - d2 * r) % SECP256K1_ORDER
 
@@ -254,7 +251,8 @@ def transaction_with_known_values(draw: st.DrawFn) -> tuple[bytes, list[int]]:
         inputs += b"\x00\x00\x00\x00"  # prevout index
         inputs += b"\x00"  # empty scriptSig (varint 0)
         inputs += b"\xff\xff\xff\xff"  # sequence
-        input_values.append(draw(st.integers(min_value=0, max_value=10_000_000_000)))
+        input_values.append(
+            draw(st.integers(min_value=0, max_value=10_000_000_000)))
 
     outputs = b""
     for _ in range(num_outputs):
@@ -263,19 +261,15 @@ def transaction_with_known_values(draw: st.DrawFn) -> tuple[bytes, list[int]]:
 
     raw = (
         b"\x01\x00\x00\x00"  # version
-        + bytes([num_inputs])
-        + inputs
-        + bytes([num_outputs])
-        + outputs
-        + b"\x00\x00\x00\x00"  # locktime
+        + bytes([num_inputs]) + inputs + bytes([num_outputs]) + outputs +
+        b"\x00\x00\x00\x00"  # locktime
     )
     return raw, input_values
 
 
 @given(transaction_with_known_values())
 def test_legacy_sighash_consistent_for_all_flag(
-    tx_data: tuple[bytes, list[int]],
-) -> None:
+    tx_data: tuple[bytes, list[int]],) -> None:
     """Same transaction with same flags produces the same sighash."""
     from bitcoin.parser import parse_transaction_bytes
     from bitcoin.sighash import legacy_sighash
@@ -295,8 +289,7 @@ def test_legacy_sighash_consistent_for_all_flag(
 
 @given(transaction_with_known_values())
 def test_segwit_sighash_consistent_for_all_flag(
-    tx_data: tuple[bytes, list[int]],
-) -> None:
+    tx_data: tuple[bytes, list[int]],) -> None:
     """Same SegWit tx with same flags/amount produces the same sighash."""
     from bitcoin.parser import parse_transaction_bytes
     from bitcoin.sighash import segwit_sighash

@@ -96,7 +96,7 @@ class ByteReader:
         end = self.position + length
         if end > len(self.data):
             raise TruncatedTransactionError("Transaction ended unexpectedly.")
-        chunk = self.data[self.position : end]
+        chunk = self.data[self.position:end]
         self.position = end
         return chunk
 

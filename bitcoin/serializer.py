@@ -27,7 +27,6 @@ if TYPE_CHECKING:
     from bitcoin.signature import SignatureCollection
     from bitcoin.transaction import Transaction
 
-
 __all__ = [
     "int_to_hex_0x",
     "linear_collection_to_dict",
@@ -53,7 +52,10 @@ __all__ = [
 
 
 def to_json_string(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return json.dumps(value,
+                      sort_keys=True,
+                      separators=(",", ":"),
+                      ensure_ascii=True)
 
 
 def to_pretty_json_string(value: Any) -> str:
@@ -101,8 +103,7 @@ def linear_record_to_dict(record: LinearCoefficientRecord) -> dict[str, object]:
 
 
 def linear_collection_to_dict(
-    collection: LinearCoefficientCollection,
-) -> dict[str, object]:
+    collection: LinearCoefficientCollection,) -> dict[str, object]:
     return {
         "alpha": [int_to_hex(r.alpha) for r in collection.records],
         "beta": [int_to_hex(r.beta) for r in collection.records],
@@ -111,9 +112,8 @@ def linear_collection_to_dict(
     }
 
 
-def linear_collection_to_json(
-    collection: LinearCoefficientCollection, pretty: bool = False
-) -> str:
+def linear_collection_to_json(collection: LinearCoefficientCollection,
+                              pretty: bool = False) -> str:
     payload = linear_collection_to_dict(collection)
     if pretty:
         return to_pretty_json_string(payload)
@@ -125,18 +125,23 @@ def linear_collection_to_json(
 
 def point_relation_to_dict(relation: LinearPointRelation) -> dict[str, object]:
     return {
-        "alpha": int_to_hex(relation.alpha),
-        "beta": int_to_hex(relation.beta),
-        "equation": relation.equation,
-        "input_index": relation.input_index,
-        "point_b": point_to_dict(relation.point_b),
-        "transformed_public_key": point_to_dict(relation.transformed_public_key),
+        "alpha":
+            int_to_hex(relation.alpha),
+        "beta":
+            int_to_hex(relation.beta),
+        "equation":
+            relation.equation,
+        "input_index":
+            relation.input_index,
+        "point_b":
+            point_to_dict(relation.point_b),
+        "transformed_public_key":
+            point_to_dict(relation.transformed_public_key),
     }
 
 
 def point_relation_collection_to_dict(
-    collection: LinearPointRelationCollection,
-) -> dict[str, object]:
+    collection: LinearPointRelationCollection,) -> dict[str, object]:
     return {
         "alpha": [int_to_hex(r.alpha) for r in collection.records],
         "beta": [int_to_hex(r.beta) for r in collection.records],
@@ -145,9 +150,8 @@ def point_relation_collection_to_dict(
     }
 
 
-def point_relation_collection_to_json(
-    collection: LinearPointRelationCollection, pretty: bool = False
-) -> str:
+def point_relation_collection_to_json(collection: LinearPointRelationCollection,
+                                      pretty: bool = False) -> str:
     payload = point_relation_collection_to_dict(collection)
     if pretty:
         return to_pretty_json_string(payload)
@@ -158,10 +162,11 @@ def point_relation_collection_to_json(
 
 
 def transformed_point_record_to_dict(
-    record: TransformedPointRecord,
-) -> dict[str, object]:
-    x = int_to_hex_0x(record.new_d_point.x) if not record.new_d_point.infinity else None
-    y = int_to_hex_0x(record.new_d_point.y) if not record.new_d_point.infinity else None
+    record: TransformedPointRecord,) -> dict[str, object]:
+    x = int_to_hex_0x(
+        record.new_d_point.x) if not record.new_d_point.infinity else None
+    y = int_to_hex_0x(
+        record.new_d_point.y) if not record.new_d_point.infinity else None
     validation = record.validate()
     return {
         "input_index": record.input_index,
@@ -183,8 +188,7 @@ def transformed_point_record_to_dict(
 
 
 def transformed_point_collection_to_dict(
-    collection: TransformedPointCollection,
-) -> list[dict[str, object]]:
+    collection: TransformedPointCollection,) -> list[dict[str, object]]:
     return [transformed_point_record_to_dict(r) for r in collection.records]
 
 
@@ -197,7 +201,8 @@ def int_to_hex_0x(value: int | None) -> str | None:
 # ── SignatureCollection ──────────────────────────────────────────────────
 
 
-def signature_collection_to_dict(collection: SignatureCollection) -> dict[str, object]:
+def signature_collection_to_dict(
+        collection: SignatureCollection) -> dict[str, object]:
     return {
         "count": len(collection.records),
         "r": collection.r,
@@ -207,9 +212,8 @@ def signature_collection_to_dict(collection: SignatureCollection) -> dict[str, o
     }
 
 
-def signature_collection_to_json(
-    collection: SignatureCollection, pretty: bool = False
-) -> str:
+def signature_collection_to_json(collection: SignatureCollection,
+                                 pretty: bool = False) -> str:
     payload = signature_collection_to_dict(collection)
     if pretty:
         return to_pretty_json_string(payload)
@@ -221,24 +225,18 @@ def signature_collection_to_json(
 
 def transaction_to_dict(tx: Transaction) -> dict[str, object]:
     return {
-        "inputs": [
-            {
-                "prevout_hash": bytes_to_hex(txin.prevout_hash),
-                "prevout_index": txin.prevout_index,
-                "script_sig": bytes_to_hex(txin.script_sig),
-                "sequence": txin.sequence,
-                "witness": [bytes_to_hex(item) for item in txin.witness],
-            }
-            for txin in tx.inputs
-        ],
+        "inputs": [{
+            "prevout_hash": bytes_to_hex(txin.prevout_hash),
+            "prevout_index": txin.prevout_index,
+            "script_sig": bytes_to_hex(txin.script_sig),
+            "sequence": txin.sequence,
+            "witness": [bytes_to_hex(item) for item in txin.witness],
+        } for txin in tx.inputs],
         "locktime": tx.locktime,
-        "outputs": [
-            {
-                "script_pubkey": bytes_to_hex(txout.script_pubkey),
-                "value": txout.value,
-            }
-            for txout in tx.outputs
-        ],
+        "outputs": [{
+            "script_pubkey": bytes_to_hex(txout.script_pubkey),
+            "value": txout.value,
+        } for txout in tx.outputs],
         "raw_hex": bytes_to_hex(tx.raw_bytes),
         "segwit": tx.segwit,
         "version": tx.version,

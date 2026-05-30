@@ -27,10 +27,11 @@ __all__ = [
     "API_BASE",
     "API_BASE_TESTNET",
     "api_url",
-    "fetch_address",
+    "fetch_address_transactions",
+    "fetch_address_utxos",
+    "fetch_and_extract",
     "fetch_transaction",
     "fetch_transaction_hex",
-    "fetch_utxos",
 ]
 
 
@@ -40,9 +41,10 @@ def api_url(network: str) -> str:
     return API_BASE_TESTNET
 
 
-def fetch_transaction_hex(
-    txid: str, *, network: str = "mainnet", timeout: int = 30
-) -> str:
+def fetch_transaction_hex(txid: str,
+                          *,
+                          network: str = "mainnet",
+                          timeout: int = 30) -> str:
     """Fetch a raw transaction hex string from blockstream.info.
 
     Args:
@@ -76,9 +78,10 @@ def fetch_transaction_hex(
         ) from exc
 
 
-def fetch_transaction(
-    txid: str, *, network: str = "mainnet", timeout: int = 30
-) -> Transaction:
+def fetch_transaction(txid: str,
+                      *,
+                      network: str = "mainnet",
+                      timeout: int = 30) -> Transaction:
     """Fetch and parse a Bitcoin transaction by txid.
 
     Args:
@@ -93,9 +96,11 @@ def fetch_transaction(
     return Transaction.parse_hex(hex_str)
 
 
-def fetch_address_transactions(
-    address: str, *, network: str = "mainnet", limit: int = 25, timeout: int = 30
-) -> list[Transaction]:
+def fetch_address_transactions(address: str,
+                               *,
+                               network: str = "mainnet",
+                               limit: int = 25,
+                               timeout: int = 30) -> list[Transaction]:
     """Fetch recent transactions for a Bitcoin address.
 
     Args:
@@ -119,10 +124,8 @@ def fetch_address_transactions(
             data: list[dict[str, Any]] = json.loads(resp.read().decode("utf-8"))
     except (HTTPError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         if isinstance(exc, HTTPError):
-            raise BitcoinError(
-                f"Blockstream API returned HTTP {exc.code} "
-                f"for address {address}: {exc.reason}"
-            ) from exc
+            raise BitcoinError(f"Blockstream API returned HTTP {exc.code} "
+                               f"for address {address}: {exc.reason}") from exc
         raise BitcoinError(
             f"Blockstream API returned invalid response for address {address}: {exc}"
         ) from exc
@@ -134,15 +137,15 @@ def fetch_address_transactions(
             try:
                 result.append(Transaction.parse_hex(hex_str))
             except (BitcoinError, ValueError):
-                logger.exception(
-                    "Failed to parse transaction %s", entry.get("txid")
-                )
+                logger.exception("Failed to parse transaction %s",
+                                 entry.get("txid"))
     return result
 
 
-def fetch_address_utxos(
-    address: str, *, network: str = "mainnet", timeout: int = 30
-) -> list[dict[str, Any]]:
+def fetch_address_utxos(address: str,
+                        *,
+                        network: str = "mainnet",
+                        timeout: int = 30) -> list[dict[str, Any]]:
     """Fetch UTXOs for a Bitcoin address.
 
     Args:
@@ -165,10 +168,8 @@ def fetch_address_utxos(
             return json.loads(resp.read().decode("utf-8"))
     except (HTTPError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         if isinstance(exc, HTTPError):
-            raise BitcoinError(
-                f"Blockstream API returned HTTP {exc.code} "
-                f"for address {address}: {exc.reason}"
-            ) from exc
+            raise BitcoinError(f"Blockstream API returned HTTP {exc.code} "
+                               f"for address {address}: {exc.reason}") from exc
         raise BitcoinError(
             f"Blockstream API returned invalid response for address {address}: {exc}"
         ) from exc

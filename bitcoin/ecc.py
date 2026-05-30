@@ -23,7 +23,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from bitcoin.arithmetic import NotInvertibleError, inverse_mod as arithmetic_inverse, normalize_non_negative as arithmetic_normalize
+from bitcoin.arithmetic import inverse_mod as arithmetic_inverse
+from bitcoin.arithmetic import normalize_non_negative as arithmetic_normalize
 from bitcoin.ecc_backend import get_backend
 from bitcoin.exceptions import InvalidSecp256k1PointError, InvalidSecPublicKeyError
 from bitcoin.linear import derive_linear_coefficients
@@ -33,13 +34,16 @@ from bitcoin.utils import int_to_hex
 logger = logging.getLogger(__name__)
 
 SECP256K1_FIELD_PRIME = (
-    0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
-)
+    0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F)
 SECP256K1_ORDER = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 SECP256K1_A = 0
 SECP256K1_B = 7
-SECP256K1_GX = 55066263022277343669578718895168534326250603453777594175500187360389116729240
-SECP256K1_GY = 32670510020758816978083085130507043184471273380659243275938904335757337482424
+SECP256K1_GX = (
+    55066263022277343669578718895168534326250603453777594175500187360389116729240
+)
+SECP256K1_GY = (
+    32670510020758816978083085130507043184471273380659243275938904335757337482424
+)
 
 
 def normalize_non_negative(value: int, label: str) -> int:
@@ -97,24 +101,23 @@ class Secp256k1Point:
 
     __slots__ = ("x", "y", "infinity")
 
-    def __init__(
-        self, x: int | None = None, y: int | None = None, infinity: bool = False
-    ) -> None:
+    def __init__(self,
+                 x: int | None = None,
+                 y: int | None = None,
+                 infinity: bool = False) -> None:
         if not isinstance(infinity, bool):
             raise InvalidSecp256k1PointError("infinity must be a boolean.")
         if infinity:
             if x is not None or y is not None:
                 raise InvalidSecp256k1PointError(
-                    "Infinity must not carry affine coordinates."
-                )
+                    "Infinity must not carry affine coordinates.")
             self.x: int | None = None
             self.y: int | None = None
             self.infinity = True
             return
         if x is None or y is None:
             raise InvalidSecp256k1PointError(
-                "Affine points require x and y coordinates."
-            )
+                "Affine points require x and y coordinates.")
         self.x = normalize_field_element(x, "x")
         self.y = normalize_field_element(y, "y")
         if not is_on_curve(self.x, self.y):
@@ -123,23 +126,24 @@ class Secp256k1Point:
 
     def to_sec_compressed(self) -> bytes:
         if self.infinity:
-            raise InvalidSecPublicKeyError("Infinity cannot be serialized as SEC.")
+            raise InvalidSecPublicKeyError(
+                "Infinity cannot be serialized as SEC.")
         assert self.x is not None and self.y is not None
         prefix = 0x02 if self.y % 2 == 0 else 0x03
         return bytes([prefix]) + int_to_bytes(self.x)
 
     def to_sec_uncompressed(self) -> bytes:
         if self.infinity:
-            raise InvalidSecPublicKeyError("Infinity cannot be serialized as SEC.")
+            raise InvalidSecPublicKeyError(
+                "Infinity cannot be serialized as SEC.")
         assert self.x is not None and self.y is not None
         return b"\x04" + int_to_bytes(self.x) + int_to_bytes(self.y)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Secp256k1Point):
             return NotImplemented
-        return (
-            self.x == other.x and self.y == other.y and self.infinity == other.infinity
-        )
+        return (self.x == other.x and self.y == other.y and
+                self.infinity == other.infinity)
 
     def __hash__(self) -> int:
         return hash((self.x, self.y, self.infinity))
@@ -148,10 +152,8 @@ class Secp256k1Point:
         if self.infinity:
             return "Secp256k1Point(infinity=True)"
         assert self.x is not None and self.y is not None
-        return (
-            f"Secp256k1Point(x=0x{int_to_hex(self.x)}, "
-            f"y=0x{int_to_hex(self.y)}, infinity=False)"
-        )
+        return (f"Secp256k1Point(x=0x{int_to_hex(self.x)}, "
+                f"y=0x{int_to_hex(self.y)}, infinity=False)")
 
 
 def point_negate_py(point: Secp256k1Point) -> Secp256k1Point:
@@ -159,9 +161,9 @@ def point_negate_py(point: Secp256k1Point) -> Secp256k1Point:
     if point.infinity:
         return point
     assert point.x is not None and point.y is not None
-    return Secp256k1Point(
-        x=point.x, y=(-point.y) % SECP256K1_FIELD_PRIME, infinity=False
-    )
+    return Secp256k1Point(x=point.x,
+                          y=(-point.y) % SECP256K1_FIELD_PRIME,
+                          infinity=False)
 
 
 def point_add_py(left: Secp256k1Point, right: Secp256k1Point) -> Secp256k1Point:
@@ -179,10 +181,9 @@ def point_add_py(left: Secp256k1Point, right: Secp256k1Point) -> Secp256k1Point:
             return SECP256K1_INFINITY
         return point_double_py(left)
 
-    slope = (
-        (right.y - left.y)
-        * inverse_mod((right.x - left.x) % SECP256K1_FIELD_PRIME, SECP256K1_FIELD_PRIME)
-    ) % SECP256K1_FIELD_PRIME
+    slope = ((right.y - left.y) * inverse_mod(
+        (right.x - left.x) % SECP256K1_FIELD_PRIME,
+        SECP256K1_FIELD_PRIME)) % SECP256K1_FIELD_PRIME
     x3 = (slope * slope - left.x - right.x) % SECP256K1_FIELD_PRIME
     y3 = (slope * (left.x - x3) - left.y) % SECP256K1_FIELD_PRIME
     return Secp256k1Point(x=x3, y=y3, infinity=False)
@@ -196,10 +197,9 @@ def point_double_py(point: Secp256k1Point) -> Secp256k1Point:
     if point.y % SECP256K1_FIELD_PRIME == 0:
         return SECP256K1_INFINITY
 
-    slope = (
-        (3 * point.x * point.x + SECP256K1_A)
-        * inverse_mod((2 * point.y) % SECP256K1_FIELD_PRIME, SECP256K1_FIELD_PRIME)
-    ) % SECP256K1_FIELD_PRIME
+    slope = ((3 * point.x * point.x + SECP256K1_A) * inverse_mod(
+        (2 * point.y) % SECP256K1_FIELD_PRIME,
+        SECP256K1_FIELD_PRIME)) % SECP256K1_FIELD_PRIME
     x3 = (slope * slope - 2 * point.x) % SECP256K1_FIELD_PRIME
     y3 = (slope * (point.x - x3) - point.y) % SECP256K1_FIELD_PRIME
     return Secp256k1Point(x=x3, y=y3, infinity=False)
@@ -228,7 +228,8 @@ def scalar_multiply_py(scalar: int, point: Secp256k1Point) -> Secp256k1Point:
 def is_on_curve_py(x: int, y: int) -> bool:
     """Pure-Python curve equation check."""
     left = (y * y) % SECP256K1_FIELD_PRIME
-    right = (pow(x, 3, SECP256K1_FIELD_PRIME) + SECP256K1_B) % SECP256K1_FIELD_PRIME
+    right = (pow(x, 3, SECP256K1_FIELD_PRIME) +
+             SECP256K1_B) % SECP256K1_FIELD_PRIME
     return left == right
 
 
@@ -249,8 +250,10 @@ def parse_sec_py(data: bytes) -> Secp256k1Point:
     if len(data) == 33 and data[0] in {0x02, 0x03}:
         x = int.from_bytes(data[1:], "big")
         if x >= SECP256K1_FIELD_PRIME:
-            raise InvalidSecPublicKeyError("Compressed SEC x-coordinate is invalid.")
-        rhs = (pow(x, 3, SECP256K1_FIELD_PRIME) + SECP256K1_B) % SECP256K1_FIELD_PRIME
+            raise InvalidSecPublicKeyError(
+                "Compressed SEC x-coordinate is invalid.")
+        rhs = (pow(x, 3, SECP256K1_FIELD_PRIME) +
+               SECP256K1_B) % SECP256K1_FIELD_PRIME
         y = field_sqrt_py(rhs)
         if (y % 2 == 1) != (data[0] == 0x03):
             y = (-y) % SECP256K1_FIELD_PRIME
@@ -317,7 +320,8 @@ def parse_sec_public_key(data: bytes) -> Secp256k1Point:
     return parse_sec_py(data)
 
 
-def serialize_sec_public_key(point: Secp256k1Point, compressed: bool = True) -> bytes:
+def serialize_sec_public_key(point: Secp256k1Point,
+                             compressed: bool = True) -> bytes:
     """Serialize a secp256k1 point to compressed or uncompressed SEC format."""
     backend = get_backend()
     if backend is not None:
@@ -343,9 +347,8 @@ class LinearPointRelation:
     def verify(self, nonce_point: Secp256k1Point) -> bool:
         if nonce_point.infinity:
             raise InvalidSecp256k1PointError("Nonce point cannot be infinity.")
-        original_public_key = point_add(
-            self.transformed_public_key, point_negate(self.point_b)
-        )
+        original_public_key = point_add(self.transformed_public_key,
+                                        point_negate(self.point_b))
         left = point_add(original_public_key, self.point_b)
         right = scalar_multiply(self.alpha, nonce_point)
         return left == right
@@ -409,12 +412,16 @@ class TransformedPointRecord:
             Dictionary with ``alpha_in_range``, ``beta_in_range``,
             and ``point_on_curve`` boolean keys.
         """
+        if self.new_d_point.infinity:
+            on_curve = False
+        else:
+            p = self.new_d_point
+            assert isinstance(p.x, int) and isinstance(p.y, int)
+            on_curve = is_on_curve(p.x, p.y)
         return {
             "alpha_in_range": 0 <= self.alpha < SECP256K1_ORDER,
             "beta_in_range": 0 <= self.beta < SECP256K1_ORDER,
-            "point_on_curve": is_on_curve(self.new_d_point.x, self.new_d_point.y)
-            if not self.new_d_point.infinity
-            else False,
+            "point_on_curve": on_curve,
         }
 
 

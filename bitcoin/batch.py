@@ -16,15 +16,13 @@ from bitcoin.transaction import Transaction
 
 logger = logging.getLogger(__name__)
 
+_T = TypeVar("_T")
 
 __all__ = [
     "BatchProcessor",
     "SignatureStream",
     "batch_process",
 ]
-
-
-T = TypeVar("T")
 
 
 class BatchProcessor:
@@ -63,7 +61,9 @@ class BatchProcessor:
         Returns:
             The extracted ``SignatureCollection``.
         """
-        tx = fetch_transaction(txid, network=self._network, timeout=self._timeout)
+        tx = fetch_transaction(txid,
+                               network=self._network,
+                               timeout=self._timeout)
         if input_values is not None:
             tx = tx.with_input_values(input_values)
         return tx.extract(script_pubkeys=self._script_pubkeys)
@@ -89,7 +89,8 @@ class BatchProcessor:
             try:
                 results.append(self.process_txid(txid, input_values=iv))
             except (BitcoinError, ValueError, OSError):
-                logger.exception("Failed to process txid %s at index %d", txid, i)
+                logger.exception("Failed to process txid %s at index %d", txid,
+                                 i)
                 raise
         return results
 
@@ -111,7 +112,8 @@ class BatchProcessor:
             try:
                 yield txid, self.process_txid(txid)
             except (BitcoinError, ValueError, OSError):
-                logger.exception("Failed to process txid %s in lazy iterator", txid)
+                logger.exception("Failed to process txid %s in lazy iterator",
+                                 txid)
                 raise
 
 
@@ -131,9 +133,8 @@ class SignatureStream:
         transaction: Transaction,
         record_filter: Callable[[SignatureRecord], bool] | None = None,
     ) -> None:
-        self._records: tuple[SignatureRecord, ...] = (
-            extract_signatures(transaction).records
-        )
+        self._records: tuple[SignatureRecord,
+                             ...] = (extract_signatures(transaction).records)
         self._filters: list[Callable[[SignatureRecord], bool]] = []
         if record_filter is not None:
             self._filters.append(record_filter)
@@ -231,7 +232,8 @@ def batch_process(
         with Pool() as pool:
             total_timeout = timeout * len(txids) if txids else timeout
             try:
-                return pool.map_async(worker, list(txids)).get(timeout=total_timeout)
+                return pool.map_async(worker,
+                                      list(txids)).get(timeout=total_timeout)
             except Exception as exc:
                 logger.error(
                     "Batch multiprocessing failed for %d txids (timeout=%ds): %s",

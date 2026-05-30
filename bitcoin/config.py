@@ -63,10 +63,10 @@ class Config:
         return cls(**kwargs)
 
 
-def coerce(raw: str, target: type) -> Any:
-    if target in (bool, "bool"):
+def coerce(raw: str, target: object) -> Any:
+    if target is bool or target == "bool":
         return raw.lower() in ("1", "true", "yes")
-    if target in (int, "int"):
+    if target is int or target == "int":
         try:
             return int(raw)
         except ValueError:

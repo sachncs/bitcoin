@@ -11,7 +11,6 @@ from bitcoin.utils import ByteReader
 
 logger = logging.getLogger(__name__)
 
-
 __all__ = [
     "ParsedTransaction",
     "parse_transaction_bytes",
@@ -60,21 +59,22 @@ def parse_transaction_bytes(raw_bytes: bytes) -> ParsedTransaction:
                 script_sig=script_sig,
                 sequence=sequence,
                 witness=tuple(),
-            )
-        )
+            ))
 
     output_count = reader.read_varint()
     outputs: list[TransactionOutput] = []
     for _ in range(output_count):
         value = reader.read_uint64()
         script_pubkey = reader.read_varbytes()
-        outputs.append(TransactionOutput(value=value, script_pubkey=script_pubkey))
+        outputs.append(
+            TransactionOutput(value=value, script_pubkey=script_pubkey))
 
     if segwit:
         parsed_inputs: list[TransactionInput] = []
         for txin in inputs:
             witness_count = reader.read_varint()
-            witness_items = tuple(reader.read_varbytes() for _ in range(witness_count))
+            witness_items = tuple(
+                reader.read_varbytes() for _ in range(witness_count))
             parsed_inputs.append(
                 TransactionInput(
                     prevout_hash=txin.prevout_hash,
@@ -82,8 +82,7 @@ def parse_transaction_bytes(raw_bytes: bytes) -> ParsedTransaction:
                     script_sig=txin.script_sig,
                     sequence=txin.sequence,
                     witness=witness_items,
-                )
-            )
+                ))
         inputs = parsed_inputs
 
     locktime = reader.read_uint32()

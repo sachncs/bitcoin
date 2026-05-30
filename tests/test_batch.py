@@ -52,16 +52,18 @@ def test_batch_process_sequential() -> None:
     raw_hex, _, _ = build_p2pkh_transaction()
     tx = Transaction.parse_hex(raw_hex)
     with patch("bitcoin.batch.fetch_transaction", return_value=tx):
-        results = batch_process(
-            "a" * 64, network="mainnet", timeout=5, mp=False
-        )
+        results = batch_process("a" * 64,
+                                network="mainnet",
+                                timeout=5,
+                                mp=False)
     assert len(results) == 1
     assert len(results[0].records) >= 1
 
 
 @pytest.mark.skipif(
     True,
-    reason="multiprocessing.Pool does not propagate unittest.mock patches to worker processes",
+    reason=
+    "multiprocessing.Pool does not propagate unittest.mock patches to worker processes",
 )
 def test_batch_process_multiprocessing() -> None:
     """Structural smoke-test for the multiprocessing code path.
@@ -75,7 +77,9 @@ def test_batch_process_multiprocessing() -> None:
     raw_hex, _, _ = build_p2pkh_transaction()
     tx = Transaction.parse_hex(raw_hex)
     with patch("bitcoin.batch.fetch_transaction", return_value=tx):
-        results = batch_process(
-            "a" * 64, "b" * 64, network="mainnet", timeout=5, mp=True
-        )
+        results = batch_process("a" * 64,
+                                "b" * 64,
+                                network="mainnet",
+                                timeout=5,
+                                mp=True)
     assert len(results) == 2

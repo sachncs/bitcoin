@@ -79,7 +79,7 @@ def parse_script(script: bytes) -> tuple[ScriptChunk, ...]:
         if opcode == OPCODE_PUSH_DATA_2:
             if position + 1 >= len(script):
                 raise ScriptParseError("PUSHDATA2 length bytes are missing.")
-            length = int.from_bytes(script[position : position + 2], "little")
+            length = int.from_bytes(script[position:position + 2], "little")
             position += 2
             end = position + length
             if end > len(script):
@@ -90,7 +90,7 @@ def parse_script(script: bytes) -> tuple[ScriptChunk, ...]:
         if opcode == OPCODE_PUSH_DATA_4:
             if position + 3 >= len(script):
                 raise ScriptParseError("PUSHDATA4 length bytes are missing.")
-            length = int.from_bytes(script[position : position + 4], "little")
+            length = int.from_bytes(script[position:position + 4], "little")
             position += 4
             end = position + length
             if end > len(script):
@@ -98,7 +98,8 @@ def parse_script(script: bytes) -> tuple[ScriptChunk, ...]:
             chunks.append(ScriptChunk(opcode=opcode, data=script[position:end]))
             position = end
             continue
-        logger.debug("Non-push opcode 0x%02x at position %d", opcode, position - 1)
+        logger.debug("Non-push opcode 0x%02x at position %d", opcode,
+                     position - 1)
         chunks.append(ScriptChunk(opcode=opcode, data=None))
     return tuple(chunks)
 
@@ -116,7 +117,8 @@ def remove_code_separators(script: bytes) -> bytes:
     """Verify that no OP_CODESEPARATOR appears in the script."""
     for chunk in parse_script(script):
         if chunk.opcode == OPCODE_CODE_SEPARATOR and chunk.data is None:
-            raise UnsupportedScriptPathError("OP_CODESEPARATOR is not supported.")
+            raise UnsupportedScriptPathError(
+                "OP_CODESEPARATOR is not supported.")
     return script
 
 
@@ -172,9 +174,11 @@ def parse_multisig_redeem_script(script: bytes) -> tuple[int, list[bytes]]:
     if len(chunks) < 3:
         raise UnsupportedScriptPathError("Multisig script is too short.")
     if chunks[-1].opcode != OPCODE_CHECK_MULTI_SIG:
-        raise UnsupportedScriptPathError("Multisig script is missing CHECKMULTISIG.")
+        raise UnsupportedScriptPathError(
+            "Multisig script is missing CHECKMULTISIG.")
     if chunks[0].data is not None or chunks[-2].data is not None:
-        raise UnsupportedScriptPathError("Multisig script has invalid structure.")
+        raise UnsupportedScriptPathError(
+            "Multisig script has invalid structure.")
     if not (0x51 <= chunks[0].opcode <= 0x60):
         raise UnsupportedScriptPathError("Multisig m value is unsupported.")
     if not (0x51 <= chunks[-2].opcode <= 0x60):
@@ -184,10 +188,12 @@ def parse_multisig_redeem_script(script: bytes) -> tuple[int, list[bytes]]:
     n = chunks[-2].opcode - 0x50
     pubkeys = [chunk.data for chunk in chunks[1:-2] if chunk.data is not None]
     if len(pubkeys) != n:
-        raise UnsupportedScriptPathError("Multisig pubkey count is inconsistent.")
+        raise UnsupportedScriptPathError(
+            "Multisig pubkey count is inconsistent.")
     for pubkey in pubkeys:
         if len(pubkey) not in {33, 65}:
-            raise UnsupportedScriptPathError("Unsupported multisig public key length.")
+            raise UnsupportedScriptPathError(
+                "Unsupported multisig public key length.")
     if m < 1 or m > n:
         raise UnsupportedScriptPathError("Multisig threshold is invalid.")
     return m, pubkeys

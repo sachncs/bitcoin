@@ -14,7 +14,6 @@ from bitcoin.utils import validate_hex_string
 
 logger = logging.getLogger(__name__)
 
-
 __all__ = [
     "Transaction",
 ]
@@ -55,6 +54,7 @@ class Transaction:
         return replace(self, context=TransactionContext.from_sequence(values))
 
     def extract(
-        self, script_pubkeys: Sequence[bytes] | None = None
+            self,
+            script_pubkeys: Sequence[bytes] | None = None
     ) -> SignatureCollection:
         return extract_signatures(self, script_pubkeys)

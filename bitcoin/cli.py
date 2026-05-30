@@ -14,11 +14,10 @@ import json
 import logging
 import sys
 from collections.abc import Sequence
+from typing import Any
 
 import click
 import typer
-from typer._click.exceptions import ClickException as TyperClickException
-from typer._click.exceptions import UsageError as TyperUsageError
 
 from bitcoin.exceptions import BitcoinError
 from bitcoin.serializer import (
@@ -35,7 +34,8 @@ logger = logging.getLogger(__name__)
 
 app = typer.Typer(
     name="bitcoin",
-    help="Bitcoin transaction signature extraction and ECDSA transformation tool.",
+    help=
+    "Bitcoin transaction signature extraction and ECDSA transformation tool.",
     no_args_is_help=True,
     add_completion=False,
 )
@@ -89,10 +89,8 @@ def _resolve_transaction(
     if input_values:
         parsed_values = parse_input_values(input_values)
         if len(parsed_values) != len(transaction.inputs):
-            msg = (
-                f"input value count must match input count "
-                f"({len(parsed_values)} != {len(transaction.inputs)})."
-            )
+            msg = (f"input value count must match input count "
+                   f"({len(parsed_values)} != {len(transaction.inputs)}).")
             logger.error(
                 "Input value count %d does not match input count %d",
                 len(parsed_values),
@@ -210,8 +208,7 @@ def linear(
                 sort_keys=True,
                 indent=None if compact else 2,
                 ensure_ascii=False,
-            ),
-        )
+            ),)
     else:
         print(linear_collection_to_json(coefficients, pretty=not compact))
 
@@ -264,8 +261,7 @@ def points(
                 sort_keys=True,
                 indent=None if compact else 2,
                 ensure_ascii=False,
-            ),
-        )
+            ),)
     else:
         print(point_relation_collection_to_json(relations, pretty=not compact))
 
@@ -299,7 +295,10 @@ def transform(
     transaction = _resolve_transaction(tx, input_values)
     transformed = transaction.extract().transform_points()
     payload = transformed_point_collection_to_dict(transformed)
-    kw: dict[str, object] = {"sort_keys": True, "ensure_ascii": False}
+    kw: Any = {
+        "sort_keys": True,
+        "ensure_ascii": False,
+    }
     if compact:
         kw["separators"] = (",", ":")
     else:
@@ -332,10 +331,10 @@ def main(args: Sequence[str] | None = None) -> int:
         return 0
     except SystemExit as exc:
         return exc.code if isinstance(exc.code, int) else 1
-    except (click.ClickException, TyperClickException) as exc:
+    except click.ClickException as exc:
         print(_format_error(exc.format_message()), file=sys.stderr)
         return exc.exit_code
-    except (click.UsageError, TyperUsageError) as exc:
+    except click.UsageError as exc:
         print(_format_error(exc.format_message()), file=sys.stderr)
         return exc.exit_code
     except BitcoinError as exc:

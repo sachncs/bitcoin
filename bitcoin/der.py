@@ -9,7 +9,6 @@ from bitcoin.exceptions import InvalidDerSignatureError
 
 logger = logging.getLogger(__name__)
 
-
 __all__ = [
     "ParsedSignature",
     "parse_der_signature",
@@ -66,4 +65,5 @@ def validate_der_integer(value: bytes, label: str) -> None:
     if value[0] & 0x80:
         raise InvalidDerSignatureError(f"DER {label} integer is negative.")
     if len(value) > 1 and value[0] == 0x00 and not (value[1] & 0x80):
-        raise InvalidDerSignatureError(f"DER {label} integer has a leading zero.")
+        raise InvalidDerSignatureError(
+            f"DER {label} integer has a leading zero.")

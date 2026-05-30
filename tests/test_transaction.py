@@ -71,11 +71,9 @@ def build_der_signature(r: bytes, s: bytes, sighash_flag: int) -> bytes:
 def build_p2pkh_transaction() -> tuple[str, str, str]:
     prevout_hash = bytes.fromhex("11" * 32)
     pubkey = bytes.fromhex(
-        "02c0ded4b6f919c7d4317a7ce0d2db2aab7b4d79b0f1b9ab2d5b8e86e7b0d1c6c5"
-    )
-    signature = build_der_signature(
-        bytes.fromhex("7f" * 32), bytes.fromhex("55" * 32), 0x01
-    )
+        "02c0ded4b6f919c7d4317a7ce0d2db2aab7b4d79b0f1b9ab2d5b8e86e7b0d1c6c5")
+    signature = build_der_signature(bytes.fromhex("7f" * 32),
+                                    bytes.fromhex("55" * 32), 0x01)
     script_sig = push(signature) + push(pubkey)
     outputs = [
         (12345, bytes.fromhex("76a914" + "22" * 20 + "88ac")),
@@ -100,19 +98,16 @@ def build_p2pkh_transaction() -> tuple[str, str, str]:
 def build_p2sh_multisig_transaction() -> tuple[str, list[str]]:
     prevout_hash = bytes.fromhex("22" * 32)
     pubkey1 = bytes.fromhex(
-        "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
-    )
+        "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
     pubkey2 = bytes.fromhex(
-        "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"
-    )
+        "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5")
     redeem_script = b"\x52" + push(pubkey1) + push(pubkey2) + b"\x52\xae"
-    signature1 = build_der_signature(
-        bytes.fromhex("11" * 32), bytes.fromhex("22" * 32), 0x01
-    )
-    signature2 = build_der_signature(
-        bytes.fromhex("33" * 32), bytes.fromhex("44" * 32), 0x01
-    )
-    script_sig = b"\x00" + push(signature1) + push(signature2) + push(redeem_script)
+    signature1 = build_der_signature(bytes.fromhex("11" * 32),
+                                     bytes.fromhex("22" * 32), 0x01)
+    signature2 = build_der_signature(bytes.fromhex("33" * 32),
+                                     bytes.fromhex("44" * 32), 0x01)
+    script_sig = b"\x00" + push(signature1) + push(signature2) + push(
+        redeem_script)
     raw = bytearray()
     raw.extend((1).to_bytes(4, "little"))
     raw.extend(encode_varint(1))
@@ -132,15 +127,12 @@ def build_p2sh_multisig_transaction() -> tuple[str, list[str]]:
 def build_p2wpkh_transaction() -> tuple[str, int, str, str]:
     prevout_hash = bytes.fromhex("33" * 32)
     pubkey = bytes.fromhex(
-        "025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee6357"
-    )
+        "025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee6357")
     signature = build_der_signature(
         bytes.fromhex(
-            "0b9d1dc26ba6a9cb62127b02742fa9d754cd3bebf337f7a55d114c8e5cdd30be"
-        ),
+            "0b9d1dc26ba6a9cb62127b02742fa9d754cd3bebf337f7a55d114c8e5cdd30be"),
         bytes.fromhex(
-            "40529b194ba3f9281a99f2b1c0a19c0489bc22ede944ccf4ecbab4cc618ef3ed"
-        ),
+            "40529b194ba3f9281a99f2b1c0a19c0489bc22ede944ccf4ecbab4cc618ef3ed"),
         0x01,
     )
     raw = bytearray()
@@ -167,16 +159,14 @@ def build_p2wpkh_transaction() -> tuple[str, int, str, str]:
 def build_p2sh_p2wpkh_transaction() -> tuple[str, int, str, str]:
     prevout_hash = bytes.fromhex("44" * 32)
     pubkey = bytes.fromhex(
-        "03ad1d8e89212f0b92c74d23bb710c00662ad1470198ac48c43f7d6f93a2a26873"
-    )
-    redeem_script = bytes.fromhex("001479091972186c449eb1ded22b78e40d009bdf0089")
+        "03ad1d8e89212f0b92c74d23bb710c00662ad1470198ac48c43f7d6f93a2a26873")
+    redeem_script = bytes.fromhex(
+        "001479091972186c449eb1ded22b78e40d009bdf0089")
     signature = build_der_signature(
         bytes.fromhex(
-            "68c7946a43232757cbdf9176f009a928e1cd9a1a8c212f15c1e11ac9f2925d90"
-        ),
+            "68c7946a43232757cbdf9176f009a928e1cd9a1a8c212f15c1e11ac9f2925d90"),
         bytes.fromhex(
-            "5b75f937ff2f9f3c1246e547e54f62e027f64eefa2695578cc6432cdabce2715"
-        ),
+            "5b75f937ff2f9f3c1246e547e54f62e027f64eefa2695578cc6432cdabce2715"),
         0x02,
     )
     raw = bytearray()
@@ -204,28 +194,22 @@ def build_p2sh_p2wpkh_transaction() -> tuple[str, int, str, str]:
 def build_p2wsh_multisig_transaction() -> tuple[str, list[int]]:
     prevout_hash = bytes.fromhex("55" * 32)
     pubkey1 = bytes.fromhex(
-        "0307b8ae49ac90a048e9b53357a2354b3334e9c8bee813ecb98e99a7e07e8c3ba3"
-    )
+        "0307b8ae49ac90a048e9b53357a2354b3334e9c8bee813ecb98e99a7e07e8c3ba3")
     pubkey2 = bytes.fromhex(
-        "03b28f0c28bfab54554ae8c658ac5c3e0ce6e79ad336331f78c428dd43eea8449b"
-    )
+        "03b28f0c28bfab54554ae8c658ac5c3e0ce6e79ad336331f78c428dd43eea8449b")
     witness_script = b"\x52" + push(pubkey1) + push(pubkey2) + b"\x52\xae"
     signature1 = build_der_signature(
         bytes.fromhex(
-            "08c7946a43232757cbdf9176f009a928e1cd9a1a8c212f15c1e11ac9f2925d90"
-        ),
+            "08c7946a43232757cbdf9176f009a928e1cd9a1a8c212f15c1e11ac9f2925d90"),
         bytes.fromhex(
-            "5b75f937ff2f9f3c1246e547e54f62e027f64eefa2695578cc6432cdabce2715"
-        ),
+            "5b75f937ff2f9f3c1246e547e54f62e027f64eefa2695578cc6432cdabce2715"),
         0x01,
     )
     signature2 = build_der_signature(
         bytes.fromhex(
-            "19ebf56d98010a932cf8ecfec54c48e6139ed6adb0728c09cbe1e4fa0915302e"
-        ),
+            "19ebf56d98010a932cf8ecfec54c48e6139ed6adb0728c09cbe1e4fa0915302e"),
         bytes.fromhex(
-            "07cd986c8fa870ff5d2b3a89139c9fe7e499259875357e20fcbb15571c767954"
-        ),
+            "07cd986c8fa870ff5d2b3a89139c9fe7e499259875357e20fcbb15571c767954"),
         0x03,
     )
     raw = bytearray()
@@ -318,11 +302,9 @@ def test_missing_segwit_input_value_rejected() -> None:
 def test_bad_sighash_flag_rejected() -> None:
     prevout_hash = bytes.fromhex("11" * 32)
     pubkey = bytes.fromhex(
-        "02c0ded4b6f919c7d4317a7ce0d2db2aab7b4d79b0f1b9ab2d5b8e86e7b0d1c6c5"
-    )
-    signature = build_der_signature(
-        bytes.fromhex("7f" * 32), bytes.fromhex("55" * 32), 0x05
-    )
+        "02c0ded4b6f919c7d4317a7ce0d2db2aab7b4d79b0f1b9ab2d5b8e86e7b0d1c6c5")
+    signature = build_der_signature(bytes.fromhex("7f" * 32),
+                                    bytes.fromhex("55" * 32), 0x05)
     script_sig = push(signature) + push(pubkey)
     raw = bytearray()
     raw.extend((2).to_bytes(4, "little"))
@@ -345,8 +327,7 @@ def test_bad_sighash_flag_rejected() -> None:
 def test_invalid_der_signature_rejected() -> None:
     prevout_hash = bytes.fromhex("11" * 32)
     pubkey = bytes.fromhex(
-        "02c0ded4b6f919c7d4317a7ce0d2db2aab7b4d79b0f1b9ab2d5b8e86e7b0d1c6c5"
-    )
+        "02c0ded4b6f919c7d4317a7ce0d2db2aab7b4d79b0f1b9ab2d5b8e86e7b0d1c6c5")
     signature = b"\x31\x06\x02\x01\x01\x02\x01\x01\x01"
     script_sig = push(signature) + push(pubkey)
     raw = bytearray()
@@ -444,9 +425,8 @@ def test_cli_unknown_command_rejected() -> None:
 
 def test_unsupported_script_path_rejected() -> None:
     prevout_hash = bytes.fromhex("11" * 32)
-    signature = build_der_signature(
-        bytes.fromhex("7f" * 32), bytes.fromhex("55" * 32), 0x01
-    )
+    signature = build_der_signature(bytes.fromhex("7f" * 32),
+                                    bytes.fromhex("55" * 32), 0x01)
     script_sig = push(signature) + push(b"\x51")
     raw = bytearray()
     raw.extend((1).to_bytes(4, "little"))
@@ -465,7 +445,8 @@ def test_unsupported_script_path_rejected() -> None:
         transaction.extract()
 
 
-def test_cli_pretty_prints_parse_output(capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_pretty_prints_parse_output(
+        capsys: pytest.CaptureFixture[str]) -> None:
     raw_hex, _, _ = build_p2pkh_transaction()
     exit_code = cli_main(["parse", "--tx", raw_hex])
     captured = capsys.readouterr()
@@ -474,7 +455,8 @@ def test_cli_pretty_prints_parse_output(capsys: pytest.CaptureFixture[str]) -> N
     assert '"version": 2' in captured.out
 
 
-def test_cli_pretty_prints_extract_output(capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_pretty_prints_extract_output(
+        capsys: pytest.CaptureFixture[str]) -> None:
     raw_hex, _, _ = build_p2pkh_transaction()
     exit_code = cli_main(["extract", "--tx", raw_hex])
     captured = capsys.readouterr()
@@ -483,7 +465,8 @@ def test_cli_pretty_prints_extract_output(capsys: pytest.CaptureFixture[str]) ->
     assert '"script_type": "legacy-p2pkh"' in captured.out
 
 
-def test_cli_rejects_invalid_input_values(capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_rejects_invalid_input_values(
+        capsys: pytest.CaptureFixture[str]) -> None:
     raw_hex, _, _ = build_p2pkh_transaction()
     exit_code = cli_main(["extract", "--tx", raw_hex, "--input-values", "abc"])
     captured = capsys.readouterr()
@@ -492,10 +475,10 @@ def test_cli_rejects_invalid_input_values(capsys: pytest.CaptureFixture[str]) ->
 
 
 def test_cli_rejects_input_value_count_mismatch(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+    capsys: pytest.CaptureFixture[str],) -> None:
     raw_hex, _, _ = build_p2pkh_transaction()
-    exit_code = cli_main(["extract", "--tx", raw_hex, "--input-values", "100,200"])
+    exit_code = cli_main(
+        ["extract", "--tx", raw_hex, "--input-values", "100,200"])
     captured = capsys.readouterr()
     assert exit_code == 1
     assert "input value count must match" in captured.err
@@ -534,9 +517,12 @@ def test_parse_nested_segwit_p2sh_p2wpkh_transaction() -> None:
     assert collection.signatures[0].z is not None
 
 
-def test_cli_with_input_values_single(capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_with_input_values_single(
+        capsys: pytest.CaptureFixture[str]) -> None:
     raw_hex, amount, _, _ = build_p2wpkh_transaction()
-    exit_code = cli_main(["extract", "--tx", raw_hex, "--input-values", str(amount)])
+    exit_code = cli_main(
+        ["extract", "--tx", raw_hex, "--input-values",
+         str(amount)])
     captured = capsys.readouterr()
     assert exit_code == 0
     payload = json.loads(captured.out)
@@ -630,7 +616,8 @@ def test_der_r_negative_integer() -> None:
 
 def test_der_r_excessive_leading_zero() -> None:
     sig = build_der_signature(bytes([0x00, 0x01]), bytes([0x01, 0x02]), 0x01)
-    with pytest.raises(InvalidDerSignatureError, match="R integer has a leading zero"):
+    with pytest.raises(InvalidDerSignatureError,
+                       match="R integer has a leading zero"):
         parse_der_signature(sig)
 
 
@@ -646,7 +633,8 @@ def test_der_length_inconsistent() -> None:
     # der[1] != len(der) - 2
     der = bytes([0x30, 8, 0x02, 1, 0x01, 0x02, 1, 0x01])
     sig = der + b"\x01"
-    with pytest.raises(InvalidDerSignatureError, match="DER length is inconsistent"):
+    with pytest.raises(InvalidDerSignatureError,
+                       match="DER length is inconsistent"):
         parse_der_signature(sig)
 
 
@@ -656,7 +644,8 @@ def test_der_length_inconsistent() -> None:
 def test_sighash_flag_bad_base_type_rejected_direct() -> None:
     from bitcoin.sighash import parse_sighash_flag
 
-    with pytest.raises(InvalidSighashFlagError, match="Unsupported sighash base type"):
+    with pytest.raises(InvalidSighashFlagError,
+                       match="Unsupported sighash base type"):
         parse_sighash_flag(0x00)
 
 
@@ -827,7 +816,8 @@ def test_parse_multisig_redeem_script_inconsistent_pubkey_count() -> None:
 def test_parse_multisig_redeem_script_bad_pubkey_length() -> None:
     pubkey_33 = b"\x00" * 33
     pubkey_bad = b"\x00" * 20
-    script = bytes([0x52]) + push(pubkey_33) + push(pubkey_bad) + bytes([0x52, 0xAE])
+    script = bytes([0x52]) + push(pubkey_33) + push(pubkey_bad) + bytes(
+        [0x52, 0xAE])
     with pytest.raises(UnsupportedScriptPathError, match="public key length"):
         parse_multisig_redeem_script(script)
 
@@ -868,9 +858,8 @@ def test_unsupported_non_segwit_script_path() -> None:
 
 def test_unsupported_segwit_script_path() -> None:
     prevout_hash = bytes.fromhex("11" * 32)
-    signature = build_der_signature(
-        bytes.fromhex("7f" * 32), bytes.fromhex("55" * 32), 0x01
-    )
+    signature = build_der_signature(bytes.fromhex("7f" * 32),
+                                    bytes.fromhex("55" * 32), 0x01)
     raw = bytearray()
     raw.extend((1).to_bytes(4, "little"))
     raw.extend(b"\x00\x01")
@@ -911,7 +900,8 @@ def test_unsupported_general_script_path() -> None:
     raw.extend(encode_varint(0))
     raw.extend((0).to_bytes(4, "little"))
     transaction = Transaction.parse_hex(raw.hex())
-    with pytest.raises(UnsupportedScriptPathError, match="Unsupported script path"):
+    with pytest.raises(UnsupportedScriptPathError,
+                       match="Unsupported script path"):
         transaction.extract()
 
 
@@ -938,10 +928,10 @@ def test_p2sh_multisig_too_short() -> None:
 
 def test_p2sh_p2wpkh_invalid_witness() -> None:
     prevout_hash = bytes.fromhex("44" * 32)
-    redeem_script = bytes.fromhex("001479091972186c449eb1ded22b78e40d009bdf0089")
-    signature = build_der_signature(
-        bytes.fromhex("7f" * 32), bytes.fromhex("55" * 32), 0x01
-    )
+    redeem_script = bytes.fromhex(
+        "001479091972186c449eb1ded22b78e40d009bdf0089")
+    signature = build_der_signature(bytes.fromhex("7f" * 32),
+                                    bytes.fromhex("55" * 32), 0x01)
     raw = bytearray()
     raw.extend((1).to_bytes(4, "little"))
     raw.extend(b"\x00\x01")
@@ -982,7 +972,8 @@ def test_cli_parse_bad_hex(capsys: pytest.CaptureFixture[str]) -> None:
     assert "non-hex characters" in captured.err
 
 
-def test_cli_unknown_command_exits_two(capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_unknown_command_exits_two(
+        capsys: pytest.CaptureFixture[str]) -> None:
     exit_code = cli_main(["unknown"])
     assert exit_code == 2
 
@@ -1174,11 +1165,11 @@ def test_signature_collection_linear_empty() -> None:
 
 
 def test_sighash_flag_bad_bits_rejected() -> None:
-    sig = build_der_signature(bytes.fromhex("7f" * 32), bytes.fromhex("55" * 32), 0x84)
+    sig = build_der_signature(bytes.fromhex("7f" * 32),
+                              bytes.fromhex("55" * 32), 0x84)
     prevout_hash = bytes.fromhex("11" * 32)
     pubkey = bytes.fromhex(
-        "02c0ded4b6f919c7d4317a7ce0d2db2aab7b4d79b0f1b9ab2d5b8e86e7b0d1c6c5"
-    )
+        "02c0ded4b6f919c7d4317a7ce0d2db2aab7b4d79b0f1b9ab2d5b8e86e7b0d1c6c5")
     script_sig = push(sig) + push(pubkey)
     raw = bytearray()
     raw.extend((2).to_bytes(4, "little"))
@@ -1233,19 +1224,15 @@ def test_validate_hex_string_whitespace() -> None:
 def build_p2sh_p2wsh_multisig_transaction() -> tuple[str, list[int]]:
     prevout_hash = bytes.fromhex("66" * 32)
     pubkey1 = bytes.fromhex(
-        "0307b8ae49ac90a048e9b53357a2354b3334e9c8bee813ecb98e99a7e07e8c3ba3"
-    )
+        "0307b8ae49ac90a048e9b53357a2354b3334e9c8bee813ecb98e99a7e07e8c3ba3")
     pubkey2 = bytes.fromhex(
-        "03b28f0c28bfab54554ae8c658ac5c3e0ce6e79ad336331f78c428dd43eea8449b"
-    )
+        "03b28f0c28bfab54554ae8c658ac5c3e0ce6e79ad336331f78c428dd43eea8449b")
     witness_script = b"\x52" + push(pubkey1) + push(pubkey2) + b"\x52\xae"
     redeem_script = bytes.fromhex("0020" + "55" * 32)
-    signature1 = build_der_signature(
-        bytes.fromhex("11" * 32), bytes.fromhex("22" * 32), 0x01
-    )
-    signature2 = build_der_signature(
-        bytes.fromhex("33" * 32), bytes.fromhex("44" * 32), 0x03
-    )
+    signature1 = build_der_signature(bytes.fromhex("11" * 32),
+                                     bytes.fromhex("22" * 32), 0x01)
+    signature2 = build_der_signature(bytes.fromhex("33" * 32),
+                                     bytes.fromhex("44" * 32), 0x03)
     raw = bytearray()
     raw.extend((1).to_bytes(4, "little"))
     raw.extend(b"\x00\x01")
@@ -1471,13 +1458,13 @@ def test_cli_parse_invalid_tx_returns_one() -> None:
 
 
 def test_cli_extract_bad_sighash_returns_one() -> None:
-    sig = build_der_signature(bytes.fromhex("7f" * 32), bytes.fromhex("55" * 32), 0x84)
+    sig = build_der_signature(bytes.fromhex("7f" * 32),
+                              bytes.fromhex("55" * 32), 0x84)
     prevout_hash = bytes.fromhex("11" * 32)
     script_sig = push(sig) + push(
         bytes.fromhex(
             "02c0ded4b6f919c7d4317a7ce0d2db2aab7b4d79b0f1b9ab2d5b8e86e7b0d1c6c5"
-        )
-    )
+        ))
     raw = bytearray()
     raw.extend((2).to_bytes(4, "little"))
     raw.extend(encode_varint(1))
@@ -1525,7 +1512,6 @@ def test_hex_none() -> None:
 
 # ── hash160 branches ────────────────────────────────────────────────────
 
-
 # ── transform_points ───────────────────────────────────────────────────
 
 
@@ -1556,9 +1542,8 @@ def test_transform_points_p2wpkh() -> None:
     tx = Transaction.parse_hex(raw_hex).with_input_values([amount])
     collection = tx.extract().transform_points()
     assert len(collection.records) == 1
-    assert is_on_curve(
-        collection.records[0].new_d_point.x, collection.records[0].new_d_point.y
-    )
+    assert is_on_curve(collection.records[0].new_d_point.x,
+                       collection.records[0].new_d_point.y)
 
 
 def test_transform_points_p2sh_p2wpkh() -> None:
@@ -1566,9 +1551,8 @@ def test_transform_points_p2sh_p2wpkh() -> None:
     tx = Transaction.parse_hex(raw_hex).with_input_values([amount])
     collection = tx.extract().transform_points()
     assert len(collection.records) == 1
-    assert is_on_curve(
-        collection.records[0].new_d_point.x, collection.records[0].new_d_point.y
-    )
+    assert is_on_curve(collection.records[0].new_d_point.x,
+                       collection.records[0].new_d_point.y)
 
 
 def test_transform_points_p2wsh_multisig() -> None:

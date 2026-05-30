@@ -23,7 +23,7 @@ The parser follows strict DER encoding rules (BIP-66):
 
 **Edge cases**:
 - Empty or single-byte signatures → caught by minimum length check
-- Non-canonical encodings with extra leading zeros → caught by `_validate_der_integer`
+- Non-canonical encodings with extra leading zeros → caught by `validate_der_integer`
 - Sighash byte extracted as `signature[-1]`, DER body is `signature[:-1]`
 
 ---

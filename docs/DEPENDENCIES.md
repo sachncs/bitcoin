@@ -6,8 +6,9 @@
 |---------|-------------|---------|------|
 | `typer` | — | CLI framework | Low; well-maintained CLI library |
 | `click` | — | CLI argument parsing (Typer dependency) | Low |
-| `requests` | — | HTTP fetches to blockstream.info API | Low |
 | `coincurve` | (optional) | C-based ECC via libsecp256k1 bindings | Low; pure-Python fallback exists |
+
+Note: HTTP fetches use `urllib.request` from the Python standard library — no `requests` dependency needed.
 
 ## Development
 
@@ -35,4 +36,4 @@
 
 ## Optional Dependency Detection
 
-At import time, `bitcoin/__init__.py` attempts `import coincurve`. If unavailable, `CoincurveBackend` instantiation will raise `ImportError` with a message to `pip install coincurve`. The pure-Python backend is always available and is the default.
+`CoincurveBackend.__init__()` checks for `coincurve` availability when instantiated. If unavailable, it raises `ImportError` with a message to `pip install coincurve`. The pure-Python backend is always available and is the default.

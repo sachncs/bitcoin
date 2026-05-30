@@ -13,7 +13,7 @@ Boolean parsing: accepts `"1"`, `"true"`, `"yes"` (case-insensitive) as `True`.
 
 ## Config File
 
-`Config.load(path)` reads JSON or (if JSON fails, parsed as Python dict with `ast.literal_eval`).
+`Config.load(path)` reads JSON config files.
 
 ```json
 {
@@ -24,7 +24,7 @@ Boolean parsing: accepts `"1"`, `"true"`, `"yes"` (case-insensitive) as `True`.
 }
 ```
 
-If the file is missing or unsupported, `load()` logs a warning and returns defaults.
+If the file is missing or has an unsupported format, `load()` logs an error and returns defaults.
 
 ## Precedence
 
@@ -53,6 +53,5 @@ config.fetch_timeout  # → 30
 
 ## Validation
 
-- `network`: validated against a hardcoded set `{"mainnet", "testnet", "signet"}` at the point of use
 - `fetch_timeout`: must be convertible to `int`; `ValueError` on failure is caught and re-raised with a clear message
 - `bool` fields: only `"1"`, `"true"`, `"yes"` evaluate to `True`; all others (including `"0"`, `"false"`, `"no"`) evaluate to `False`

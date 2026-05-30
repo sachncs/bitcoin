@@ -8,7 +8,7 @@ The codebase is organized into three layers with strict dependency direction. No
 ┌─────────────────────────────────────────────────────────────────┐
 │                     CLI / Public API                             │
 │  cli.py  │  psbt.py  │  batch.py  │  fetcher.py                 │
-│  __init__.py (package exports)                                  │
+│  attack.py  │  __init__.py (package exports)                    │
 └─────────────────────────────────────────────────────────────────┘
          │                    │                      ▲
          ▼                    ▼                      │
@@ -40,7 +40,7 @@ See [MODULES.md](MODULES.md) for a detailed breakdown of every module's purpose,
 ## Dependency Direction
 
 - **No circular dependencies**. Verified by manual inspection of all import statements.
-- **Foundation layer** (`models.py`, `exceptions.py`, `utils.py`, `config.py`, `serializer.py`) has zero intra-package imports (except `utils.py` → `exceptions.py`).
+- **Foundation layer** (`models.py`, `exceptions.py`, `utils.py`, `config.py`, `serializer.py`) has minimal intra-package imports (`utils.py` → `exceptions.py`, `serializer.py` → `utils.py`).
 - **Arithmetic layer** imports from Foundation only.
 - **Extraction layer** imports from Arithmetic and Foundation.
 - **CLI layer** imports from Extraction, Arithmetic, and Foundation.

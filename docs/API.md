@@ -100,6 +100,36 @@ points = sig_collection.linear_points()    # → LinearPointRelationCollection
 transformed = sig_collection.transform_points()  # → TransformedPointCollection
 ```
 
+### Nonce Reuse & Key Recovery
+
+```python
+from bitcoin.attack import (
+    detect_nonce_reuse, recover_from_nonce_reuse,
+    recover_from_related_nonces, NonceReuseGroup, RecoveredKey,
+)
+from bitcoin.signature import SignatureCollection
+
+# Detect if any signatures share the same nonce (same r value)
+collection: SignatureCollection = tx.extract()
+groups: list[NonceReuseGroup] = detect_nonce_reuse(collection)
+
+# Recover private key from two signatures with same nonce
+if groups:
+    group = groups[0]
+    result: RecoveredKey = recover_from_nonce_reuse(
+        collection.records[group.indices[0]],
+        collection.records[group.indices[1]],
+    )
+    # result.private_key, result.nonce
+
+# Recover from related nonces k₂ = k₁ + δ
+result = recover_from_related_nonces(
+    collection.records[0],
+    collection.records[1],
+    delta=1,
+)
+```
+
 ### ECC Point Operations
 
 ```python
@@ -137,8 +167,7 @@ set_backend(CoincurveBackend())
 # Check current backend
 backend = get_backend()  # → EccBackend | None
 
-# Reset to pure Python
-set_backend(None)  # or just don't call set_backend at all
+# Reset to pure Python (default — just don't call set_backend)
 ```
 
 ### Batch Processing

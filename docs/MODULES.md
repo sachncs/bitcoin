@@ -19,6 +19,30 @@
 
 ---
 
+## `bitcoin.attack` — Nonce Reuse & Private Key Recovery
+
+**File**: `bitcoin/attack.py`
+
+**Purpose**: Recover ECDSA private keys from signature weaknesses — same-nonce reuse (same `r`) and related-nonce attacks (`k₂ = k₁ + δ`).
+
+**Dependencies**: `arithmetic`, `exceptions`, `linear`, `models`, `signature`
+
+**Public API**:
+| Symbol | Kind | Description |
+|--------|------|-------------|
+| `NonceReuseGroup` | Dataclass | Group of signatures sharing the same `r` value |
+| `NonceRecoveryError` | Exception | Base for recovery failures |
+| `NoNonceReuseError` | Exception | No nonce reuse detected |
+| `RecoveredKey` | Dataclass | Recovered private key and nonce |
+| `SameNonceError` | Exception | Signatures have different `r` values |
+| `detect_nonce_reuse` | Function | Find groups sharing the same `r` in a collection |
+| `recover_from_nonce_reuse` | Function | Recover private key from two same-`r` signatures |
+| `recover_from_related_nonces` | Function | Recover private key when `k₂ = k₁ + δ` |
+
+**Consumers**: Scripts and programmatic callers
+
+---
+
 ## `bitcoin.batch` — Batch Processing
 
 **File**: `bitcoin/batch.py`
@@ -112,6 +136,7 @@
 |--------|------|-------------|
 | `ParsedSignature` | Dataclass | Parsed `r`, `s` bytes and `sighash_flag` |
 | `parse_der_signature` | Function | DER → `ParsedSignature` |
+| `validate_der_integer` | Function | Validate DER integer encoding rules |
 
 **Consumers**: `extractor.py`, `psbt.py`
 
@@ -126,9 +151,9 @@
 **Dependencies**: `arithmetic`, `ecc_backend`, `exceptions`, `linear`, `models`, `utils`
 
 **Public API (via `__all__`)**:
-- Curve constants: `SECP256K1_FIELD_PRIME`, `SECP256K1_ORDER`, `SECP256K1_A`, `SECP256K1_B`, `G`, `SECP256K1_INFINITY`
+- Curve constants: `SECP256K1_FIELD_PRIME`, `SECP256K1_ORDER`, `SECP256K1_A`, `SECP256K1_B`, `SECP256K1_GX`, `SECP256K1_GY`, `G`, `SECP256K1_INFINITY`
 - Types: `Secp256k1Point`, `LinearPointRelation`, `LinearPointRelationCollection`, `TransformedPointRecord`, `TransformedPointCollection`
-- Point ops: `point_negate`, `point_add`, `point_double`, `scalar_multiply`, `is_on_curve`, `field_sqrt`
+- Point ops: `point_negate`, `point_add`, `point_double`, `scalar_multiply`, `is_on_curve`, `field_sqrt`, `field_pow`
 - Encoding: `parse_sec_public_key`, `serialize_sec_public_key`, plus `*_py` variants
 - Derivation: `derive_point_relation`, `derive_transformed_point`
 - Arithmetic: `inverse_mod`, `normalize_non_negative`, `normalize_field_element`
@@ -150,9 +175,9 @@
 **Public API**:
 | Symbol | Kind | Description |
 |--------|------|-------------|
-| `EccBackend` | ABC | Abstract interface with 9 methods |
+| `EccBackend` | ABC | Abstract interface with 8 methods |
 | `get_backend` | Function | Return current backend or None |
-| `set_backend` | Function | Set backend (validates type) |
+| `set_backend` | Function | Set backend (validates type; raises `TypeError` for non-`EccBackend`) |
 
 **Consumers**: `ecc.py`, `coincurve_backend.py`, `__init__.py`
 
@@ -193,12 +218,21 @@
 
 **Dependencies**: `der`, `exceptions`, `models`, `script`, `sighash`, `signature`, `utils`
 
-**Public API**:
+**Public API (via `__all__`)**:
 | Symbol | Kind | Description |
 |--------|------|-------------|
 | `extract_signatures` | Function | Extract all signatures from a transaction |
-
-**Internals (private)**: `_extract_input_signatures`, `_build_records`, `_extract_legacy_p2pkh`, `_extract_legacy_p2sh_multisig`, `_extract_native_p2wpkh`, `_extract_p2sh_p2wpkh`, `_extract_native_p2wsh_multisig`, `_extract_p2sh_p2wsh_multisig`, `_extract_taproot_key_path`, `_extract_taproot_script_path`, `_resolve_input_value`
+| `extract_input_signatures` | Function | Extract signatures from a single tx input, dispatching by script type |
+| `build_records` | Function | Build signature records from raw DER signatures |
+| `extract_legacy_p2pkh` | Function | Extract from legacy P2PKH input |
+| `extract_legacy_p2sh_multisig` | Function | Extract from legacy P2SH multisig input |
+| `extract_native_p2wpkh` | Function | Extract from native SegWit P2WPKH input |
+| `extract_native_p2wsh_multisig` | Function | Extract from native SegWit P2WSH multisig input |
+| `extract_p2sh_p2wpkh` | Function | Extract from P2SH-wrapped P2WPKH input |
+| `extract_p2sh_p2wsh_multisig` | Function | Extract from P2SH-wrapped P2WSH multisig input |
+| `extract_taproot_key_path` | Function | Extract from Taproot key-path spend |
+| `extract_taproot_script_path` | Function | Extract from Taproot script-path spend |
+| `resolve_input_value` | Function | Return spent output value from transaction context |
 
 ---
 
@@ -237,6 +271,8 @@
 | `derive_linear_coefficients` | Function | `SignatureRecord` → `LinearCoefficientRecord` |
 | `inverse_mod` | Function | Modular inverse with domain error wrapping |
 | `normalize_non_negative` | Function | Non-negative int validation |
+| `normalize_scalar` | Function | Scalar normalization |
+| `parse_signature_scalar` | Function | Parse hex string to scalar with validation |
 | `NotInvertibleError` | Exception | Re-exported from `arithmetic` |
 | `SECP256K1_ORDER` | Constant | Curve order |
 
@@ -284,7 +320,7 @@
 
 **Dependencies**: `der`, `exceptions`, `models`, `parser`, `script`, `sighash`, `signature`, `transaction`, `utils`
 
-**Public API**:
+**Public API (via `__all__`)**:
 | Symbol | Kind | Description |
 |--------|------|-------------|
 | `PsbtInput` | Dataclass | Per-input PSBT key-value data |
@@ -293,6 +329,22 @@
 | `parse_psbt` | Function | Raw bytes → `Psbt` |
 | `parse_psbt_hex` | Function | Hex string → `Psbt` |
 | `psbt_extract_signatures` | Function | `Psbt` → `SignatureCollection` |
+| `GLOBAL_UNSIGNED_TX` | Constant | PSBT global key for unsigned tx |
+| `INPUT_PARTIAL_SIG` | Constant | PSBT input key for partial signatures |
+| `INPUT_WITNESS_UTXO` | Constant | PSBT input key for witness UTXO |
+| `INPUT_NON_WITNESS_UTXO` | Constant | PSBT input key for non-witness UTXO |
+| `INPUT_REDEEM_SCRIPT` | Constant | PSBT input key for redeem script |
+| `INPUT_WITNESS_SCRIPT` | Constant | PSBT input key for witness script |
+| `INPUT_SIGHASH_TYPE` | Constant | PSBT input key for sighash type |
+| `INPUT_BIP32_KEYPATH` | Constant | PSBT input key for BIP-32 derivation |
+| `OUTPUT_REDEEM_SCRIPT` | Constant | PSBT output key for redeem script |
+| `OUTPUT_WITNESS_SCRIPT` | Constant | PSBT output key for witness script |
+| `OUTPUT_BIP32_KEYPATH` | Constant | PSBT output key for BIP-32 derivation |
+| `PSBT_MAGIC` | Constant | PSBT magic bytes |
+| `parse_keypath_value` | Function | Parse BIP-32 keypath value |
+| `read_key_value` | Function | Read a single PSBT key-value pair |
+| `read_input_map` | Function | Read PSBT input map |
+| `read_output_map` | Function | Read PSBT output map |
 
 ---
 
@@ -304,7 +356,7 @@
 
 **Dependencies**: `exceptions`, `utils`
 
-**Public API**:
+**Public API (via `__all__`)**:
 | Symbol | Kind | Description |
 |--------|------|-------------|
 | `ScriptChunk` | Dataclass | One parsed script item |
@@ -318,6 +370,12 @@
 | `is_taproot_script_path` | Function | Taproot script-path check |
 | `make_p2pkh_script` | Function | Build P2PKH scriptPubKey |
 | `parse_multisig_redeem_script` | Function | Parse multisig → (m, pubkeys) |
+| `OPCODE_CHECK_SIG` | Constant | OP_CHECKSIG opcode value |
+| `OPCODE_CHECK_MULTI_SIG` | Constant | OP_CHECKMULTISIG opcode value |
+| `OPCODE_CODE_SEPARATOR` | Constant | OP_CODESEPARATOR opcode value |
+| `OPCODE_PUSH_DATA_1` | Constant | OP_PUSHDATA1 opcode value |
+| `OPCODE_PUSH_DATA_2` | Constant | OP_PUSHDATA2 opcode value |
+| `OPCODE_PUSH_DATA_4` | Constant | OP_PUSHDATA4 opcode value |
 
 ---
 
@@ -327,22 +385,54 @@
 
 **Purpose**: Centralized I/O formatting for all domain types.
 
-**Dependencies**: `utils`, `ecc`/`linear`/`signature`/`transaction` (TYPE_CHECKING only)
+**Dependencies**: `utils`
 
-**Public API**:
+**Public API (via `__all__`)**:
 | Symbol | Kind | Description |
 |--------|------|-------------|
-| `point_to_dict`/`_json` | Functions | `Secp256k1Point` → dict/JSON |
+| `point_to_dict`/`point_to_json` | Functions | `Secp256k1Point` → dict/JSON |
 | `linear_record_to_dict` | Function | `LinearCoefficientRecord` → dict |
-| `linear_collection_to_dict`/`_json` | Functions | Collection → dict/JSON |
+| `linear_collection_to_dict`/`linear_collection_to_json` | Functions | Collection → dict/JSON |
 | `point_relation_to_dict` | Function | `LinearPointRelation` → dict |
-| `point_relation_collection_to_dict`/`_json` | Functions | Collection → dict/JSON |
+| `point_relation_collection_to_dict`/`point_relation_collection_to_json` | Functions | Collection → dict/JSON |
 | `transformed_point_record_to_dict` | Function | `TransformedPointRecord` → dict |
 | `transformed_point_collection_to_dict` | Function | Collection → dict |
-| `signature_collection_to_dict`/`_json` | Functions | Collection → dict/JSON |
-| `transaction_to_dict`/`_json` | Functions | `Transaction` → dict/JSON |
+| `signature_collection_to_dict`/`signature_collection_to_json` | Functions | Collection → dict/JSON |
+| `transaction_to_dict`/`transaction_to_json` | Functions | `Transaction` → dict/JSON |
 | `to_json_string`/`to_pretty_json_string` | Functions | Low-level JSON formatting |
 | `to_hex`/`int_to_hex_0x` | Functions | Value → hex string helpers |
+
+---
+
+## `bitcoin.sighash` — Sighash Computation
+
+**File**: `bitcoin/sighash.py`
+
+**Purpose**: Reconstruct signature hashes (`z` values) from parsed transactions for legacy, SegWit v0, and Taproot inputs.
+
+**Dependencies**: `exceptions`, `script`, `utils`
+
+**Public API (via `__all__`)**:
+| Symbol | Kind | Description |
+|--------|------|-------------|
+| `SighashPlan` | Dataclass | Parsed sighash flag (base_type, anyone_can_pay) |
+| `FLAG_ALL` | Constant | SIGHASH_ALL = 0x01 |
+| `FLAG_NONE` | Constant | SIGHASH_NONE = 0x02 |
+| `FLAG_SINGLE` | Constant | SIGHASH_SINGLE = 0x03 |
+| `FLAG_ANYONE_CAN_PAY` | Constant | SIGHASH_ANYONECANPAY = 0x80 |
+| `FLAG_BASE_MASK` | Constant | Base type mask = 0x1F |
+| `parse_sighash_flag` | Function | Validate flag byte → `SighashPlan` |
+| `legacy_sighash` | Function | Compute legacy (pre-SegWit) sighash |
+| `segwit_sighash` | Function | Compute SegWit v0 sighash (BIP-143) |
+| `taproot_sighash` | Function | Compute Taproot sighash (BIP-341) |
+| `serialize_varint` | Function | Serialize integer as Bitcoin varint |
+| `serialize_varint_and_join` | Function | Varint-prefixed concatenation of chunks |
+| `serialize_script` | Function | Script with varint length prefix |
+| `serialize_transaction_output` | Function | Serialize output (value + script) |
+| `p2wpkh_script_code` | Function | Build P2WPKH script code from pubkey |
+| `tagged_hash` | Function | BIP-340 tagged hash |
+
+**Consumers**: `extractor.py`, `psbt.py`
 
 ---
 
@@ -384,9 +474,10 @@
 
 **Dependencies**: `exceptions`
 
-**Public API**:
+**Public API (via `__all__`)**:
 | Symbol | Kind | Description |
 |--------|------|-------------|
+| `HEX_PATTERN` | Constant | Compiled regex for hex validation |
 | `validate_hex_string` | Function | Hex → bytes with validation |
 | `bytes_to_hex` | Function | Bytes → lowercase hex |
 | `int_to_hex` | Function | Non-negative int → hex string |
@@ -402,4 +493,4 @@
 
 **File**: `bitcoin/__init__.py`
 
-**Purpose**: Public package interface. Re-exports all user-facing symbols from submodules.
+

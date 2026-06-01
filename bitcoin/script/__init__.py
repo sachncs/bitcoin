@@ -1,4 +1,8 @@
-"""Bitcoin script types and utilities."""
+"""Re-exports all Bitcoin script types, classifiers, builders, and opcodes.
+
+Aggregates the public API from the submodules: parser, classifier, builder,
+and opcodes.
+"""
 
 from bitcoin.script.parser import (
     ScriptChunk,
@@ -15,23 +19,24 @@ from bitcoin.script.parser import (
 from bitcoin.script.classifier import (
     classify_script_pubkey,
     classify_script_sig,
-    is_p2pkh_pushes,
-    is_taproot,
-    is_taproot_script_path,
-    is_witness_program,
-    witness_program_hash_size,
+    classify_detailed,
+    is_op_return,
+    is_bare_multisig,
+    has_timelocks,
     P2PK,
     P2PKH,
     P2SH,
     P2WPKH,
     P2WSH,
     P2TR,
-    NULL_DATA,
-    NONSTANDARD,
+    NON_STANDARD,
+    MULTISIG,
+    TIMELOCK,
 )
 from bitcoin.script.builder import (
     build_p2pk,
     build_p2pkh,
+    build_p2sh,
     build_p2wpkh,
     build_p2wsh,
     build_p2tr,
@@ -63,10 +68,15 @@ from bitcoin.script.opcodes import (
     OPCODES_BY_NAME,
     OPCODES_BY_VALUE,
 )
+from bitcoin.script.taproot import (
+    TaprootScriptPath,
+    get_x_only_pubkey,
+    parse_taproot_witness_stack,
+)
 
 __all__ = [
-    "NONSTANDARD",
-    "NULL_DATA",
+    "MULTISIG",
+    "NON_STANDARD",
     "OP_0",
     "OP_1",
     "OP_16",
@@ -101,22 +111,26 @@ __all__ = [
     "Push",
     "ScriptChunk",
     "ScriptElement",
+    "TaprootScriptPath",
+    "get_x_only_pubkey",
+    "parse_taproot_witness_stack",
+    "TIMELOCK",
     "build_p2pk",
     "build_p2pkh",
+    "build_p2sh",
     "build_p2tr",
     "build_p2wpkh",
     "build_p2wsh",
+    "classify_detailed",
     "classify_script_pubkey",
     "classify_script_sig",
-    "is_p2pkh_pushes",
-    "is_taproot",
-    "is_taproot_script_path",
-    "is_witness_program",
+    "has_timelocks",
+    "is_bare_multisig",
+    "is_op_return",
     "make_p2pkh_script",
     "parse_multisig_redeem_script",
     "parse_script",
     "remove_code_separators",
     "script_to_string",
     "serialize_script",
-    "witness_program_hash_size",
 ]

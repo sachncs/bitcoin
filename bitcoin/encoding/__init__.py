@@ -1,4 +1,4 @@
-"""Binary encoding/decoding primitives for Bitcoin."""
+"""Re-export encoding primitives for Bitcoin binary protocols."""
 
 from bitcoin.encoding.binary import bytes_to_int, int_to_bytes, read_exactly, iter_bytes
 from bitcoin.encoding.varint import encode_varint, decode_varint

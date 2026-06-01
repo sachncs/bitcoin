@@ -13,9 +13,10 @@ from bitcoin.curve.params import (
     GENERATOR_Y,
 )
 from bitcoin.curve.point import Point
-from bitcoin.curve.backend import CurveBackend
-from bitcoin.curve.native_backend import NativeBackend
-from bitcoin.curve.libsecp_backend import LibsecpBackend, check_libsecp256k1
+from bitcoin.curve.backend.base import CurveBackend
+from bitcoin.curve.backend.native import NativeBackend
+from bitcoin.curve.backend.libsec import LibsecpBackend
+from bitcoin.curve import libsecp256k1
 from bitcoin.curve.dispatch import (
     add,
     double,
@@ -32,8 +33,8 @@ from bitcoin.curve.dispatch import (
 )
 
 # Singleton points
-GENERATOR = Point(x=GENERATOR_X, y=GENERATOR_Y)
-INFINITY = Point(infinity=True)
+GENERATOR = Point(x=GENERATOR_X, y=GENERATOR_Y)  # The secp256k1 generator point
+INFINITY = Point(infinity=True)  # The point at infinity
 
 __all__ = [
     "CURVE_A",
@@ -49,10 +50,10 @@ __all__ = [
     "NativeBackend",
     "Point",
     "add",
-    "check_libsecp256k1",
     "double",
     "get_backend",
     "is_on_curve",
+    "libsecp256k1",
     "multiply",
     "negate",
     "normalize",

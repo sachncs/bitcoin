@@ -1,34 +1,60 @@
-"""Tests for the config module."""
-
+"""Tests for the Settings singleton."""
 from __future__ import annotations
 
-from bitcoin.config import Config
+import pytest
+
+from bitcoin.settings import Settings, settings
 
 
-def test_config_defaults() -> None:
-    cfg = Config()
-    assert cfg.ecc_backend == "python"
-    assert cfg.network == "mainnet"
-    assert cfg.fetch_timeout == 30
-    assert cfg.strict_parsing is True
+def test_defaults() -> None:
+    assert settings.strict_mode is False
+    assert settings.default_backend is None
+    assert settings.max_extraction_inputs == 100_000
 
 
-def test_config_from_env(monkeypatch) -> None:
-    monkeypatch.setenv("BITCOIN_ECC_BACKEND", "coincurve")
-    monkeypatch.setenv("BITCOIN_NETWORK", "testnet")
-    monkeypatch.setenv("BITCOIN_FETCH_TIMEOUT", "60")
-    monkeypatch.setenv("BITCOIN_STRICT_PARSING", "false")
-    cfg = Config.from_env()
-    assert cfg.ecc_backend == "coincurve"
-    assert cfg.network == "testnet"
-    assert cfg.fetch_timeout == 60
-    assert cfg.strict_parsing is False
+def test_strict_mode_toggle() -> None:
+    s = Settings()
+    assert s.strict_mode is False
+    s.strict_mode = True
+    assert s.strict_mode is True
+    s.strict_mode = False
+    assert s.strict_mode is False
 
 
-def test_config_env_takes_precedence(monkeypatch, tmp_path) -> None:
-    cfg_file = tmp_path / "config.json"
-    cfg_file.write_text('{"ecc_backend": "coincurve", "network": "testnet"}')
-    monkeypatch.setenv("BITCOIN_NETWORK", "mainnet")
-    cfg = Config.load(str(cfg_file))
-    assert cfg.ecc_backend == "coincurve"
-    assert cfg.network == "mainnet"
+def test_default_backend() -> None:
+    s = Settings()
+    s.default_backend = "native"
+    assert s.default_backend == "native"
+    s.default_backend = "libsecp"
+    assert s.default_backend == "libsecp"
+    s.default_backend = None
+    assert s.default_backend is None
+
+
+def test_default_backend_invalid() -> None:
+    s = Settings()
+    with pytest.raises(ValueError, match="default_backend"):
+        s.default_backend = "invalid"
+
+
+def test_max_extraction_inputs() -> None:
+    s = Settings()
+    assert s.max_extraction_inputs == 100_000
+    s.max_extraction_inputs = 1
+    assert s.max_extraction_inputs == 1
+    s.max_extraction_inputs = 500
+    assert s.max_extraction_inputs == 500
+
+
+def test_max_extraction_inputs_invalid() -> None:
+    s = Settings()
+    with pytest.raises(ValueError, match="max_extraction_inputs"):
+        s.max_extraction_inputs = 0
+
+
+def test_repr() -> None:
+    s = Settings()
+    r = repr(s)
+    assert "strict_mode" in r
+    assert "default_backend" in r
+    assert "max_extraction_inputs" in r

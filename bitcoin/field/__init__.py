@@ -1,4 +1,4 @@
-"""Finite-field arithmetic for secp256k1."""
+"""Re-export finite-field arithmetic helpers for secp256k1."""
 
 from bitcoin.field.modular import inverse, validate_non_negative
 from bitcoin.field.sqrt import sqrt, pow_mod

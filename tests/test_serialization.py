@@ -1,10 +1,12 @@
 """Tests for transaction serialization."""
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from bitcoin import Tx, TxIn, TxOut, OutPoint, Witness, parse_tx
-from bitcoin.services.serializer import serialize_tx, serialize_legacy_tx
+from bitcoin.services.serializer import serialize_tx, serialize_legacy_tx, tx_to_json
 from bitcoin.encoding import decode_hex, encode_varint
 
 
@@ -85,3 +87,45 @@ class TestSerializeTx:
         legacy_raw = serialize_legacy_tx(tx)
         assert segwit_raw != legacy_raw
         assert tx.txid() == parse_tx(legacy_raw)[0].txid()
+
+    def test_tx_to_json_empty(self) -> None:
+        """tx_to_json produces valid JSON for empty tx."""
+        tx = Tx(version=2, inputs=(), outputs=(), lock_time=100)
+        j = tx_to_json(tx)
+        assert j["version"] == 2
+        assert j["lock_time"] == 100
+        assert j["inputs"] == []
+        assert j["outputs"] == []
+
+    def test_tx_to_json_roundtrip(self) -> None:
+        """tx_to_json > json.dumps > json.loads produces valid output."""
+        txin = TxIn(
+            OutPoint(txid=b"\xab" * 32, vout=3),
+            script_sig=b"\x00\x01",
+            sequence=0xFFFFFFFF,
+            witness=Witness(()),
+        )
+        txout = TxOut(value=50000, script_pubkey=b"\x76\xa9\x14" + b"\x00" * 20 + b"\x88\xac")
+        tx = Tx(version=1, inputs=(txin,), outputs=(txout,), lock_time=0)
+        j = tx_to_json(tx)
+        dumped = json.dumps(j)
+        loaded = json.loads(dumped)
+        assert loaded["version"] == 1
+        assert loaded["lock_time"] == 0
+        assert len(loaded["inputs"]) == 1
+        assert len(loaded["outputs"]) == 1
+        assert loaded["inputs"][0]["vout"] == 3
+        assert loaded["inputs"][0]["witness"] is None
+        assert loaded["outputs"][0]["value"] == 50000
+
+    def test_tx_to_json_segwit(self) -> None:
+        """tx_to_json includes witness items when present."""
+        txin = TxIn(
+            OutPoint(txid=b"\x00" * 32, vout=0),
+            script_sig=b"",
+            sequence=0xFFFFFFFF,
+            witness=Witness((b"\x30\x45", b"\x02\x01")),
+        )
+        tx = Tx(version=2, inputs=(txin,), outputs=(), lock_time=0)
+        j = tx_to_json(tx)
+        assert j["inputs"][0]["witness"] == ["3045", "0201"]

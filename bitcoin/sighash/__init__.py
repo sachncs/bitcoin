@@ -1,6 +1,11 @@
-"""Sighash computation for legacy, SegWit v0, and Taproot.
+"""Sighash computation for legacy, SegWit v0, and Taproot transactions.
 
-New API.
+This module re-exports all sighash functions and SIGHASH flag constants
+from the submodules:
+  - ``flag``: SIGHASH constants and validation helpers.
+  - ``legacy``:  Pre-SegWit (legacy) sighash.
+  - ``segwit``:  BIP-143 SegWit v0 sighash.
+  - ``taproot``: BIP-341 Taproot sighash.
 """
 
 from bitcoin.sighash.flag import (

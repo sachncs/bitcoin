@@ -20,7 +20,7 @@ test-verbose:
 	python -m pytest -v --tb=long
 
 test-cov:
-	python -m pytest --cov=bitcoin --cov-report=term
+	python -m pytest --cov=bitcoin --cov-report=term-missing
 
 clean:
 	./cleanup.sh

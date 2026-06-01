@@ -1,17 +1,34 @@
-"""Transaction serialization to wire format."""
+"""Transaction serialisation to Bitcoin wire format.
+
+Provides SegWit-aware serialisation (``serialize_tx``), legacy
+serialisation (``serialize_legacy_tx``), JSON conversion (``tx_to_json``),
+and specialised helpers for sighash computation.
+"""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from bitcoin.encoding.varint import encode_varint
+from bitcoin.encoding.hex import encode_hex
 
 if TYPE_CHECKING:
     from bitcoin.transaction.models import Tx
 
 
 def serialize_tx(tx: Tx) -> bytes:
-    """Serialize *tx* to wire format (SegWit-aware)."""
+    """Serialize a transaction to wire format (SegWit-aware).
+
+    Automatically includes the SegWit marker (``0x00``) and flag
+    (``0x01``) when the transaction has any non-empty witness, and
+    appends witness data after the outputs.
+
+    Args:
+        tx: The transaction to serialise.
+
+    Returns:
+        Wire-format bytes.
+    """
     data = bytearray()
     data.extend(tx.version.to_bytes(4, "little"))
 
@@ -43,8 +60,52 @@ def serialize_tx(tx: Tx) -> bytes:
     return bytes(data)
 
 
+def tx_to_json(tx: Tx) -> dict[str, Any]:
+    """Convert a transaction to a JSON-serializable dict.
+
+    Args:
+        tx: The transaction to convert.
+
+    Returns:
+        A dict representing the full transaction structure.
+    """
+    return {
+        "txid": encode_hex(tx.txid()),
+        "version": tx.version,
+        "lock_time": tx.lock_time,
+        "inputs": [
+            {
+                "txid": encode_hex(txin.previous_output.txid),
+                "vout": txin.previous_output.vout,
+                "script_sig": encode_hex(txin.script_sig),
+                "sequence": txin.sequence,
+                "witness": [encode_hex(w) for w in txin.witness.items]
+                if txin.witness.items else None,
+            }
+            for txin in tx.inputs
+        ],
+        "outputs": [
+            {
+                "value": txout.value,
+                "script_pubkey": encode_hex(txout.script_pubkey),
+            }
+            for txout in tx.outputs
+        ],
+    }
+
+
 def serialize_legacy_tx(tx: Tx) -> bytes:
-    """Serialize *tx* in legacy (non-SegWit) format — witness is ignored."""
+    """Serialize a transaction in legacy (non-SegWit) format.
+
+    Witness data is omitted entirely, matching the pre-SegWit wire
+    format.
+
+    Args:
+        tx: The transaction to serialise.
+
+    Returns:
+        Legacy wire-format bytes.
+    """
     data = bytearray()
     data.extend(tx.version.to_bytes(4, "little"))
     data.extend(encode_varint(len(tx.inputs)))
@@ -63,8 +124,27 @@ def serialize_legacy_tx(tx: Tx) -> bytes:
     return bytes(data)
 
 
-def _serialize_legacy_tx_for_sighash(tx: Tx, input_index: int, script: bytes, flag: int) -> bytes:
-    """Legacy sighash serialization.  Called from ``sighash.legacy``."""
+def serialize_legacy_tx_for_sighash(tx: Tx, input_index: int, script: bytes,
+                                    flag: int) -> bytes:
+    """Serialise a transaction for legacy sighash computation.
+
+    Produces the pre-image that is double-SHA256 hashed to produce the
+    legacy sighash.  The serialisation varies according to the SIGHASH
+    flags (ANYONECANPAY, NONE, SINGLE).
+
+    Args:
+        tx: The transaction.
+        input_index: Index of the input being signed.
+        script: Script to place at the input being signed.
+        flag: The SIGHASH flag.
+
+    Returns:
+        Serialised sighash pre-image bytes.
+
+    Raises:
+        ValueError: If ``SIGHASH_SINGLE`` is used and *input_index* is
+            out of bounds for the outputs.
+    """
     from bitcoin.sighash.flag import SIGHASH_ANYONECANPAY, SIGHASH_MASK, SIGHASH_NONE, SIGHASH_SINGLE
 
     data = bytearray()
@@ -123,8 +203,21 @@ def _serialize_legacy_tx_for_sighash(tx: Tx, input_index: int, script: bytes, fl
     return bytes(data)
 
 
-def _serialize_tx_for_sighash_taproot(tx: Tx, flag: int) -> bytes:
-    """Serialization helper for BIP-341 sighash.  Called from ``sighash.taproot``."""
+def serialize_tx_for_sighash_taproot(tx: Tx, flag: int) -> bytes:
+    """Serialise transaction data for BIP-341 Taproot sighash.
+
+    Produces the common transaction data shared across all inputs during
+    Taproot sighash computation (inputs and outputs, without witness
+    data).
+
+    Args:
+        tx: The transaction.
+        flag: The SIGHASH flag (used for flag-dependent output handling
+            per BIP-341).
+
+    Returns:
+        Serialised bytes of inputs and outputs for the Taproot sighash.
+    """
     data = bytearray()
     data.extend(encode_varint(len(tx.inputs)))
     for txin in tx.inputs:

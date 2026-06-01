@@ -1,18 +1,28 @@
 """SEC-format public-key parsing and serialization."""
 
+from functools import lru_cache
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from bitcoin.curve.point import Point
 
 
+@lru_cache(maxsize=1024)
 def parse_sec(data: bytes) -> "Point":
     """Parse a SEC-encoded public key into a ``Point``.
 
-    Supports both compressed (33-byte) and uncompressed (65-byte) formats.
+    Supports both compressed (33-byte, prefix ``0x02`` or ``0x03``)
+    and uncompressed (65-byte, prefix ``0x04``) formats.
+
+    Args:
+        data: SEC-encoded public key bytes.
+
+    Returns:
+        ``Point`` instance on the secp256k1 curve.
 
     Raises:
-        ValueError: If the data is malformed or the point is not on the curve.
+        ValueError: If the data length is invalid, the prefix byte is
+            unrecognized, or the decoded point is not on the curve.
     """
     from bitcoin.curve.point import Point
 
@@ -22,8 +32,7 @@ def parse_sec(data: bytes) -> "Point":
         point = Point.from_sec_uncompressed(data)
     else:
         raise ValueError(
-            f"Invalid SEC key length {len(data)} (expected 33 or 65 bytes)."
-        )
+            f"Invalid SEC key length {len(data)} (expected 33 or 65 bytes).")
 
     from bitcoin.curve.operations import is_on_curve
 
@@ -32,11 +41,20 @@ def parse_sec(data: bytes) -> "Point":
     return point
 
 
+@lru_cache(maxsize=1024)
 def serialize_sec(point: "Point", compressed: bool = True) -> bytes:
     """Serialize a ``Point`` to SEC format.
 
+    Args:
+        point: Point on the secp256k1 curve.
+        compressed: If ``True``, produce 33-byte compressed encoding;
+            otherwise produce 65-byte uncompressed encoding.
+
+    Returns:
+        SEC-encoded public key bytes.
+
     Raises:
-        ValueError: If the point is at infinity.
+        ValueError: If *point* is the point at infinity.
     """
     if point.infinity:
         raise ValueError("Cannot serialize point at infinity.")

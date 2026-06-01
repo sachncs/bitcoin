@@ -34,9 +34,9 @@ class TestInverse:
 
     def test_type_errors(self) -> None:
         with pytest.raises(TypeError):
-            inverse("3", 7)
+            inverse("3", 7)  # type: ignore[arg-type]
         with pytest.raises(TypeError):
-            inverse(3, "7")
+            inverse(3, "7")  # type: ignore[arg-type]
 
 
 class TestSqrt:
@@ -74,7 +74,7 @@ class TestValidateNonNegative:
 
     def test_type_error(self) -> None:
         with pytest.raises(TypeError):
-            validate_non_negative("42")
+            validate_non_negative("42")  # type: ignore[arg-type]
 
 
 class TestRoundtrip:

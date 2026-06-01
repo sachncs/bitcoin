@@ -1,7 +1,8 @@
-"""Signature verification (ECDSAsig check)."""
+"""ECDSA public-key recovery and signature verification."""
 
 from __future__ import annotations
 
+import hmac
 from typing import TYPE_CHECKING
 
 from bitcoin.curve import GENERATOR
@@ -14,15 +15,19 @@ if TYPE_CHECKING:
 
 
 def recover_public_key(message: bytes, sig: bytes, flag: int) -> Point:
-    """Recover the public key from a signature.
+    """Recover the ECDSA public key from a signature and recovery ID.
 
-    Arguments:
+    Args:
         message: The 32-byte message hash.
         sig: The DER-encoded signature.
-        flag: The recovery ID (``27..34``, ``35..42``, etc. for SegWit).
+        flag: The recovery flag byte (``27..34`` for compressed,
+            ``35..42`` for uncompressed).
+
+    Returns:
+        The recovered ``Point``.
 
     Raises:
-        ValueError: If recovery fails.
+        ValueError: If the recovered point is not on the curve or is infinity.
     """
     r, s = decode_der(sig)
     rec_id = (flag - 27) & 0x03
@@ -63,10 +68,15 @@ def recover_public_key(message: bytes, sig: bytes, flag: int) -> Point:
     return pub
 
 
+def constant_time_eq(a: bytes, b: bytes) -> bool:
+    """Compare two byte strings in constant time."""
+    return hmac.compare_digest(a, b)
+
+
 def verify_sig(message: bytes, sig: bytes, public_key: Point) -> bool:
     """Verify an ECDSA signature against a public key.
 
-    Arguments:
+    Args:
         message: The 32-byte message hash.
         sig: The DER-encoded signature.
         public_key: The public key ``Point``.
@@ -101,4 +111,9 @@ def verify_sig(message: bytes, sig: bytes, public_key: Point) -> bool:
     if point.infinity:
         return False
 
-    return (point.x % CURVE_ORDER) == r
+    px = point.x
+    if px is None:
+        return False
+    r_bytes = r.to_bytes(32, "big")
+    px_bytes = (px % CURVE_ORDER).to_bytes(32, "big")
+    return constant_time_eq(px_bytes, r_bytes)

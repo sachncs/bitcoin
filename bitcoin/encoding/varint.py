@@ -4,7 +4,15 @@ from typing import Tuple
 
 
 def encode_varint(value: int) -> bytes:
-    """Encode *value* as a Bitcoin varint.
+    """Encode an integer as a Bitcoin variable-length integer.
+
+    Uses 1, 3, 5, or 9 bytes depending on *value*'s magnitude.
+
+    Args:
+        value: Non-negative integer to encode.
+
+    Returns:
+        Varint-encoded bytes (little-endian multi-byte segments).
 
     Raises:
         TypeError: If *value* is not ``int``.
@@ -22,12 +30,19 @@ def encode_varint(value: int) -> bytes:
 
 
 def decode_varint(stream: bytes, offset: int = 0) -> Tuple[int, int]:
-    """Decode a varint from *stream* at *offset*.
+    """Decode a Bitcoin variable-length integer from a byte stream.
 
-    Returns ``(value, new_offset)``.
+    Args:
+        stream: Source byte string.
+        offset: Starting position of the varint.
+
+    Returns:
+        Tuple of ``(value, new_offset)`` where *new_offset* points
+        past the decoded varint.
 
     Raises:
-        ValueError: If the stream is truncated.
+        ValueError: If the stream is truncated before the varint
+            can be fully read.
     """
     if offset >= len(stream):
         raise ValueError("Truncated varint stream.")
@@ -38,16 +53,16 @@ def decode_varint(stream: bytes, offset: int = 0) -> Tuple[int, int]:
         needed = offset + 3
         if len(stream) < needed:
             raise ValueError("Truncated varint stream.")
-        n = int.from_bytes(stream[offset + 1 : needed], "little")
+        n = int.from_bytes(stream[offset + 1:needed], "little")
         return n, needed
     if prefix == 0xFE:
         needed = offset + 5
         if len(stream) < needed:
             raise ValueError("Truncated varint stream.")
-        n = int.from_bytes(stream[offset + 1 : needed], "little")
+        n = int.from_bytes(stream[offset + 1:needed], "little")
         return n, needed
     needed = offset + 9
     if len(stream) < needed:
         raise ValueError("Truncated varint stream.")
-    n = int.from_bytes(stream[offset + 1 : needed], "little")
+    n = int.from_bytes(stream[offset + 1:needed], "little")
     return n, needed

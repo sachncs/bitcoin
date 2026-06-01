@@ -144,7 +144,7 @@ class TestBackendDispatch:
         set_backend(backend)
         assert get_backend() is backend
         import bitcoin.curve.dispatch as d
-        d._backend = None
+        d.__dict__["__backend"] = None  # __slots__-style to avoid name mangling
         assert get_backend() is None
 
     def test_invalid_backend(self) -> None:

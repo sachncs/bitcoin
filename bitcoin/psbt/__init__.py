@@ -1,8 +1,6 @@
-"""Partially Signed Bitcoin Transaction (PSBT) types and parsing.
+"""Partially Signed Bitcoin Transaction (PSBT) types, parsing, and serialization."""
 
-New API.
-"""
-
+from bitcoin.psbt.editor import PsbtEditor
 from bitcoin.psbt.models import Psbt, PsbtInput, PsbtOutput
 from bitcoin.psbt.parser import (
     parse_keypath_value,
@@ -14,6 +12,7 @@ from bitcoin.psbt.parser import (
 
 __all__ = [
     "Psbt",
+    "PsbtEditor",
     "PsbtInput",
     "PsbtOutput",
     "parse_keypath_value",

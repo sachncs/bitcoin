@@ -1,4 +1,7 @@
-"""Legacy (pre-SegWit) sighash computation (BIP-143 predecessor)."""
+"""Legacy (pre-SegWit) sighash computation.
+
+This is the algorithm used before SegWit, superseded by BIP-143.
+"""
 
 from __future__ import annotations
 
@@ -14,11 +17,27 @@ if TYPE_CHECKING:
 
 
 def sighash_legacy(tx: Tx, input_index: int, script: bytes, flag: int) -> bytes:
-    """Compute the legacy sighash for *tx* at *input_index*.
+    """Compute the legacy (pre-SegWit) sighash for a transaction input.
 
-    This is the algorithm used before SegWit (BIP-143).
+    The serialisation depends on the SIGHASH flags: inputs/outputs may be
+    omitted or zeroed according to the flag semantics.
+
+    Args:
+        tx: The transaction to sign.
+        input_index: Index of the input being signed.
+        script: The script to evaluate (usually ``script_pubkey`` or
+            ``redeemScript``).
+        flag: SIGHASH flag determining which parts of the transaction are
+            committed to.
+
+    Returns:
+        The 32-byte sighash digest.
+
+    Raises:
+        ValueError: If ``SIGHASH_SINGLE`` is used and *input_index* is out of
+            range for the transaction outputs.
     """
-    from bitcoin.services.serializer import _serialize_legacy_tx_for_sighash
+    from bitcoin.services.serializer import serialize_legacy_tx_for_sighash
 
     data = bytearray()
     data.extend(tx.version.to_bytes(4, "little"))

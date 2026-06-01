@@ -2,33 +2,42 @@
 
 ## Runtime
 
-| Package | Min Version | Purpose | Risk |
-|---------|-------------|---------|------|
-| `typer` | — | CLI framework | Low; well-maintained |
-| `click` | — | Typer dependency | Low |
+| Package | Version | Required | Condition | Purpose |
+|---------|---------|----------|-----------|---------|
+| `typer` | ≥0.12 | Yes (CLI) | — | CLI argument parsing for `bitcoin extract` etc. |
+| `coincurve` | ≥2.1 | No | `[extra]` | Optional libsecp256k1 C bindings for accelerated curve operations |
 
-HTTP fetches use `urllib.request` from the Python stdlib — no `requests` or external HTTP library.
+`typer` is only needed when using the CLI. The Python API has zero runtime dependencies outside the standard library.
 
-## Optional
+## Development (`[dev]` extra)
 
-| Package | Purpose |
-|---------|---------|
-| `coincurve` | C-based ECC via libsecp256k1 bindings (`LibsecpBackend`) |
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `pytest` | ≥8.0 | Test runner |
+| `pytest-cov` | — | Coverage reporting |
+| `hypothesis` | ≥6.0 | Property-based and stateful fuzz testing |
+| `mypy` | ≥1.8 | Static type checking (`--strict`) |
+| `ruff` | ≥0.4 | Linter (pyupgrade, bugbear, pycodestyle) |
+| `yapf` | — | Code formatter (pre-commit hook) |
+| `pre-commit` | — | Git hook runner |
+| `coincurve` | ≥2.1 | Libsecp backend tests |
 
-Pure Python backend is always available and the default.
+## CI (`[ci]` extra)
 
-## Development
+`pip install -e ".[ci]"` installs dev dependencies + any CI-specific tooling.
 
-| Package | Purpose |
-|---------|---------|
-| `pytest` | Test runner |
-| `pytest-cov` | Coverage reporting |
-| `pytest-benchmark` | Benchmarking |
-| `mypy` | Static type checking |
-| `ruff` | Linting |
+## Build
 
-## Not Required
+| Tool | Version | Purpose |
+|------|---------|---------|
+| `setuptools` | ≥74.0 | Build backend |
+| `setuptools-scm` | — | Version from git |
 
-- No cryptographic library for signing/verification — package only parses and extracts
-- No `numpy` — all arithmetic is pure Python integer/bigint
-- No `asyncio` — CLI is synchronous
+## Transitive
+
+| Package | Transitive from | Note |
+|---------|-----------------|------|
+| `click` | `typer` | Not a direct dependency |
+| `shellingham` | `typer` | CLI shell detection |
+| `rich` | `typer` | Pretty CLI output (optional) |
+| `typing_extensions` | `typer` | Backport for older Python |

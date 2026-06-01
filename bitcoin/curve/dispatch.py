@@ -2,23 +2,20 @@
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
-from bitcoin.curve.backend import CurveBackend
-from bitcoin.curve.native_backend import NativeBackend
+from bitcoin.curve.backend.base import CurveBackend
+from bitcoin.curve.backend.native import NativeBackend
 
 if TYPE_CHECKING:
     from bitcoin.curve.point import Point
 
-logger = logging.getLogger(__name__)
-
-_backend: CurveBackend | None = None
+__backend: CurveBackend | None = None
 
 
 def get_backend() -> CurveBackend | None:
     """Return the current backend, or ``None`` to use the native default."""
-    return _backend
+    return __backend
 
 
 def set_backend(backend: CurveBackend) -> None:
@@ -29,16 +26,23 @@ def set_backend(backend: CurveBackend) -> None:
     """
     if not isinstance(backend, CurveBackend):
         raise TypeError(
-            f"Expected CurveBackend instance, got {type(backend).__name__}."
-        )
-    global _backend
-    _backend = backend
+            f"Expected CurveBackend instance, got {type(backend).__name__}.")
+    global __backend
+    __backend = backend
 
 
-def _resolve_backend() -> CurveBackend:
+def __resolve_backend() -> CurveBackend:
     """Return the active backend or the default native backend."""
-    if _backend is not None:
-        return _backend
+    if __backend is not None:
+        return __backend
+    from bitcoin.settings import settings
+    name = settings.default_backend
+    if name == "libsecp":
+        try:
+            from bitcoin.curve.backend.libsec import LibsecpBackend
+            return LibsecpBackend()
+        except Exception:
+            pass
     return NativeBackend()
 
 
@@ -46,36 +50,104 @@ def _resolve_backend() -> CurveBackend:
 
 
 def negate(point: Point) -> Point:
-    return _resolve_backend().negate(point)
+    """Return the additive inverse of *point*.
+
+    Args:
+        point: The point to negate.
+
+    Returns:
+        The negated point.
+    """
+    return __resolve_backend().negate(point)
 
 
 def add(left: Point, right: Point) -> Point:
-    return _resolve_backend().add(left, right)
+    """Return the sum of two points.
+
+    Args:
+        left: The first point.
+        right: The second point.
+
+    Returns:
+        The sum point.
+    """
+    return __resolve_backend().add(left, right)
 
 
 def double(point: Point) -> Point:
-    return _resolve_backend().double(point)
+    """Return the point doubled (``2 * point``).
+
+    Args:
+        point: The point to double.
+
+    Returns:
+        The doubled point.
+    """
+    return __resolve_backend().double(point)
 
 
 def multiply(scalar: int, point: Point) -> Point:
-    return _resolve_backend().multiply(scalar, point)
+    """Return scalar multiplication ``scalar * point``.
+
+    Args:
+        scalar: The scalar multiplier.
+        point: The point to multiply.
+
+    Returns:
+        The resulting point.
+    """
+    return __resolve_backend().multiply(scalar, point)
 
 
 def is_on_curve(point: Point) -> bool:
-    return _resolve_backend().is_on_curve(point)
+    """Return True if *point* lies on the secp256k1 curve.
+
+    Args:
+        point: The point to verify.
+
+    Returns:
+        True if the point is on the curve.
+    """
+    return __resolve_backend().is_on_curve(point)
 
 
 def sqrt_field(value: int) -> int:
+    """Compute the square root of *value* modulo FIELD_PRIME.
+
+    Args:
+        value: The value to compute the square root of.
+
+    Returns:
+        The square root modulo FIELD_PRIME.
+    """
     from bitcoin.curve.params import FIELD_PRIME
-    return _resolve_backend().sqrt(value)
+    return __resolve_backend().sqrt(value)
 
 
 def parse_public_key(data: bytes) -> Point:
-    return _resolve_backend().parse_sec(data)
+    """Parse a SEC-encoded public key into a Point.
+
+    Args:
+        data: The SEC-encoded public key bytes (compressed or
+            uncompressed).
+
+    Returns:
+        The parsed Point.
+    """
+    return __resolve_backend().parse_sec(data)
 
 
 def serialize_public_key(point: Point, compressed: bool = True) -> bytes:
-    return _resolve_backend().serialize_sec(point, compressed)
+    """Serialize a Point to SEC-encoded bytes.
+
+    Args:
+        point: The point to serialize.
+        compressed: Whether to use compressed encoding (default True).
+
+    Returns:
+        The SEC-encoded bytes.
+    """
+    return __resolve_backend().serialize_sec(point, compressed)
 
 
 def normalize(value: int) -> int:

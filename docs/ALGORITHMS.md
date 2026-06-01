@@ -1,154 +1,200 @@
 # Algorithms
 
-## DER Signature Parsing — `bitcoin/encoding/der.py`
+## Modular Inverse
 
-Parse DER-encoded ECDSA signatures (BIP-66 strict).
+Extended Euclidean algorithm (`field/modular.py`):
 
-`decode_der(sig_bytes) → (r: int, s: int)`
+```
+Input: a (mod p)
+Output: x such that a·x ≡ 1 (mod p)
 
-| Check | Condition | Error |
-|-------|-----------|-------|
-| Length | `9 ≤ len(sig) ≤ 73` | `InvalidDerSignature` |
-| Sequence tag | `sig[0] == 0x30` | Missing sequence tag |
-| Sequence length | `sig[1] == len(sig) - 2` | Inconsistent length |
-| R integer tag | `sig[2] == 0x02` | Missing R tag |
-| S integer tag | `sig[rend] == 0x02` | Missing S tag |
-| No leading zeros | Value doesn't start with `0x00` unless next byte ≥ 0x80 | Leading zero |
-| Non-negative | `value[0] & 0x80 == 0` | Negative integer |
+def inverse(a, p):
+    if a == 0: raise NotInvertible
+    lm, hm = 1, 0
+    low, high = a % p, p
+    while low > 1:
+        ratio = high // low
+        nm = hm - lm * ratio
+        nm2 = high - low * ratio
+        lm, low, hm, high = nm, nm2, lm, low
+    return lm % p
+```
 
-Sighash byte is stripped before parsing (extraction engine handles this).
+A void-free, division-only variant. Runs in O(log min(a, p)) steps.
 
 ---
 
-## Sighash Computation — `bitcoin/sighash/`
+## Tonelli-Shanks Square Root (`field/sqrt.py`)
 
-### Legacy Sighash (pre-SegWit)
+For primes p ≡ 3 (mod 4) — the secp256k1 field prime:
 
-`sighash_legacy(tx, input_index, script_code, sighash_flag) → bytes`
+```
+Input: a (quadratic residue mod p)
+Output: sqrt(a) mod p
 
-Payload: `version || varint(inputs) || inputs (with script_code at i) || varint(outputs) || outputs || locktime || sighash_flag`
+def sqrt(a, p):
+    # p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+    # p ≡ 3 (mod 4) → use exponentiation
+    return pow_mod(a, (p + 1) // 4, p)
+```
 
-**SINGLE bug**: if `base_type == SINGLE` and `input_index ≥ len(tx.outputs)`, returns `int_to_little_endian_bytes(1, 32)` per consensus rules.
-
-### SegWit v0 (BIP-143)
-
-`sighash_segwit(tx, input_index, script_code, amount, sighash_flag) → bytes`
-
-Key differences from legacy:
-- Amount serialized in payload (anti-fee-theft)
-- Pre-computed `hash_prevouts`, `hash_sequence`, `hash_outputs`
-- Anyone-can-pay zeros out `hash_prevouts` and `hash_sequence`
-
-### Taproot (BIP-341)
-
-`sighash_taproot(tx, input_index, script_code, amount, sighash_flag, script_pubkeys, spend_type, annex) → bytes`
-
-Uses BIP-340 tagged hashes: `SHA256(SHA256(tag) || SHA256(tag) || data)`.
+Simple exponentiation path since p ≡ 3 mod 4. O(log p) via modular exponentiation.
 
 ---
 
-## ECC Point Arithmetic — `bitcoin/curve/operations.py`
-
-### Point Negation
+## Double-SHA256 (`hash256`)
 
 ```
--P = (x, -y mod p)  for P = (x, y)
+hash256(data) = sha256(sha256(data))
 ```
 
-### Point Addition (affine)
-
-```
-m = (y₂ − y₁) / (x₂ − x₁) mod p
-x₃ = m² − x₁ − x₂ mod p
-y₃ = m(x₁ − x₃) − y₁ mod p
-```
-
-Edge cases: infinity, inverse (return infinity), equal points (double instead).
-
-### Point Doubling (affine)
-
-```
-m = (3x₁² + a) / (2y₁) mod p   (a = 0 for secp256k1)
-x₃ = m² − 2x₁ mod p
-y₃ = m(x₁ − x₃) − y₁ mod p
-```
-
-### Scalar Multiplication (Montgomery ladder)
-
-```
-R0 = INFINITY
-R1 = P
-for each bit of scalar (MSB to LSB):
-    if bit == 0: R1, R0 = R0 + R1, 2 * R0
-    else:        R0, R1 = R0 + R1, 2 * R1
-return R0
-```
-
-Constant-time in iterations. Scalar reduced modulo `CURVE_ORDER` first.
-
-### Backend Dispatch
-
-`negate`/`add`/`double`/`multiply` check `get_backend()` first; fall back to pure Python `_py` functions if no backend is installed.
+Used in `sighash_legacy`, `sighash_segwit`, and for `tx.txid()` computation.
 
 ---
 
-## SEC Public Key Parsing — `bitcoin/encoding/sec.py`
-
-### Compressed (33 bytes, prefix 0x02/0x03)
+## BIP-143 SegWit v0 Sighash (`sighash/segwit.py`)
 
 ```
-x = int.from_bytes(data[1:33], "big")
-y = sqrt(x³ + 7 mod p)
-if (y % 2) != expected_parity: y = (-y) % p
-```
+hashPrevouts  = hash256(prevout_n outpoint_n for each input)
+hashSequence  = hash256(sequence_n for each input)
+hashOutputs   = hash256(output_n for each output)
 
-### Uncompressed (65 bytes, prefix 0x04)
-
-```
-x = int.from_bytes(data[1:33], "big")
-y = int.from_bytes(data[33:], "big")
+sighash = hash256(
+    version (4) +
+    hashPrevouts +
+    hashSequence +
+    outpoint (txid + vout) of current input +
+    script_code (variable) +
+    amount (8 bytes LE) +
+    sequence (4 bytes) +
+    hashOutputs +
+    lock_time (4 bytes) +
+    sighash_flag (4 bytes LE)
+)
 ```
 
 ---
 
-## Field Square Root — `bitcoin/field/sqrt.py`
-
-Tonelli-Shanks specialization for p ≡ 3 (mod 4):
+## BIP-341 Taproot Sighash (`sighash/taproot.py`)
 
 ```
-root = value^((p + 1) / 4) mod p
-if root² mod p != value: raise NotInvertible
-return root
+key_version = 0x00
+hash_type = sighash_flag (1 byte)
+
+sha_prevouts = sha256(prevout_n for each input)
+sha_amounts = sha256(amount_n for each input)
+sha_scriptpubkeys = sha256(scriptPubKey_n for each input)
+sha_sequences = sha256(sequence_n for each input)
+sha_outputs = sha256(txout_n for each output)
+
+sha_single_output = sha256(txout[input_index])  # if SIGHASH_SINGLE
+
+sighash = tagged_hash("TapSighash",
+    hash_type (1) +
+    version (4) + lock_time (4) +
+    sha_prevouts (32) + sha_amounts (32) +
+    sha_scriptpubkeys (32) + sha_sequences (32) +
+    0x00 32 (if no spend data) / sha256(leaf_version + script) (32) +
+    codeseparator_position (4) +
+    sha_outputs (32) + spend_type (1) +
+    input_index (4) +
+    ...
+)
 ```
 
-Works because secp256k1's `p = 2²⁵⁶ − 2³² − 977` satisfies `p ≡ 3 (mod 4)`.
+Uses BIP-340 tagged hash: `tagged_hash(tag, data) = sha256(sha256(tag) || sha256(tag) || data)`.
 
 ---
 
-## Modular Inverse — `bitcoin/field/modular.py`
-
-Extended Euclidean algorithm:
+## ECDSA Verification (`signature/check.py`)
 
 ```
-old_r, r = modulus, value
-old_t, t = 0, 1
-while r != 0:
-    q = old_r // r
-    old_r, r = r, old_r − q * r
-    old_t, t = t, old_t − q * t
-if old_r != 1: raise NotInvertible
-return old_t % modulus
+verify_sig(message_hash, der_sig, public_key):
+    1. Parse DER to (r, s)
+    2. Reject if r or s outside [1, n-1]
+    3. z = bytes_to_int(message_hash)
+    4. u1 = (z * s⁻¹) mod n
+    5. u2 = (r * s⁻¹) mod n
+    6. R = u1·G + u2·Q
+    7. Valid if R.x ≡ r (mod n)
 ```
 
 ---
 
-## Linearization — `bitcoin/signature/linearization/engine.py`
+## Nonce Reuse Attack (`signature/attack.py`)
 
-Given extracted (r, s, z):
+Given two signatures with same k (identical r):
 
 ```
-α ≡ s · r⁻¹  (mod n)
-β ≡ z · r⁻¹  (mod n)
+Given: s₁ = k⁻¹(z₁ + r·d)  (mod n)
+       s₂ = k⁻¹(z₂ + r·d)  (mod n)
+
+Subtract: s₁ − s₂ = k⁻¹(z₁ − z₂)  (mod n)
+     ⇒   k = (z₁ − z₂) · (s₁ − s₂)⁻¹  (mod n)
+     ⇒   d = (s₁·k − z₁) · r⁻¹  (mod n)
 ```
 
-Derived relation: `d' ≡ α · k (mod n)` where `d' = d + β`.
+Also recovers k via linear coefficient identity.
+
+---
+
+## Related Nonce Recovery (`signature/attack.py`)
+
+When `k₂ = k₁ + δ` and δ is known:
+
+```
+Given: k₂ = k₁ + δ
+       s₁ = k₁⁻¹(z₁ + r₁·d)
+       s₂ = (k₁ + δ)⁻¹(z₂ + r₂·d)
+
+Substitute and solve for k₁:
+       k₁ = (z₁ − s₁·r₁·r₂⁻¹·z₂) · (s₁·r₁·r₂⁻¹ + s₂ − s₁·r₁·r₂⁻¹·δ)⁻¹
+Then:  d = (s₁·k₁ − z₁) · r₁⁻¹
+       k₂ = k₁ + δ
+```
+
+---
+
+## Deterministic ECDSA Nonce (RFC 6979) (`signature/signer.py`)
+
+Uses HMAC-SHA256 to generate k deterministically:
+
+```
+def generate_k(q, x, hash):
+    # q = curve order, x = private key, hash = message hash
+    V = 0x01 * 16
+    K = 0x00 * 16
+    x_hash = int_to_bytes(x, 32) + hash
+    K = hmac_sha256(K, V + 0x00 + x_hash)
+    V = hmac_sha256(K, V)
+    K = hmac_sha256(K, V + 0x01 + x_hash)
+    V = hmac_sha256(K, V)
+
+    while True:
+        V = hmac_sha256(K, V)
+        k = bytes_to_int(V)
+        if 1 <= k < q:
+            return k
+        K = hmac_sha256(K, V + 0x00)
+        V = hmac_sha256(K, V)
+```
+
+Implements the "test" candidate generation (Section 3.2). This is HMAC-based and runs in expected O(1) rounds.
+
+---
+
+## Linear Coefficient Derivation (`signature/linearization/coefficients.py`)
+
+```
+Input: (r, s, z) from an ECDSA signature
+Output: (α, β) such that d ≡ α·k − β (mod n)
+
+α = s · r⁻¹  (mod n)
+β = z · r⁻¹  (mod n)
+
+Derived from:
+    s ≡ k⁻¹(z + rd)
+    s·k ≡ z + r·d
+    d ≡ r⁻¹·s·k − r⁻¹·z
+    d ≡ α·k − β
+```

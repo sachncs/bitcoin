@@ -1,15 +1,15 @@
 [build-system]
-requires = ["setuptools>=69", "wheel"]
+requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "bitcoin"
-version = "0.2.0"
+version = "0.4.0"
 description = "Extract and linearize ECDSA signatures (r, s, z) from Bitcoin transactions with pure-Python secp256k1"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
-authors = [{ name = "OpenAI" }]
+authors = [{ name = "secp contributors" }]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -18,12 +18,13 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Security :: Cryptography",
     "Topic :: Internet",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = ["typer>=0.12,<1"]
 
 [project.urls]
-Homepage = "https://github.com/opensecp/secp"
-Repository = "https://github.com/opensecp/secp"
+Homepage = "https://github.com/sachn-cs/bitcoin"
+Repository = "https://github.com/sachn-cs/bitcoin"
 
 [project.optional-dependencies]
 coincurve = ["coincurve>=18,<19"]
@@ -55,6 +56,9 @@ select = ["E", "F", "UP", "B"]
 based_on_style = "google"
 column_limit = 88
 
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B"]
+
 [tool.mypy]
 python_version = "3.12"
 warn_unused_configs = true
@@ -63,4 +67,3 @@ disallow_incomplete_defs = true
 check_untyped_defs = true
 no_implicit_optional = true
 strict_equality = true
-

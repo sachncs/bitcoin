@@ -10,18 +10,17 @@ pip install -e ".[dev]"
 ## Running Checks
 
 ```bash
-make lint      # ruff check + format
-make typecheck # mypy
+make lint      # ruff check
+make typecheck # mypy --strict
 make test      # pytest (all tests)
 make test-cov  # pytest with coverage (99%+ required)
 ```
 
 ## Code Style
 
-- Python 3.12+; 88-char lines; ruff with rules E, F, I, UP, B.
-- All public functions must have typed signatures and docstrings.
+- Python 3.12+; 88-char lines; ruff with rules E, F, UP, B.
+- All public functions must have typed signatures.
 - No circular imports. `models.py` must stay import-free (leaf module).
-- Domain objects own their validation logic (e.g. `TransformedPointRecord.validate()`).
 
 ## Pull Requests
 

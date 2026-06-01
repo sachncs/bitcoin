@@ -1,24 +1,35 @@
-"""CLI commands for the secp256k1 signing toolkit."""
+"""Typer-based CLI application exposing ``decode``, ``extract``, ``linearize``, and ``version`` commands."""
 
 from __future__ import annotations
 
+import csv
+import io
+import json
 from collections.abc import Sequence
+from pathlib import Path
 from typing import List, Optional
 
 import typer
 
+from bitcoin.services.serializer import tx_to_json
 from bitcoin.signature import extract_signatures, linearize_signatures
 from bitcoin.signature.record import Record
 from bitcoin.encoding.hex import decode_hex, encode_hex
 from bitcoin.transaction import parse_tx
 
-app = typer.Typer(name="secp")
+app = typer.Typer(name="bitcoin")
 
 
 def parse_input_values(value_str: str) -> list[int | None]:
     """Parse a comma-separated string of input values into integers.
 
     Empty entries (e.g. ``"100,,300"``) yield ``None``.
+
+    Args:
+        value_str: Comma-separated integer values (e.g. ``"100,200,300"``).
+
+    Returns:
+        A list where each entry is an ``int`` or ``None`` for empty fields.
     """
     if not value_str or value_str.strip() == "":
         return []
@@ -32,64 +43,215 @@ def parse_input_values(value_str: str) -> list[int | None]:
     return result
 
 
-@app.command()
-def extract(
-    tx_hex: str = typer.Argument(..., help="Transaction hex"),
-    utxo_scripts: Optional[List[str]] = typer.Option(
-        None, "--utxo-script", help="UTXO scriptPubKey (one per input)"
-    ),
-    utxo_values: Optional[List[int]] = typer.Option(
-        None, "--utxo-value", help="UTXO value in satoshis (one per input)"
-    ),
-) -> None:
-    """Extract signatures from a transaction."""
-    tx_bytes = decode_hex(tx_hex)
-    tx, _ = parse_tx(tx_bytes)
+def __resolve_output_format(
+    *,
+    json_output: bool,
+    csv_output: bool,
+    output_format: str,
+) -> str:
+    """Resolve the effective output format, erroring on conflicting flags."""
+    if json_output and csv_output:
+        typer.echo("--json and --csv are mutually exclusive", err=True)
+        raise typer.Exit(1)
+    if output_format != "text":
+        return output_format
+    if json_output:
+        return "json"
+    if csv_output:
+        return "csv"
+    return "text"
 
-    script_pubkeys = (
-        [decode_hex(s) for s in utxo_scripts] if utxo_scripts else None
-    )
 
-    records = extract_signatures(tx, script_pubkeys, utxo_values)
+def __read_tx_hex(tx_hex: str | None, input_file: Path | None) -> str:
+    """Return tx hex from the positional arg or ``--input-file``.
 
+    If both are provided ``--input-file`` wins.
+    """
+    if input_file is not None:
+        return input_file.read_text().strip()
+    if tx_hex is not None:
+        return tx_hex
+    typer.echo("Either provide tx_hex as argument or use --input-file",
+               err=True)
+    raise typer.Exit(1)
+
+
+def __output_records(records: list[Record], fmt: str) -> None:
+    """Output records (for ``extract``) in the requested format."""
     if not records:
         typer.echo("No signatures found.")
         raise typer.Exit(0)
 
-    for rec in records:
-        typer.echo(f"txid:  {encode_hex(rec.txid)}")
-        typer.echo(f"vin:   {rec.vin}")
-        typer.echo(f"sig:   {encode_hex(rec.sig)}")
-        typer.echo(f"type:  {rec.script_type}")
-        typer.echo(f"flag:  {rec.sighash_flag}")
-        typer.echo(f"value: {rec.amount}")
-        typer.echo("---")
+    if fmt == "json":
+        data = [{
+            "txid": encode_hex(r.txid),
+            "vin": r.vin,
+            "sig": encode_hex(r.sig),
+            "type": r.script_type,
+            "flag": r.sighash_flag,
+            "value": r.amount,
+        } for r in records]
+        typer.echo(json.dumps(data, indent=2))
+    elif fmt == "csv":
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(["txid", "vin", "sig", "type", "flag", "value"])
+        for r in records:
+            writer.writerow([
+                encode_hex(r.txid),
+                r.vin,
+                encode_hex(r.sig),
+                r.script_type,
+                r.sighash_flag,
+                r.amount,
+            ])
+        typer.echo(buf.getvalue().rstrip())
+    else:
+        for rec in records:
+            typer.echo(f"txid:  {encode_hex(rec.txid)}")
+            typer.echo(f"vin:   {rec.vin}")
+            typer.echo(f"sig:   {encode_hex(rec.sig)}")
+            typer.echo(f"type:  {rec.script_type}")
+            typer.echo(f"flag:  {rec.sighash_flag}")
+            typer.echo(f"value: {rec.amount}")
+            typer.echo("---")
+
+
+def __output_sorted_records(records: list[Record], fmt: str) -> None:
+    """Output sorted/linearized records (for ``linearize``) in the requested format."""
+    if not records:
+        typer.echo("No signatures found.")
+        raise typer.Exit(0)
+
+    if fmt == "json":
+        data = [{
+            "txid": encode_hex(r.txid),
+            "vin": r.vin,
+            "sig": encode_hex(r.sig),
+        } for r in records]
+        typer.echo(json.dumps(data, indent=2))
+    elif fmt == "csv":
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(["txid", "vin", "sig"])
+        for r in records:
+            writer.writerow([encode_hex(r.txid), r.vin, encode_hex(r.sig)])
+        typer.echo(buf.getvalue().rstrip())
+    else:
+        for rec in records:
+            typer.echo(
+                f"{encode_hex(rec.txid)}:{rec.vin} {encode_hex(rec.sig)}")
+
+
+@app.command()
+def decode(
+    tx_hex: Optional[str] = typer.Argument(None, help="Transaction hex"),
+    input_file: Optional[Path] = typer.Option(None,
+                                              "--input-file",
+                                              help="Read tx hex from file"),
+) -> None:
+    """Decode a raw transaction and output as JSON."""
+    tx_hex_resolved = __read_tx_hex(tx_hex, input_file)
+    tx_bytes = decode_hex(tx_hex_resolved)
+    tx, _ = parse_tx(tx_bytes)
+    typer.echo(json.dumps(tx_to_json(tx), indent=2))
+
+
+@app.command()
+def extract(
+    tx_hex: Optional[str] = typer.Argument(None, help="Transaction hex"),
+    utxo_scripts: Optional[List[str]] = typer.Option(
+        None, "--utxo-script", help="UTXO scriptPubKey (one per input)"),
+    utxo_values: Optional[List[int]] = typer.Option(
+        None, "--utxo-value", help="UTXO value in satoshis (one per input)"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+    csv_output: bool = typer.Option(False, "--csv", help="Output as CSV"),
+    output_format: str = typer.Option("text", "--format", help="Output format"),
+    input_file: Optional[Path] = typer.Option(None,
+                                              "--input-file",
+                                              help="Read tx hex from file"),
+    progress: bool = typer.Option(False, "--progress", "-p",
+                                  help="Show progress dots"),
+) -> None:
+    """Extract ECDSA signatures from a raw transaction hex."""
+    fmt = __resolve_output_format(
+        json_output=json_output,
+        csv_output=csv_output,
+        output_format=output_format,
+    )
+    tx_hex_resolved = __read_tx_hex(tx_hex, input_file)
+
+    tx_bytes = decode_hex(tx_hex_resolved)
+    tx, _ = parse_tx(tx_bytes)
+
+    script_pubkeys = ([decode_hex(s) for s in utxo_scripts]
+                      if utxo_scripts else None)
+
+    if progress:
+        typer.echo(f"Parsed tx with {len(tx.inputs)} inputs, "
+                   f"{len(tx.outputs)} outputs.", err=True)
+
+    records = extract_signatures(tx, script_pubkeys, utxo_values)
+
+    if progress:
+        typer.echo(f" Found {len(records)} signature(s).", err=True)
+
+    __output_records(records, fmt)
 
 
 @app.command()
 def linearize(
-    tx_hex: str = typer.Argument(..., help="Transaction hex"),
+    tx_hex: Optional[str] = typer.Argument(None, help="Transaction hex"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+    csv_output: bool = typer.Option(False, "--csv", help="Output as CSV"),
+    output_format: str = typer.Option("text", "--format", help="Output format"),
+    input_file: Optional[Path] = typer.Option(None,
+                                              "--input-file",
+                                              help="Read tx hex from file"),
+    progress: bool = typer.Option(False, "--progress", "-p",
+                                  help="Show progress dots"),
 ) -> None:
-    """Extract and linearize signatures from a transaction."""
-    tx_bytes = decode_hex(tx_hex)
+    """Extract and linearize (sort) signatures from a raw transaction hex."""
+    fmt = __resolve_output_format(
+        json_output=json_output,
+        csv_output=csv_output,
+        output_format=output_format,
+    )
+    tx_hex_resolved = __read_tx_hex(tx_hex, input_file)
+
+    tx_bytes = decode_hex(tx_hex_resolved)
     tx, _ = parse_tx(tx_bytes)
+
+    if progress:
+        typer.echo(f"Parsed tx with {len(tx.inputs)} inputs, "
+                   f"{len(tx.outputs)} outputs.", err=True)
+
     records = extract_signatures(tx)
     sorted_records = linearize_signatures(records)
 
-    for rec in sorted_records:
-        typer.echo(f"{encode_hex(rec.txid)}:{rec.vin} {encode_hex(rec.sig)}")
+    if progress:
+        typer.echo(f" Linearized {len(sorted_records)} signature(s).", err=True)
+
+    __output_sorted_records(sorted_records, fmt)
 
 
 @app.command()
 def version() -> None:
-    """Show the installed version."""
+    """Print the installed bitcoin package version."""
     from bitcoin import __version__ as ver
 
-    typer.echo(f"secp v{ver}")
+    typer.echo(f"bitcoin v{ver}")
 
 
 def main(args: Sequence[str] | None = None) -> int:
-    """Entry point for the CLI."""
+    """CLI entry point — delegates to the Typer app.
+
+    Args:
+        args: Optional argument list.  If ``None``, uses ``sys.argv``.
+
+    Returns:
+        Always ``0``.
+    """
     if args is not None:
         app(args)
     else:

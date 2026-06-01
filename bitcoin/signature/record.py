@@ -1,4 +1,4 @@
-"""Signature record — a single extracted ECDSA signature with metadata."""
+"""Frozen dataclass representing a single extracted ECDSA signature with metadata."""
 
 from __future__ import annotations
 
@@ -11,17 +11,17 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class Record:
-    """A single extracted ECDSA signature with its associated data.
+    """A single extracted ECDSA signature with its associated metadata.
 
     Attributes:
-        txid: The transaction ID (32 bytes, little-endian).
-        vin: The input index within the transaction.
-        sig: The raw DER-encoded signature (``bytes``).
-        public_key: The public key that signed (``Point``, may be infinity
-            if unknown).
-        script_type: The type of script (``"p2pkh"``, ``"p2wpkh"``, etc.).
-        sighash_flag: The SIGHASH flag byte.
-        amount: Value of the UTXO being spent (0 if unknown).
+        txid: Transaction ID (32 bytes, little-endian).
+        vin: Input index within the transaction.
+        sig: Raw DER-encoded signature (``bytes``).
+        public_key: Public key that signed (``Point``; may be ``INFINITY``
+            when the key could not be recovered).
+        script_type: Script type identifier (e.g. ``"p2pkh"``, ``"p2wpkh"``).
+        sighash_flag: SIGHASH flag byte.
+        amount: Value of the UTXO being spent in satoshis (``0`` if unknown).
     """
 
     txid: bytes
@@ -33,6 +33,12 @@ class Record:
     amount: int
 
     def __post_init__(self) -> None:
+        """Validate field invariants after initialization.
+
+        Raises:
+            ValueError: If *txid* is not 32 bytes, *vin* or *amount* is
+                negative, or *sig* is empty.
+        """
         if len(self.txid) != 32:
             raise ValueError(f"txid must be 32 bytes, got {len(self.txid)}.")
         if self.vin < 0:

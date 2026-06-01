@@ -1,59 +1,65 @@
 """Benchmarks for ECC operations."""
+from __future__ import annotations
 
-from bitcoin.ecc import (
-    SECP256K1_INFINITY,
-    G,
-    point_add,
-    point_double,
-    point_negate,
-    scalar_multiply,
-    serialize_sec_public_key,
+from typing import TYPE_CHECKING
+
+from bitcoin.curve import (
+    INFINITY,
+    GENERATOR,
+    add,
+    double,
+    multiply,
+    negate,
+    serialize_public_key,
 )
 
+if TYPE_CHECKING:
+    from pytest_benchmark.fixture import BenchmarkFixture
 
-def test_bench_point_add(benchmark) -> None:
-    p1 = scalar_multiply(42, G)
-    p2 = scalar_multiply(123, G)
-    result = benchmark(point_add, p1, p2)
+
+def test_bench_point_add(benchmark: BenchmarkFixture) -> None:
+    p1 = multiply(42, GENERATOR)
+    p2 = multiply(123, GENERATOR)
+    result = benchmark(add, p1, p2)
     assert not result.infinity
 
 
-def test_bench_point_double(benchmark) -> None:
-    p = scalar_multiply(42, G)
-    result = benchmark(point_double, p)
+def test_bench_point_double(benchmark: BenchmarkFixture) -> None:
+    p = multiply(42, GENERATOR)
+    result = benchmark(double, p)
     assert not result.infinity
 
 
-def test_bench_scalar_multiply(benchmark) -> None:
-    result = benchmark(scalar_multiply, 123456789, G)
+def test_bench_scalar_multiply(benchmark: BenchmarkFixture) -> None:
+    result = benchmark(multiply, 123456789, GENERATOR)
     assert not result.infinity
 
 
-def test_bench_scalar_multiply_large(benchmark) -> None:
+def test_bench_scalar_multiply_large(benchmark: BenchmarkFixture) -> None:
     scalar = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141 - 2
-    result = benchmark(scalar_multiply, scalar, G)
+    result = benchmark(multiply, scalar, GENERATOR)
     assert not result.infinity
 
 
-def test_bench_point_negate(benchmark) -> None:
-    p = scalar_multiply(42, G)
-    result = benchmark(point_negate, p)
+def test_bench_point_negate(benchmark: BenchmarkFixture) -> None:
+    p = multiply(42, GENERATOR)
+    result = benchmark(negate, p)
     assert not result.infinity
 
 
-def test_bench_serialize_compressed(benchmark) -> None:
-    p = scalar_multiply(42, G)
-    result = benchmark(serialize_sec_public_key, p, True)
+def test_bench_serialize_compressed(benchmark: BenchmarkFixture) -> None:
+    p = multiply(42, GENERATOR)
+    result = benchmark(serialize_public_key, p)
     assert len(result) == 33
 
 
-def test_bench_serialize_uncompressed(benchmark) -> None:
-    p = scalar_multiply(42, G)
-    result = benchmark(serialize_sec_public_key, p, False)
+def test_bench_serialize_uncompressed(benchmark: BenchmarkFixture) -> None:
+    p = multiply(42, GENERATOR)
+    result = benchmark(serialize_public_key, p, compressed=False)
     assert len(result) == 65
 
 
-def test_bench_infinity_add(benchmark) -> None:
-    p = scalar_multiply(42, G)
-    result = benchmark(point_add, SECP256K1_INFINITY, p)
+def test_bench_infinity_add(benchmark: BenchmarkFixture) -> None:
+    p = multiply(42, GENERATOR)
+    result = benchmark(add, INFINITY, p)
     assert result == p

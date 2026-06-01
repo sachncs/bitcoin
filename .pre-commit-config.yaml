@@ -1,11 +1,17 @@
 repos:
+  - repo: https://github.com/google/yapf
+    rev: v0.40.2
+    hooks:
+      - id: yapf
+        args: [--style, google, -i, --parallel]
+        files: '\.py$'
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.4.10
     hooks:
       - id: ruff
         args: [--fix]
       - id: ruff-format
-  - repo: https://github.com/pre-commit/mirrors-mypy
+  - repo: https://github.com/python/mypy
     rev: v1.10.0
     hooks:
       - id: mypy

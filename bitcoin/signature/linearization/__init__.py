@@ -1,4 +1,4 @@
-"""Signature linearization — canonical ordering."""
+"""Top-level linearization API — re-exports ``linearize_signatures``."""
 
 from bitcoin.signature.linearization.engine import linearize_signatures
 

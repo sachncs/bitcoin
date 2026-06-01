@@ -17,8 +17,14 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: uv sync
-      - run: uv run yapf -d -r --style google ./bitcoin && echo "yapf: no formatting changes needed" || (echo "yapf: formatting changes detected"; exit 1)
+      - run: uv sync --extra dev --frozen
+      - name: Check yapf formatting
+        run: |
+          if uv run yapf -d -r ./bitcoin | grep . > /dev/null 2>&1; then
+            echo "yapf: formatting changes detected"
+            exit 1
+          fi
+          echo "yapf: no formatting changes needed"
       - run: uv run ruff check bitcoin/
       - run: uv run mypy bitcoin/
 
@@ -32,5 +38,33 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: uv sync
+      - run: uv sync --extra dev --frozen
+      - run: uv run pytest tests/ -v --cov=bitcoin --cov-report=term-missing --cov-fail-under=99
+
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+      - run: uv sync --extra dev --frozen
+      - run: uv run pytest tests/test_benchmarks.py --benchmark-only --benchmark-json benchmark.json
+      - name: Store benchmark result
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark
+          path: benchmark.json
+
+  test-coincurve:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: uv sync --extra dev --extra coincurve --frozen
       - run: uv run pytest tests/ -v --cov=bitcoin --cov-report=term-missing --cov-fail-under=99

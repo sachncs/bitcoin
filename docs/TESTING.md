@@ -1,53 +1,80 @@
 # Testing
 
-## Test Files
-
-| File | Package Coverage |
-|------|------------------|
-| `tests/test_field.py` | Field arithmetic: inverse, sqrt, validation |
-| `tests/test_curve.py` | Point ops, SEC roundtrip, backend dispatch |
-| `tests/test_encoding.py` | Hex, varint, DER, SEC, hashing, binary |
-| `tests/test_transaction_new.py` | Tx models: OutPoint, Witness, TxIn, TxOut, Tx |
-| `tests/test_signature_new.py` | Record, verification, linearization |
-| `tests/test_imports.py` | All public imports, no circular deps |
-| `tests/test_config.py` | Settings (if applicable) |
-| `tests/test_benchmarks.py` | Performance benchmarks (not run by default) |
-
 ## Running Tests
 
 ```bash
-# All tests
-python -m pytest tests/
-
-# Specific file
-python -m pytest tests/test_curve.py -v
-
-# With coverage
-python -m pytest tests/ --cov=bitcoin
-
-# Benchmarks
-python -m pytest tests/test_benchmarks.py --benchmark-only
+pytest tests/ -v
 ```
 
-## Test Strategy
+With coverage:
 
-**Unit tests**: Cover normal paths, edge cases, and error paths for each package. Use known-good test vectors where applicable.
+```bash
+pytest tests/ --cov=bitcoin
+```
 
-**Property-based tests**: Algebraic invariants for point ops, DER roundtrip, SEC roundtrip, field ops.
+## Test Files
 
-## Critical Scenarios
+| File | Coverage |
+|------|----------|
+| `test_field.py` | Modular inverse, sqrt, pow_mod |
+| `test_curve.py` | Point ops, backends, SEC encoding |
+| `test_encoding.py` | Hex, varint, DER, hashing |
+| `test_script.py` | Script parse/serialize/classify |
+| `test_transaction.py` | Tx parse, Tx struct, make_tx |
+| `test_sighash.py` | Legacy, segwit, taproot sighash |
+| `test_sighash_full.py` | Comprehensive sighash test vectors (requires external JSON) |
+| `test_extraction.py` | Signature extraction (P2PKH, P2WPKH, P2SH, P2WSH, P2TR) |
+| `test_extraction_coverage.py` | Edge cases: empty scripts, coinbase, unknown types, DOGE/ERC compatibility |
+| `test_linearize.py` | Linearization, nonce-reuse attack |
+| `test_psbt.py` | PSBT parse/serialize/signatures |
+| `test_psbt_parser.py` | PSBT edge cases (malformed, segwit, taproot) |
+| `test_signature.py` | Verify, recover, DER parsing |
+| `test_cli.py` | CLI commands via Typer `CliRunner` |
+| `test_cli_coverage.py` | CLI edge cases (file input, CSV, empty, etc.) |
+| `test_cli_integration.py` | End-to-end CLI tests |
+| `test_settings.py` | Settings defaults and mutations |
+| `test_exceptions.py` | Exception hierarchy and aliases |
+| `test_stateful.py` | Hypothesis `RuleBasedStateMachine` for extraction invariants |
+| `test_mainnet.py` | Live mainnet transaction parsing |
+| `test_fuzzing.py` | Hypothesis property-based tests (script, DER, fields) |
+| `test_misc_coverage.py` | Remaining branch coverage (helpers, builder, non-linear coeffs) |
+| `test_low_coverage_modules.py` | Hard-to-reach code paths |
 
-1. **Transaction parsing**: SegWit and legacy, edge cases (no inputs, no outputs)
-2. **Sighash**: ALL, NONE, SINGLE, ANYONECANPAY combinations; SINGLE bug sentinel
-3. **ECC**: Infinity handling, curve membership, SEC roundtrip
-4. **Backend dispatch**: Native vs libsecp, fallback
-5. **Signature extraction**: P2PKH, P2WPKH, P2WSH, P2SH-P2WPKH, Taproot
-6. **Linearization**: Non-invertible r, zero r/s rejection
-7. **PSBT**: Parse roundtrip, partial sigs
-8. **Configuration**: Settings defaults, validation
+## Coverage
 
-## Coverage Gaps
+The project targets **99%+ line coverage**. Current CI gate rejects drops below 99%.
 
-- No integration tests (require live network)
-- No async tests
-- No fuzzing (low ROI for Bitcoin's well-defined protocol)
+Run:
+
+```bash
+pytest tests/ --cov=bitcoin --cov-fail-under=99
+```
+
+## Linting & Type Checking
+
+```bash
+mypy bitcoin/ tests/ --strict
+ruff check bitcoin/ tests/
+yapf -dr bitcoin/ tests/
+```
+
+## CI Matrix
+
+GitHub Actions runs three configurations:
+
+| Job | Python | Extras |
+|-----|--------|--------|
+| `test` | 3.11, 3.12, 3.13 | None |
+| `test-coincurve` | 3.11 | `[dev]` |
+| `benchmark` | 3.11 | `[dev]` |
+
+## Property-Based Tests
+
+Hypothesis strategies in `test_fuzzing.py` test:
+
+- Roundtrip: parse → serialize → parse for scripts, transactions, PSBTs
+- Field: `inverse(inverse(a)) ≡ a`
+- Curve: point addition associativity
+- DER: `decode(encode(sig)) ≡ sig`
+- Sighash: malleability invariants
+- Stateful: extraction pipeline invariants via `RuleBasedStateMachine`

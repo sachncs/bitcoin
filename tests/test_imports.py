@@ -71,8 +71,9 @@ def test_no_circular_imports() -> None:
     import bitcoin.curve.point
     import bitcoin.curve.operations
     import bitcoin.curve.backend
-    import bitcoin.curve.native_backend
-    import bitcoin.curve.libsecp_backend
+    import bitcoin.curve.backend.base
+    import bitcoin.curve.backend.native
+    import bitcoin.curve.backend.libsec
     import bitcoin.curve.dispatch
     import bitcoin.encoding
     import bitcoin.encoding.hex

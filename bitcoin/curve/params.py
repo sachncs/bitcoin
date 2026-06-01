@@ -1,4 +1,13 @@
-"""Secp256k1 curve constants."""
+"""Secp256k1 curve parameters.
+
+Constants defining the secp256k1 elliptic curve:
+    FIELD_PRIME: The field prime p.
+    CURVE_A: The curve coefficient a (zero for secp256k1).
+    CURVE_B: The curve coefficient b (7 for secp256k1).
+    CURVE_ORDER: The order of the generator point.
+    GENERATOR_X: The x-coordinate of the generator point.
+    GENERATOR_Y: The y-coordinate of the generator point.
+"""
 
 # y² = x³ + 7  over GF(FIELD_PRIME)
 FIELD_PRIME = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F

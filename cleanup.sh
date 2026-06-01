@@ -7,6 +7,7 @@ cd "$REPO_DIR"
 echo "Cleaning up generated and cached artifacts..."
 
 rm -rf .benchmarks/
+rm -rf .hypothesis/
 rm -f .coverage
 rm -rf .mypy_cache/
 rm -rf .pytest_cache/

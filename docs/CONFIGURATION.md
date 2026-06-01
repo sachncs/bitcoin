@@ -22,12 +22,12 @@ Two backends are available:
 | C-backed (libsecp256k1) | `LibsecpBackend` | Requires `pip install coincurve` |
 
 ```python
-from bitcoin import set_backend, get_backend, NativeBackend, LibsecpBackend
+from bitcoin import set_backend, get_backend
 
-set_backend(NativeBackend())        # activate pure Python
-set_backend(LibsecpBackend())       # activate C-backed (may ImportError)
+set_backend("native")               # activate pure Python (default)
+set_backend("libsecp")              # activate C-backed (ImportError if coincurve missing)
 
-backend = get_backend()             # → CurveBackend | None
+backend = get_backend()             # → CurveBackend
 ```
 
 ## Former Config File Support

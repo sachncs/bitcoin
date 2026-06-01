@@ -8,14 +8,15 @@ echo "Creating virtual environment..."
 python3 -m venv .venv
 
 echo "Activating virtual environment..."
-source .venv/bin/activate
+# shellcheck source=/dev/null
+source .venv/bin/activate || { echo "Failed to activate virtual environment."; exit 1; }
 
-echo "Installing package in development mode..."
+echo "Installing package in development mode with dev dependencies..."
 pip install --upgrade pip
-pip install -e .
+pip install -e ".[dev]"
 
-echo "Installing test and development dependencies..."
-pip install pytest pytest-cov pytest-benchmark hypothesis mypy ruff
+echo "Installing pre-commit hooks..."
+pre-commit install
 
 echo "Running tests..."
 python -m pytest tests/

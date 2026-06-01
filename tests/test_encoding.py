@@ -34,7 +34,7 @@ class TestHex:
         with pytest.raises(ValueError):
             decode_hex("xyz")
         with pytest.raises(TypeError):
-            decode_hex(123)
+            decode_hex(123)  # type: ignore[arg-type]
 
 
 class TestVarint:
@@ -82,6 +82,21 @@ class TestDer:
         with pytest.raises(ValueError):
             decode_der(b"\x00\x00")
 
+    def test_trailing_data(self) -> None:
+        sig = bytes([0x30, 0x07, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0xee])
+        with pytest.raises(ValueError, match="Trailing"):
+            decode_der(sig)
+
+    def test_invalid_integer_tag(self) -> None:
+        sig = bytes([0x30, 0x06, 0x03, 0x01, 0x01, 0x02, 0x01, 0x02])
+        with pytest.raises(ValueError, match="Invalid DER integer"):
+            decode_der(sig)
+
+    def test_truncated_integer(self) -> None:
+        sig = bytes([0x30, 0x04, 0x02, 0x03, 0x01, 0x02])
+        with pytest.raises(ValueError, match="Truncated"):
+            decode_der(sig)
+
 
 CURVE_ORDER = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 
@@ -106,6 +121,11 @@ class TestSec:
     def test_invalid_sec(self) -> None:
         with pytest.raises(ValueError, match="Invalid SEC key length"):
             parse_sec(b"\x00" * 10)
+
+    def test_point_not_on_curve(self) -> None:
+        bad = b"\x04" + b"\x01" * 32 + b"\x02" * 32
+        with pytest.raises(ValueError, match="not on the secp256k1 curve"):
+            parse_sec(bad)
 
 
 class TestHasher:

@@ -1,8 +1,11 @@
-"""Bitcoin script opcode constants."""
+"""Bitcoin script opcode constants and lookup dictionaries.
+
+Provides all named OP_* constants used in Bitcoin Script, along with
+``OPCODES_BY_NAME`` and ``OPCODES_BY_VALUE`` dictionaries for bidirectional
+lookup by mnemonic and numeric value.
+"""
 
 OP_0 = 0x00
-OP_PUSHBYTES_1 = 0x01
-OP_PUSHBYTES_75 = 0x4B
 OP_PUSHDATA1 = 0x4C
 OP_PUSHDATA2 = 0x4D
 OP_PUSHDATA4 = 0x4E
@@ -26,9 +29,7 @@ OP_CHECKSEQUENCEVERIFY = 0xB2
 OP_CHECKLOCKTIMEVERIFY = 0xB1
 
 OPCODES_BY_NAME: dict[str, int] = {
-    name: value
-    for name, value in globals().items()
-    if name.startswith("OP_")
+    name: value for name, value in globals().items() if name.startswith("OP_")
 }
 
 OPCODES_BY_VALUE: dict[int, str] = {

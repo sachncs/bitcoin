@@ -1,4 +1,8 @@
-"""Taproot (BIP-341) sighash computation."""
+"""Taproot (BIP-341) sighash computation.
+
+Implements the BIP-341 signature hash algorithm, supporting both key-path
+and script-path spending.
+"""
 
 from __future__ import annotations
 
@@ -22,20 +26,37 @@ def sighash_taproot(
     codeseparator_position: int = 0xFFFFFFFF,
     annex: Optional[bytes] = None,
 ) -> bytes:
-    """Compute the BIP-341 Taproot sighash.
+    """Compute the BIP-341 Taproot sighash for a transaction input.
 
-    Arguments:
+    Supports both key-path (``script=None``) and script-path spending.
+    The hash is computed as ``tagged_hash("TapSighash", ...)``.
+
+    Args:
         tx: The transaction.
         input_index: Index of the input being signed.
-        script: The script being executed (``None`` for key path).
-        flag: SIGHASH flag (only 0x00 for default, or 0x01–0x83).
+        script: The script being executed, or ``None`` for key-path
+            spending.
+        flag: SIGHASH flag byte (``0x00`` for default, or standard
+            sighash values ``0x01``–``0x83``).
         extension: Extra data for future extensions (default ``b""``).
-        tapleaf_hash: Hash of the tapleaf (required for script path).
-        key_version: Key version (0 for current).
-        codeseparator_position: Last ``OP_CODESEPARATOR`` position.
-        annex: Optional annex data.
+        tapleaf_hash: The ``tapleaf_hash`` as defined in BIP-341.
+            Required when *script* is not ``None``.
+        key_version: Key version byte (``0`` for current BIP-341
+            specification).
+        codeseparator_position: Position of the last
+            ``OP_CODESEPARATOR`` executed (default ``0xFFFFFFFF``).
+        annex: Optional annex data (BIP-341).
+
+    Returns:
+        The 32-byte tagged sighash digest.
+
+    Raises:
+        IndexError: If *input_index* is out of range for the
+            transaction inputs.
+        ValueError: If *script* is provided but *tapleaf_hash* is
+            ``None``.
     """
-    from bitcoin.services.serializer import _serialize_tx_for_sighash_taproot
+    from bitcoin.services.serializer import serialize_tx_for_sighash_taproot
 
     data = bytearray()
     # Hash type
@@ -72,7 +93,7 @@ def sighash_taproot(
         data.extend((0).to_bytes(1, "little"))
 
     # Serialize remaining transaction data for sighash
-    data.extend(_serialize_tx_for_sighash_taproot(tx, flag))
+    data.extend(serialize_tx_for_sighash_taproot(tx, flag))
 
     # Script (if present)
     if script is not None:
@@ -83,7 +104,15 @@ def sighash_taproot(
 
 
 def encode_varint(value: int) -> bytes:
-    """Minimal varint helper for the module's self-containment."""
+    """Encode an integer as a Bitcoin variable-length integer.
+
+    Args:
+        value: Non-negative integer to encode.
+
+    Returns:
+        The varint-encoded bytes (1, 3, 5, or 9 bytes depending on the
+        value range).
+    """
     if value < 0xFD:
         return value.to_bytes(1, "little")
     if value <= 0xFFFF:

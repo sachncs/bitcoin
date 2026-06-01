@@ -1,7 +1,4 @@
-"""Command-line interface for the secp256k1 toolkit.
-
-New API.
-"""
+"""Command-line interface for the secp256k1 signing toolkit."""
 
 from bitcoin.cli.app import app, main, parse_input_values
 

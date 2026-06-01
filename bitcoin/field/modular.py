@@ -8,10 +8,18 @@ def inverse(value: int, modulus: int) -> int:
 
     Uses the extended Euclidean algorithm.
 
+    Args:
+        value: Integer whose inverse is sought. Must be non-negative.
+        modulus: Modulus. Must be greater than 1.
+
+    Returns:
+        Integer *x* such that ``(value * x) % modulus == 1``.
+
     Raises:
         TypeError: If either argument is not an ``int``.
         ValueError: If *modulus* is ≤ 1 or *value* is negative.
-        NotInvertible: If *value* and *modulus* are not coprime.
+        NotInvertible: If *value* and *modulus* are not coprime
+            (including when *value* is zero).
     """
     t_value, t_modulus = type(value), type(modulus)
     if t_value is not int:
@@ -34,13 +42,19 @@ def inverse(value: int, modulus: int) -> int:
 
     if old_r != 1:
         raise NotInvertible(
-            f"Value {value} is not invertible modulo {modulus}."
-        )
+            f"Value {value} is not invertible modulo {modulus}.")
     return old_t % modulus
 
 
 def validate_non_negative(value: int, label: str = "value") -> int:
-    """Return *value* unchanged if it is a non-negative ``int``.
+    """Validate that *value* is a non-negative integer and return it.
+
+    Args:
+        value: Integer to validate.
+        label: Name used in error messages (default ``"value"``).
+
+    Returns:
+        *value* unchanged on success.
 
     Raises:
         TypeError: If *value* is not an ``int``.

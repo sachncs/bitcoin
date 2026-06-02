@@ -7,10 +7,7 @@ API for verifying multiple signatures at once.
 
 from __future__ import annotations
 
-from bitcoin.curve.dispatch import is_on_curve
-from bitcoin.curve.params import CURVE_ORDER
 from bitcoin.curve.point import Point
-from bitcoin.encoding.der import decode_der
 from bitcoin.signature.check import verify_sig
 
 

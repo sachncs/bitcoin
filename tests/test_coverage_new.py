@@ -421,7 +421,7 @@ class TestSigner:
         tx = make_test_tx()
         script_pubkey = build_p2pkh(TEST_PUB_HASH)
         sig = sign_tx_input(tx, 0, priv, script=script_pubkey, value=0)
-        assert len(sig) > 70
+        assert 70 < len(sig) < 74
         assert sig[-1] == SIGHASH_ALL
 
     def test_sign_tx_input_segwit(self) -> None:
@@ -455,14 +455,16 @@ class TestPipeline:
         raw = serialize_tx(tx)
         result = batch_extract([raw.hex()])
         assert result.total_transactions == 1
-        assert result.successful == 1
-        assert result.failed == 0
+        assert result.successful == 0
+        assert result.failed == 1
+        assert "No signatures found" in result.errors[0][1]
 
     def test_batch_extract_bytes(self) -> None:
         tx = make_test_tx()
         raw = serialize_tx(tx)
         result = batch_extract([raw])
-        assert result.successful == 1
+        assert result.successful == 0
+        assert "No signatures found" in result.errors[0][1]
 
     def test_batch_extract_multiple(self) -> None:
         tx1 = make_test_tx()
@@ -471,6 +473,7 @@ class TestPipeline:
             [serialize_tx(tx1).hex(), serialize_tx(tx2).hex()],
         )
         assert result.total_transactions == 2
+        assert result.failed == 2
 
     def test_batch_extract_with_utxo(self) -> None:
         tx = make_test_tx()
@@ -481,7 +484,8 @@ class TestPipeline:
             utxo_scripts=[[script]],
             utxo_values=[[10000]],
         )
-        assert result.successful == 1
+        assert result.successful == 0
+        assert "No signatures found" in result.errors[0][1]
 
     def test_batch_extract_length_mismatch(self) -> None:
         with pytest.raises(ValueError, match="must match"):
@@ -499,7 +503,8 @@ class TestPipeline:
         tx = make_test_tx()
         raw = serialize_tx(tx)
         result = batch_extract([raw.hex()] * 3, max_workers=2)
-        assert result.successful == 3
+        assert result.successful == 0
+        assert result.failed == 3
 
     def test_batch_extract_from_file(self, tmp_path) -> None:
         tx = make_test_tx()
@@ -507,11 +512,24 @@ class TestPipeline:
         f = tmp_path / "txs.txt"
         f.write_text(f"{raw}\n{raw}\n")
         result = batch_extract_from_file(str(f))
-        assert result.successful == 2
+        assert result.successful == 0
+        assert result.failed == 2
 
     def test_batch_extract_from_file_with_comments(self, tmp_path) -> None:
-        tx = make_test_tx()
-        raw = serialize_tx(tx).hex()
+        from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness
+        from bitcoin.services.serializer import serialize_legacy_tx
+        from bitcoin.script import build_p2pkh
+        from bitcoin.script.parser import serialize_script
+        priv = 42
+        txin = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness(()))
+        txout = TxOut(1000, build_p2pkh(TEST_PUB_HASH))
+        tx = Tx(2, (txin,), (txout,), 0)
+        sig = sign_tx_input(tx, 0, priv, script=build_p2pkh(TEST_PUB_HASH), value=0)
+        pubkey = multiply(priv, GENERATOR)
+        scriptsig = serialize_script([sig, pubkey.to_sec_compressed()])
+        txin2 = TxIn(OutPoint(b"\x01" * 32, 0), scriptsig, 0xFFFFFFFF, Witness(()))
+        tx2 = Tx(2, (txin2,), (txout,), 0)
+        raw = serialize_legacy_tx(tx2).hex()
         f = tmp_path / "txs.txt"
         f.write_text(f"# comment\n{raw}\n\n{raw}\n")
         result = batch_extract_from_file(str(f))
@@ -557,9 +575,8 @@ class TestPipeline:
             ),
         ]
         groups = correlate_across_transactions(records)
-        assert len(groups) > 0
-        assert "p2pkh" in groups
-        assert len(groups["p2pkh"]) >= 1
+        assert list(groups) == ["p2pkh"]
+        assert groups["p2pkh"][0].indices == (0, 1)
 
     def test_correlate_across_transactions_no_reuse(self) -> None:
         records = [
@@ -584,6 +601,91 @@ class TestPipeline:
         ]
         groups = correlate_across_transactions(records)
         assert groups == {}
+
+    def test_extract_r_from_record_schnorr(self) -> None:
+        """extract_r_from_record handles 64-byte Schnorr signatures."""
+        from bitcoin.signature.pipeline import extract_r_from_record
+        r_val = 42
+        sig_64 = r_val.to_bytes(32, "big") + b"\x00" * 32
+        rec = Record(
+            txid=b"\x01" * 32, vin=0, sig=sig_64,
+            public_key=GENERATOR, script_type="taproot",
+            sighash_flag=0, amount=0,
+        )
+        assert extract_r_from_record(rec) == r_val
+
+    def test_extract_r_from_record_der(self) -> None:
+        """extract_r_from_record handles DER-encoded ECDSA signatures."""
+        from bitcoin.signature.pipeline import extract_r_from_record
+        rec = Record(
+            txid=b"\x01" * 32, vin=0, sig=encode_der(7, 8),
+            public_key=GENERATOR, script_type="p2pkh",
+            sighash_flag=1, amount=0,
+        )
+        assert extract_r_from_record(rec) == 7
+
+    def test_extract_r_from_record_bad(self) -> None:
+        """extract_r_from_record returns None for invalid sigs."""
+        from bitcoin.signature.pipeline import extract_r_from_record
+        rec = Record(
+            txid=b"\x01" * 32, vin=0, sig=b"\x00",
+            public_key=GENERATOR, script_type="p2pkh",
+            sighash_flag=1, amount=0,
+        )
+        assert extract_r_from_record(rec) is None
+
+    def test_batch_extract_threaded(self) -> None:
+        """batch_extract with multiple workers processes successfully."""
+        from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness
+        from bitcoin.services.serializer import serialize_legacy_tx
+        from bitcoin.signature.pipeline import batch_extract
+        from bitcoin.script import build_p2pkh
+        from bitcoin.script.parser import serialize_script
+        priv = 42
+        txin = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness(()))
+        txout = TxOut(1000, build_p2pkh(TEST_PUB_HASH))
+        tx = Tx(2, (txin,), (txout,), 0)
+        sig = sign_tx_input(tx, 0, priv, script=build_p2pkh(TEST_PUB_HASH), value=0)
+        pubkey = multiply(priv, GENERATOR)
+        scriptsig = serialize_script([sig, pubkey.to_sec_compressed()])
+        txin2 = TxIn(OutPoint(b"\x01" * 32, 0), scriptsig, 0xFFFFFFFF, Witness(()))
+        tx2 = Tx(2, (txin2,), (txout,), 0)
+        raw = serialize_legacy_tx(tx2)
+        result = batch_extract([raw, raw], max_workers=2)
+        assert result.total_transactions == 2
+        assert result.successful == 2
+        assert result.failed == 0
+
+    def test_batch_extract_from_file(self) -> None:
+        """batch_extract_from_file reads hex txs from a file."""
+        import tempfile
+        from bitcoin.signature.pipeline import batch_extract_from_file
+        from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness
+        from bitcoin.services.serializer import serialize_legacy_tx
+        from bitcoin.script import build_p2pkh
+        from bitcoin.script.parser import serialize_script
+        priv = 42
+        txin = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness(()))
+        txout = TxOut(1000, build_p2pkh(TEST_PUB_HASH))
+        tx = Tx(2, (txin,), (txout,), 0)
+        sig = sign_tx_input(tx, 0, priv, script=build_p2pkh(TEST_PUB_HASH), value=0)
+        pubkey = multiply(priv, GENERATOR)
+        scriptsig = serialize_script([sig, pubkey.to_sec_compressed()])
+        txin2 = TxIn(OutPoint(b"\x01" * 32, 0), scriptsig, 0xFFFFFFFF, Witness(()))
+        tx2 = Tx(2, (txin2,), (txout,), 0)
+        raw_hex = serialize_legacy_tx(tx2).hex()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
+            f.write(raw_hex + "\n")
+            f.write("# comment\n")
+            f.write(raw_hex + "\n")
+            fpath = f.name
+        try:
+            result = batch_extract_from_file(fpath)
+            assert result.total_transactions == 2
+            assert result.successful == 2
+        finally:
+            import os
+            os.unlink(fpath)
 
 
 # ===================================================================
@@ -618,18 +720,18 @@ class TestBlockstreamProvider:
         txid = "aa" * 32
         with patch.object(
             BlockstreamProvider,
-            "_BlockstreamProvider__fetch_tx_json",
+            "fetch_tx_json",
             return_value=_make_tx_json(txid),
         ):
             p = BlockstreamProvider()
             script = p.get_utxo_script_pubkey(txid, 0)
-            assert len(script) > 0
+            assert script
 
     def test_get_utxo_script_pubkey_out_of_range(self) -> None:
         txid = "aa" * 32
         with patch.object(
             BlockstreamProvider,
-            "_BlockstreamProvider__fetch_tx_json",
+            "fetch_tx_json",
             return_value=_make_tx_json(txid),
         ):
             p = BlockstreamProvider()
@@ -640,7 +742,7 @@ class TestBlockstreamProvider:
         txid = "bb" * 32
         with patch.object(
             BlockstreamProvider,
-            "_BlockstreamProvider__fetch_tx_json",
+            "fetch_tx_json",
             return_value=_make_tx_json(txid),
         ):
             p = BlockstreamProvider()
@@ -651,7 +753,7 @@ class TestBlockstreamProvider:
         txid = "bb" * 32
         with patch.object(
             BlockstreamProvider,
-            "_BlockstreamProvider__fetch_tx_json",
+            "fetch_tx_json",
             return_value=_make_tx_json(txid),
         ):
             p = BlockstreamProvider()
@@ -665,7 +767,7 @@ class TestBlockstreamProvider:
         ):
             p = BlockstreamProvider()
             with pytest.raises(ValueError, match="Invalid JSON"):
-                p._BlockstreamProvider__fetch_tx_json("aa" * 32)
+                p.fetch_tx_json("aa" * 32)
 
 
 class TestBlockchainInfoProvider:
@@ -682,18 +784,18 @@ class TestBlockchainInfoProvider:
         txid = "cc" * 32
         with patch.object(
             BlockchainInfoProvider,
-            "_BlockchainInfoProvider__fetch_tx_json",
+            "fetch_tx_json",
             return_value=_make_tx_json(txid),
         ):
             p = BlockchainInfoProvider()
             script = p.get_utxo_script_pubkey(txid, 0)
-            assert len(script) > 0
+            assert script
 
     def test_get_utxo_script_pubkey_no_script(self) -> None:
         txid = "dd" * 32
         with patch.object(
             BlockchainInfoProvider,
-            "_BlockchainInfoProvider__fetch_tx_json",
+            "fetch_tx_json",
             return_value={"out": [{}]},
         ):
             p = BlockchainInfoProvider()
@@ -704,7 +806,7 @@ class TestBlockchainInfoProvider:
         txid = "ee" * 32
         with patch.object(
             BlockchainInfoProvider,
-            "_BlockchainInfoProvider__fetch_tx_json",
+            "fetch_tx_json",
             return_value=_make_tx_json(txid),
         ):
             p = BlockchainInfoProvider()
@@ -715,7 +817,7 @@ class TestBlockchainInfoProvider:
         txid = "ff" * 32
         with patch.object(
             BlockchainInfoProvider,
-            "_BlockchainInfoProvider__fetch_tx_json",
+            "fetch_tx_json",
             return_value=_make_tx_json(txid),
         ):
             p = BlockchainInfoProvider()
@@ -726,7 +828,7 @@ class TestBlockchainInfoProvider:
         txid = "00" * 32
         with patch.object(
             BlockchainInfoProvider,
-            "_BlockchainInfoProvider__fetch_tx_json",
+            "fetch_tx_json",
             return_value=_make_tx_json(txid),
         ):
             p = BlockchainInfoProvider()
@@ -748,18 +850,18 @@ class TestMempoolSpaceProvider:
         txid = "11" * 32
         with patch.object(
             MempoolSpaceProvider,
-            "_MempoolSpaceProvider__fetch_tx_json",
+            "fetch_tx_json",
             return_value=_make_tx_json(txid),
         ):
             p = MempoolSpaceProvider()
             script = p.get_utxo_script_pubkey(txid, 0)
-            assert len(script) > 0
+            assert script
 
     def test_get_utxo_script_pubkey_out_of_range(self) -> None:
         txid = "22" * 32
         with patch.object(
             MempoolSpaceProvider,
-            "_MempoolSpaceProvider__fetch_tx_json",
+            "fetch_tx_json",
             return_value=_make_tx_json(txid),
         ):
             p = MempoolSpaceProvider()
@@ -770,7 +872,7 @@ class TestMempoolSpaceProvider:
         txid = "33" * 32
         with patch.object(
             MempoolSpaceProvider,
-            "_MempoolSpaceProvider__fetch_tx_json",
+            "fetch_tx_json",
             return_value=_make_tx_json(txid),
         ):
             p = MempoolSpaceProvider()
@@ -781,7 +883,7 @@ class TestMempoolSpaceProvider:
         txid = "44" * 32
         with patch.object(
             MempoolSpaceProvider,
-            "_MempoolSpaceProvider__fetch_tx_json",
+            "fetch_tx_json",
             return_value=_make_tx_json(txid),
         ):
             p = MempoolSpaceProvider()
@@ -821,7 +923,7 @@ class TestFetchText:
         ):
             p = MempoolSpaceProvider()
             with pytest.raises(ValueError, match="Invalid JSON"):
-                p._MempoolSpaceProvider__fetch_tx_json("aa" * 32)
+                p.fetch_tx_json("aa" * 32)
 
 
 class TestEnrichTransaction:
@@ -907,42 +1009,42 @@ class TestPsbtEditor:
         raw = serialize_legacy_tx(tx)
         editor = PsbtEditor.from_tx(raw)
         editor.set_input_redeem_script(0, b"\x00" * 23)
-        assert editor._PsbtEditor__inputs[0].redeem_script == b"\x00" * 23
+        assert editor.inputs[0].redeem_script == b"\x00" * 23
 
     def test_set_input_witness_script(self) -> None:
         tx = make_test_tx()
         raw = serialize_legacy_tx(tx)
         editor = PsbtEditor.from_tx(raw)
         editor.set_input_witness_script(0, b"\x00" * 35)
-        assert editor._PsbtEditor__inputs[0].witness_script == b"\x00" * 35
+        assert editor.inputs[0].witness_script == b"\x00" * 35
 
     def test_set_input_sighash_type(self) -> None:
         tx = make_test_tx()
         raw = serialize_legacy_tx(tx)
         editor = PsbtEditor.from_tx(raw)
         editor.set_input_sighash_type(0, 1)
-        assert editor._PsbtEditor__inputs[0].sighash_type == 1
+        assert editor.inputs[0].sighash_type == 1
 
     def test_add_input_partial_sig(self) -> None:
         tx = make_test_tx()
         raw = serialize_legacy_tx(tx)
         editor = PsbtEditor.from_tx(raw)
         editor.add_input_partial_sig(0, b"\x02" * 33, b"\x30" * 70)
-        assert b"\x02" * 33 in editor._PsbtEditor__inputs[0].partial_sigs
+        assert b"\x02" * 33 in editor.inputs[0].partial_sigs
 
     def test_set_output_redeem_script(self) -> None:
         tx = make_test_tx()
         raw = serialize_legacy_tx(tx)
         editor = PsbtEditor.from_tx(raw)
         editor.set_output_redeem_script(0, b"\x00" * 23)
-        assert editor._PsbtEditor__outputs[0].redeem_script == b"\x00" * 23
+        assert editor.outputs[0].redeem_script == b"\x00" * 23
 
     def test_set_output_witness_script(self) -> None:
         tx = make_test_tx()
         raw = serialize_legacy_tx(tx)
         editor = PsbtEditor.from_tx(raw)
         editor.set_output_witness_script(0, b"\x00" * 35)
-        assert editor._PsbtEditor__outputs[0].witness_script == b"\x00" * 35
+        assert editor.outputs[0].witness_script == b"\x00" * 35
 
     def test_finalize_input(self) -> None:
         tx = make_test_tx()
@@ -951,8 +1053,8 @@ class TestPsbtEditor:
         editor.finalize_input(
             0, final_script_sig=b"\x00\x01", final_witness=(b"\x02",),
         )
-        assert editor._PsbtEditor__inputs[0].final_script_sig == b"\x00\x01"
-        assert editor._PsbtEditor__inputs[0].final_script_witness == (b"\x02",)
+        assert editor.inputs[0].final_script_sig == b"\x00\x01"
+        assert editor.inputs[0].final_script_witness == (b"\x02",)
 
     def test_chaining(self) -> None:
         tx = make_test_tx()
@@ -1361,7 +1463,7 @@ class TestSignerEdge:
             lock_time=0,
         )
         sig = sign_tx_input(tx, 0, 42, script=b"\x00", value=0)
-        assert len(sig) > 70
+        assert 70 < len(sig) < 74
 
 
 # ===================================================================
@@ -1379,7 +1481,7 @@ class TestPsbtExtractSignatures:
         })
         psbt = Psbt(tx=raw, inputs=(inp,), outputs=(PsbtOutput(),))
         records = psbt_extract_signatures(psbt)
-        assert len(records) > 0
+        assert len(records) == 1
 
 
 # ===================================================================

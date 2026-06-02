@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from bitcoin.curve.params import CURVE_A, CURVE_B, FIELD_PRIME, CURVE_ORDER
 from bitcoin.curve.point import Point
-from bitcoin.field import inverse, sqrt
+from bitcoin.field import inverse
 
 
 def negate(point: Point) -> Point:

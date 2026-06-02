@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from typing import Self
 
 from bitcoin.psbt.models import Psbt, PsbtInput, PsbtOutput
+from bitcoin.transaction.parser import parse_tx
 
 
 @dataclass
@@ -49,9 +50,9 @@ class PsbtEditor:
         Args:
             psbt: A ``Psbt`` instance to edit.
         """
-        self.__tx: bytes = psbt.tx
-        self.__unknown: dict[bytes, bytes] = dict(psbt.unknown)
-        self.__inputs: list[MutableInput] = [
+        self.tx: bytes = psbt.tx
+        self.unknown: dict[bytes, bytes] = dict(psbt.unknown)
+        self.inputs: list[MutableInput] = [
             MutableInput(
                 non_witness_utxo=inp.non_witness_utxo,
                 witness_utxo=inp.witness_utxo,
@@ -64,7 +65,7 @@ class PsbtEditor:
                 final_script_witness=inp.final_script_witness,
             ) for inp in psbt.inputs
         ]
-        self.__outputs: list[MutableOutput] = [
+        self.outputs: list[MutableOutput] = [
             MutableOutput(
                 redeem_script=out.redeem_script,
                 witness_script=out.witness_script,
@@ -82,8 +83,6 @@ class PsbtEditor:
         Returns:
             A new ``PsbtEditor`` initialised with empty input/output maps.
         """
-        from bitcoin.transaction.parser import parse_tx
-
         parsed_tx, _ = parse_tx(tx)
         num_inputs = len(parsed_tx.inputs)
         num_outputs = len(parsed_tx.outputs)
@@ -112,7 +111,7 @@ class PsbtEditor:
         Returns:
             ``self`` for chaining.
         """
-        inp = self.__inputs[vin]
+        inp = self.inputs[vin]
         if non_witness_utxo is not None:
             inp.non_witness_utxo = non_witness_utxo
         if witness_utxo is not None:
@@ -129,7 +128,7 @@ class PsbtEditor:
         Returns:
             ``self`` for chaining.
         """
-        self.__inputs[vin].redeem_script = script
+        self.inputs[vin].redeem_script = script
         return self
 
     def set_input_witness_script(self, vin: int, script: bytes) -> Self:
@@ -142,7 +141,7 @@ class PsbtEditor:
         Returns:
             ``self`` for chaining.
         """
-        self.__inputs[vin].witness_script = script
+        self.inputs[vin].witness_script = script
         return self
 
     def set_input_sighash_type(self, vin: int, flag: int) -> Self:
@@ -155,7 +154,7 @@ class PsbtEditor:
         Returns:
             ``self`` for chaining.
         """
-        self.__inputs[vin].sighash_type = flag
+        self.inputs[vin].sighash_type = flag
         return self
 
     def add_input_partial_sig(self, vin: int, pubkey: bytes,
@@ -170,7 +169,7 @@ class PsbtEditor:
         Returns:
             ``self`` for chaining.
         """
-        self.__inputs[vin].partial_sigs[pubkey] = sig
+        self.inputs[vin].partial_sigs[pubkey] = sig
         return self
 
     def set_output_redeem_script(self, vout: int, script: bytes) -> Self:
@@ -183,7 +182,7 @@ class PsbtEditor:
         Returns:
             ``self`` for chaining.
         """
-        self.__outputs[vout].redeem_script = script
+        self.outputs[vout].redeem_script = script
         return self
 
     def set_output_witness_script(self, vout: int, script: bytes) -> Self:
@@ -196,7 +195,7 @@ class PsbtEditor:
         Returns:
             ``self`` for chaining.
         """
-        self.__outputs[vout].witness_script = script
+        self.outputs[vout].witness_script = script
         return self
 
     def finalize_input(
@@ -216,7 +215,7 @@ class PsbtEditor:
         Returns:
             ``self`` for chaining.
         """
-        inp = self.__inputs[vin]
+        inp = self.inputs[vin]
         if final_script_sig is not None:
             inp.final_script_sig = final_script_sig
         if final_witness is not None:
@@ -240,16 +239,16 @@ class PsbtEditor:
                 bip32_derivations=dict(inp.bip32_derivations),
                 final_script_sig=inp.final_script_sig,
                 final_script_witness=inp.final_script_witness,
-            ) for inp in self.__inputs)
+            ) for inp in self.inputs)
         outputs = tuple(
             PsbtOutput(
                 redeem_script=out.redeem_script,
                 witness_script=out.witness_script,
                 bip32_derivations=dict(out.bip32_derivations),
-            ) for out in self.__outputs)
+            ) for out in self.outputs)
         return Psbt(
-            tx=self.__tx,
+            tx=self.tx,
             inputs=inputs,
             outputs=outputs,
-            unknown=dict(self.__unknown),
+            unknown=dict(self.unknown),
         )

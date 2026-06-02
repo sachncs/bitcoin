@@ -49,11 +49,7 @@ def sighash_name(flag: int) -> str:
         The corresponding name string (e.g. ``"SIGHASH_ALL"``) or
         ``"SIGHASH_UNKNOWN(...)"`` if the base flag is not recognised.
     """
-    base = flag & SIGHASH_MASK
-    has_acp = bool(flag & SIGHASH_ANYONECANPAY)
-    if has_acp:
-        base |= SIGHASH_ANYONECANPAY
-    return SIGHASH_NAMES.get(base, f"SIGHASH_UNKNOWN({flag})")
+    return SIGHASH_NAMES.get(flag, f"SIGHASH_UNKNOWN({flag})")
 
 
 def require_sighash_flag(flag: int) -> int:

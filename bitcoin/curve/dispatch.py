@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from bitcoin.curve.backend.base import CurveBackend
@@ -10,40 +11,65 @@ from bitcoin.curve.backend.native import NativeBackend
 if TYPE_CHECKING:
     from bitcoin.curve.point import Point
 
-__backend: CurveBackend | None = None
+logger = logging.getLogger(__name__)
+
+backend: CurveBackend | None = None
 
 
 def get_backend() -> CurveBackend | None:
     """Return the current backend, or ``None`` to use the native default."""
-    return __backend
+    return backend
 
 
-def set_backend(backend: CurveBackend) -> None:
+def set_backend(value: CurveBackend) -> None:
     """Set the active curve backend.
 
+    Args:
+        value: A ``CurveBackend`` instance.
+
     Raises:
-        TypeError: If *backend* is not a ``CurveBackend`` instance.
+        TypeError: If *value* is not a ``CurveBackend`` instance.
+
+    Note:
+        This function is **not thread-safe** when called concurrently with
+        dispatch functions.  Set the backend once at startup before
+        creating any worker threads.
     """
-    if not isinstance(backend, CurveBackend):
+    if not isinstance(value, CurveBackend):
         raise TypeError(
-            f"Expected CurveBackend instance, got {type(backend).__name__}.")
-    global __backend
-    __backend = backend
+            f"Expected CurveBackend instance, got {type(value).__name__}.")
+    global backend
+    backend = value
 
 
-def __resolve_backend() -> CurveBackend:
+def resolve_backend() -> CurveBackend:
     """Return the active backend or the default native backend."""
-    if __backend is not None:
-        return __backend
+    if backend is not None:
+        return backend
     from bitcoin.settings import settings
-    name = settings.default_backend
-    if name == "libsecp":
-        try:
-            from bitcoin.curve.backend.libsec import LibsecpBackend
-            return LibsecpBackend()
-        except Exception:
-            pass
+    backend_name = settings.default_backend
+    if backend_name == "libsecp":
+        libsecp_backend = _try_load_libsecp()
+        if libsecp_backend is not None:
+            return libsecp_backend
     return NativeBackend()
+
+
+def _try_load_libsecp() -> CurveBackend | None:
+    """Attempt to load the ``coincurve``-based libsecp backend.
+
+    Returns:
+        A ``LibsecpBackend`` instance, or ``None`` if the optional
+        dependency is not installed.
+    """
+    try:
+        from bitcoin.curve.backend.libsec import LibsecpBackend  # noqa: PLC0415
+        return LibsecpBackend()
+    except ImportError:
+        logger.warning(
+            "libsecp backend requested but not available; "
+            "falling back to NativeBackend.")
+        return None
 
 
 # ── Public dispatch functions ──────────────────────────────────────────
@@ -58,7 +84,7 @@ def negate(point: Point) -> Point:
     Returns:
         The negated point.
     """
-    return __resolve_backend().negate(point)
+    return resolve_backend().negate(point)
 
 
 def add(left: Point, right: Point) -> Point:
@@ -71,7 +97,7 @@ def add(left: Point, right: Point) -> Point:
     Returns:
         The sum point.
     """
-    return __resolve_backend().add(left, right)
+    return resolve_backend().add(left, right)
 
 
 def double(point: Point) -> Point:
@@ -83,7 +109,7 @@ def double(point: Point) -> Point:
     Returns:
         The doubled point.
     """
-    return __resolve_backend().double(point)
+    return resolve_backend().double(point)
 
 
 def multiply(scalar: int, point: Point) -> Point:
@@ -96,7 +122,7 @@ def multiply(scalar: int, point: Point) -> Point:
     Returns:
         The resulting point.
     """
-    return __resolve_backend().multiply(scalar, point)
+    return resolve_backend().multiply(scalar, point)
 
 
 def is_on_curve(point: Point) -> bool:
@@ -108,7 +134,7 @@ def is_on_curve(point: Point) -> bool:
     Returns:
         True if the point is on the curve.
     """
-    return __resolve_backend().is_on_curve(point)
+    return resolve_backend().is_on_curve(point)
 
 
 def sqrt_field(value: int) -> int:
@@ -121,7 +147,7 @@ def sqrt_field(value: int) -> int:
         The square root modulo FIELD_PRIME.
     """
     from bitcoin.curve.params import FIELD_PRIME
-    return __resolve_backend().sqrt(value)
+    return resolve_backend().sqrt(value)
 
 
 def parse_public_key(data: bytes) -> Point:
@@ -134,7 +160,7 @@ def parse_public_key(data: bytes) -> Point:
     Returns:
         The parsed Point.
     """
-    return __resolve_backend().parse_sec(data)
+    return resolve_backend().parse_sec(data)
 
 
 def serialize_public_key(point: Point, compressed: bool = True) -> bytes:
@@ -147,7 +173,7 @@ def serialize_public_key(point: Point, compressed: bool = True) -> bytes:
     Returns:
         The SEC-encoded bytes.
     """
-    return __resolve_backend().serialize_sec(point, compressed)
+    return resolve_backend().serialize_sec(point, compressed)
 
 
 def normalize(value: int) -> int:

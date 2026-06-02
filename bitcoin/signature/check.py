@@ -14,13 +14,21 @@ if TYPE_CHECKING:
     from bitcoin.curve.point import Point
 
 
-def recover_public_key(message: bytes, sig: bytes, flag: int) -> Point:
+PUBKEY_RECOVERY_OFFSET = 27
+HASH_BYTE_LENGTH = 32
+
+
+def recover_public_key(message_hash: bytes, der_signature: bytes,
+                       recovery_flag: int) -> Point:
     """Recover the ECDSA public key from a signature and recovery ID.
 
+    Uses the standard ECDSA public-key recovery formula:
+    ``Q = r^(-1) * (s * R - e * G)``.
+
     Args:
-        message: The 32-byte message hash.
-        sig: The DER-encoded signature.
-        flag: The recovery flag byte (``27..34`` for compressed,
+        message_hash: The 32-byte message hash.
+        der_signature: The DER-encoded signature.
+        recovery_flag: The recovery flag byte (``27..34`` for compressed,
             ``35..42`` for uncompressed).
 
     Returns:
@@ -29,43 +37,37 @@ def recover_public_key(message: bytes, sig: bytes, flag: int) -> Point:
     Raises:
         ValueError: If the recovered point is not on the curve or is infinity.
     """
-    r, s = decode_der(sig)
-    rec_id = (flag - 27) & 0x03
-    compressed = bool((flag - 27) & 0x04)
+    r, s = decode_der(der_signature)
+    rec_id = (recovery_flag - PUBKEY_RECOVERY_OFFSET) & 0x03
 
-    # Recover R point
-    r_x = r
-    r_y_sq = (pow(r_x, 3, FIELD_PRIME) + 7) % FIELD_PRIME
+    # Recover R point from r (x-coordinate)
+    r_y_sq = (pow(r, 3, FIELD_PRIME) + 7) % FIELD_PRIME
     r_y = pow(r_y_sq, (FIELD_PRIME + 1) // 4, FIELD_PRIME)
     if (r_y & 1) != (rec_id & 1):
         r_y = FIELD_PRIME - r_y
 
     from bitcoin.curve.point import Point
-    r_point = Point(x=r_x, y=r_y)
+    r_point = Point(x=r, y=r_y)
 
     if not is_on_curve(r_point):
         raise ValueError("Recovered R point is not on the curve.")
 
-    # e = -message mod n
-    e = int.from_bytes(message, "big")
+    # Negate message hash modulo CURVE_ORDER: e' = -e mod n
+    e = int.from_bytes(message_hash, "big")
     e_inv = CURVE_ORDER - (e % CURVE_ORDER) if e % CURVE_ORDER != 0 else 0
 
-    # s_inv = s^-1 mod n
+    # Q = r^(-1) * (s * R - e * G) = s * r^(-1) * R + (-e) * r^(-1) * G
     from bitcoin.field import inverse
-    s_inv = inverse(s, CURVE_ORDER)
+    r_inv = inverse(r, CURVE_ORDER)
 
-    r1 = multiply(s_inv, r_point)
-    r2 = multiply((s_inv * e_inv) % CURVE_ORDER, GENERATOR)
-    pub = add(r1, r2)
+    r1 = multiply((s * r_inv) % CURVE_ORDER, r_point)
+    r2 = multiply((r_inv * e_inv) % CURVE_ORDER, GENERATOR)
+    public_key = add(r1, r2)
 
-    if pub.infinity:
+    if public_key.infinity:
         raise ValueError("Recovered point is infinity.")
 
-    if compressed:
-        from bitcoin.encoding.sec import serialize_sec
-        _ = serialize_sec(pub, compressed=True)
-
-    return pub
+    return public_key
 
 
 def constant_time_eq(a: bytes, b: bytes) -> bool:
@@ -73,19 +75,20 @@ def constant_time_eq(a: bytes, b: bytes) -> bool:
     return hmac.compare_digest(a, b)
 
 
-def verify_sig(message: bytes, sig: bytes, public_key: Point) -> bool:
+def verify_signature(message_hash: bytes, der_signature: bytes,
+                     public_key: Point) -> bool:
     """Verify an ECDSA signature against a public key.
 
     Args:
-        message: The 32-byte message hash.
-        sig: The DER-encoded signature.
+        message_hash: The 32-byte message hash.
+        der_signature: The DER-encoded signature.
         public_key: The public key ``Point``.
 
     Returns:
         ``True`` if the signature is valid, ``False`` otherwise.
     """
     try:
-        r, s = decode_der(sig)
+        r, s = decode_der(der_signature)
     except ValueError:
         return False
 
@@ -95,7 +98,7 @@ def verify_sig(message: bytes, sig: bytes, public_key: Point) -> bool:
     if not is_on_curve(public_key) or public_key.infinity:
         return False
 
-    e = int.from_bytes(message, "big") % CURVE_ORDER
+    e = int.from_bytes(message_hash, "big") % CURVE_ORDER
     if e == 0:
         return False
 
@@ -114,6 +117,10 @@ def verify_sig(message: bytes, sig: bytes, public_key: Point) -> bool:
     px = point.x
     if px is None:
         return False
-    r_bytes = r.to_bytes(32, "big")
-    px_bytes = (px % CURVE_ORDER).to_bytes(32, "big")
+    r_bytes = r.to_bytes(HASH_BYTE_LENGTH, "big")
+    px_bytes = (px % CURVE_ORDER).to_bytes(HASH_BYTE_LENGTH, "big")
     return constant_time_eq(px_bytes, r_bytes)
+
+
+# Backward-compatible alias — verify_signature is the canonical name.
+verify_sig = verify_signature

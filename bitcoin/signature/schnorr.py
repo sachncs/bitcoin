@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from bitcoin.curve import GENERATOR, is_on_curve
+from bitcoin.curve import GENERATOR
 from bitcoin.curve.dispatch import multiply, add, negate
 from bitcoin.curve.params import CURVE_ORDER, FIELD_PRIME
 from bitcoin.encoding.hasher import tagged_hash
@@ -28,30 +28,31 @@ def lift_x(x: int) -> tuple[int, int] | None:
     return (x, y)
 
 
-def verify_schnorr_sig(
-    pubkey_bytes: bytes,
-    sig_bytes: bytes,
-    message: bytes,
+def verify_schnorr_signature(
+    public_key_bytes: bytes,
+    signature_bytes: bytes,
+    message_hash: bytes,
 ) -> bool:
     """Verify a BIP-340 Schnorr signature.
 
     Args:
-        pubkey_bytes: 32-byte x-only public key.
-        sig_bytes: 64-byte signature ``(r || s)``.
-        message: 32-byte message hash.
+        public_key_bytes: 32-byte x-only public key.
+        signature_bytes: 64-byte signature ``(r || s)``.
+        message_hash: 32-byte message hash.
 
     Returns:
         ``True`` if the signature is valid.
     """
-    if len(pubkey_bytes) != 32 or len(sig_bytes) != 64 or len(message) != 32:
+    if (len(public_key_bytes) != 32 or len(signature_bytes) != 64 or
+            len(message_hash) != 32):
         return False
 
-    p = lift_x(int.from_bytes(pubkey_bytes, "big"))
+    p = lift_x(int.from_bytes(public_key_bytes, "big"))
     if p is None:
         return False
 
-    r = int.from_bytes(sig_bytes[:32], "big")
-    s = int.from_bytes(sig_bytes[32:], "big")
+    r = int.from_bytes(signature_bytes[:32], "big")
+    s = int.from_bytes(signature_bytes[32:], "big")
 
     if r >= FIELD_PRIME or s >= CURVE_ORDER:
         return False
@@ -59,8 +60,9 @@ def verify_schnorr_sig(
     from bitcoin.curve.point import Point
     pubkey_point = Point(x=p[0], y=p[1])
 
-    e = tagged_hash("BIP0340/challenge", pubkey_bytes + sig_bytes[:32] + message)
-    e_int = int.from_bytes(e, "big")
+    e = tagged_hash("BIP0340/challenge",
+                    signature_bytes[:32] + public_key_bytes + message_hash)
+    e_int = int.from_bytes(e, "big") % CURVE_ORDER
 
     sG = multiply(s, GENERATOR)
     eP = multiply(e_int, pubkey_point)
@@ -74,5 +76,5 @@ def verify_schnorr_sig(
 
 __all__ = [
     "lift_x",
-    "verify_schnorr_sig",
+    "verify_schnorr_signature",
 ]

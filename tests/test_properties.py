@@ -17,7 +17,6 @@ from bitcoin.encoding.der import encode_der, decode_der
 from bitcoin.encoding.sec import serialize_sec, parse_sec
 from bitcoin.field import inverse
 from bitcoin.transaction import Tx, TxIn, TxOut, OutPoint, Witness, parse_tx
-from bitcoin.transaction.models import EMPTY_WITNESS
 from bitcoin.services.serializer import serialize_tx, serialize_legacy_tx
 
 

@@ -43,7 +43,7 @@ class TestSerializeTx:
         tx = Tx(version=2, inputs=(txin,), outputs=(), lock_time=0)
         raw = serialize_tx(tx)
         assert raw[4] == 0x00  # segwit marker
-        assert len(raw) > 10
+        assert len(raw) == 57
 
     def test_serialize_varint_0(self) -> None:
         assert encode_varint(0) == b"\x00"

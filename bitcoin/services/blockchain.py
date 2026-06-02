@@ -8,6 +8,8 @@ to enrich raw transactions with UTXO data.
 from __future__ import annotations
 
 import json
+import logging
+import time
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -18,7 +20,12 @@ from bitcoin.transaction.parser import parse_tx
 if TYPE_CHECKING:
     from bitcoin.signature.record import Record
 
+logger = logging.getLogger(__name__)
+
 USER_AGENT = "bitcoin/0.4.0"
+MAX_RETRIES = 3
+RETRY_BACKOFF = 1.0  # seconds
+RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
 
 
 @runtime_checkable
@@ -121,7 +128,7 @@ class BlockstreamProvider:
             OSError: On network failure or non-200 status.
             ValueError: If *vout* is out of range.
         """
-        tx_json = self.__fetch_tx_json(txid)
+        tx_json = self.fetch_tx_json(txid)
         try:
             output = tx_json["vout"][vout]
         except IndexError:
@@ -144,7 +151,7 @@ class BlockstreamProvider:
             OSError: On network failure or non-200 status.
             ValueError: If *vout* is out of range.
         """
-        tx_json = self.__fetch_tx_json(txid)
+        tx_json = self.fetch_tx_json(txid)
         try:
             return int(tx_json["vout"][vout]["value"])
         except IndexError:
@@ -152,7 +159,7 @@ class BlockstreamProvider:
                 f"vout {vout} out of range for tx {txid} "
                 f"(only {len(tx_json['vout'])} outputs).") from None
 
-    def __fetch_tx_json(self, txid: str) -> dict[str, Any]:
+    def fetch_tx_json(self, txid: str) -> dict[str, Any]:
         """Fetch the full transaction JSON from Blockstream.
 
         Args:
@@ -217,7 +224,7 @@ class BlockchainInfoProvider:
             OSError: On network failure or non-200 status.
             ValueError: If *vout* is out of range.
         """
-        tx_json = self.__fetch_tx_json(txid)
+        tx_json = self.fetch_tx_json(txid)
         try:
             output = tx_json["out"][vout]
         except IndexError:
@@ -242,14 +249,14 @@ class BlockchainInfoProvider:
             OSError: On network failure or non-200 status.
             ValueError: If *vout* is out of range.
         """
-        tx_json = self.__fetch_tx_json(txid)
+        tx_json = self.fetch_tx_json(txid)
         try:
             return int(tx_json["out"][vout]["value"])
         except IndexError:
             raise ValueError(f"vout {vout} out of range for tx {txid} "
                              f"(only {len(tx_json['out'])} outputs).") from None
 
-    def __fetch_tx_json(self, txid: str) -> dict[str, Any]:
+    def fetch_tx_json(self, txid: str) -> dict[str, Any]:
         """Fetch the full transaction JSON from blockchain.info.
 
         Args:
@@ -278,6 +285,9 @@ class BlockchainInfoProvider:
 def fetch_text(url: str) -> str:
     """Fetch a URL and return the response body as text.
 
+    Retries up to ``MAX_RETRIES`` times with exponential backoff for
+    transient HTTP errors (429, 500, 502, 503, 504) and URL errors.
+
     Args:
         url: The URL to fetch.
 
@@ -285,19 +295,43 @@ def fetch_text(url: str) -> str:
         The response body decoded as UTF-8.
 
     Raises:
-        OSError: On network failure (wraps ``URLError``, ``HTTPError``).
+        OSError: On repeated network failure (wraps ``HTTPError``,
+            ``URLError``).
     """
-    req = Request(url, headers={"User-Agent": USER_AGENT})
-    try:
-        with urlopen(req, timeout=30) as resp:
-            data: bytes = resp.read()
-            return data.decode("utf-8")
-    except HTTPError as exc:
-        msg = f"HTTP {exc.code} fetching {url}: {exc.reason}"
-        raise OSError(msg) from exc
-    except URLError as exc:
-        msg = f"URL error fetching {url}: {exc.reason}"
-        raise OSError(msg) from exc
+    last_error: OSError | None = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            req = Request(url, headers={"User-Agent": USER_AGENT})
+            with urlopen(req, timeout=30) as resp:
+                data: bytes = resp.read()
+                return data.decode("utf-8")
+        except HTTPError as exc:
+            if exc.code in RETRYABLE_STATUSES and attempt < MAX_RETRIES - 1:
+                wait = RETRY_BACKOFF * (2 ** attempt)
+                logger.debug(
+                    "HTTP %d fetching %s, retrying in %.1fs (attempt %d/%d)",
+                    exc.code, url, wait, attempt + 1, MAX_RETRIES)
+                time.sleep(wait)
+                last_error = OSError(
+                    f"HTTP {exc.code} fetching {url}: {exc.reason}")
+                continue
+            msg = f"HTTP {exc.code} fetching {url}: {exc.reason}"
+            raise OSError(msg) from exc
+        except URLError as exc:
+            if attempt < MAX_RETRIES - 1:
+                wait = RETRY_BACKOFF * (2 ** attempt)
+                logger.debug(
+                    "URL error fetching %s, retrying in %.1fs (attempt %d/%d)",
+                    url, wait, attempt + 1, MAX_RETRIES)
+                time.sleep(wait)
+                last_error = OSError(
+                    f"URL error fetching {url}: {exc.reason}")
+                continue
+            msg = f"URL error fetching {url}: {exc.reason}"
+            raise OSError(msg) from exc
+    if last_error is not None:
+        raise last_error
+    raise OSError(f"Failed to fetch {url} after {MAX_RETRIES} attempts.")
 
 
 # ── Convenience functions ──────────────────────────────────────────
@@ -431,7 +465,7 @@ class MempoolSpaceProvider:
             OSError: On network failure or non-200 status.
             ValueError: If *vout* is out of range.
         """
-        tx_json = self.__fetch_tx_json(txid)
+        tx_json = self.fetch_tx_json(txid)
         try:
             output = tx_json["vout"][vout]
         except IndexError:
@@ -454,7 +488,7 @@ class MempoolSpaceProvider:
             OSError: On network failure or non-200 status.
             ValueError: If *vout* is out of range.
         """
-        tx_json = self.__fetch_tx_json(txid)
+        tx_json = self.fetch_tx_json(txid)
         try:
             return int(tx_json["vout"][vout]["value"])
         except IndexError:
@@ -462,7 +496,7 @@ class MempoolSpaceProvider:
                 f"vout {vout} out of range for tx {txid} "
                 f"(only {len(tx_json['vout'])} outputs).") from None
 
-    def __fetch_tx_json(self, txid: str) -> dict[str, Any]:
+    def fetch_tx_json(self, txid: str) -> dict[str, Any]:
         """Fetch the full transaction JSON from mempool.space.
 
         Args:

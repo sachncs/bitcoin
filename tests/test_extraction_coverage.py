@@ -365,18 +365,16 @@ class TestExtractLegacy:
             script_pubkey=sc,
         )
         records = extract_signatures(tx, utxo_script_pubkeys=[sc])
-        assert len(records) >= 1
-        for r in records:
-            assert r.script_type == P2PKH
-            assert isinstance(r.public_key, Point)
+        assert len(records) == 1
+        assert records[0].script_type == P2PKH
+        assert isinstance(records[0].public_key, Point)
 
     def test_p2pkh_without_utxo(self) -> None:
         tx = base_tx(script_sig=make_p2pkh_scriptsig())
         records = extract_signatures(tx)
-        assert len(records) >= 1
+        assert len(records) == 1
 
     def test_p2pkh_no_pubkey_in_scriptsig(self) -> None:
-        """ScriptSig with only a signature (no pubkey bytes) → no pubkey fallback."""
         sig_push = bytes([len(SIG_R1S1_ALL)])
         script_sig = sig_push + SIG_R1S1_ALL
         tx = base_tx(script_sig=script_sig)
@@ -389,7 +387,6 @@ class TestExtractLegacy:
         assert records == []
 
     def test_malformed_der_element(self) -> None:
-        """Element that looks like bytes but fails DER decode is skipped."""
         sig_push = bytes([3])
         bad_sig = b"\x00\x00\x00"
         script_sig = sig_push + bad_sig
@@ -398,7 +395,6 @@ class TestExtractLegacy:
         assert records == []
 
     def test_trailing_data_in_der(self) -> None:
-        """DER with trailing data raises ValueError and is skipped."""
         der_with_trailing = DER_R1S1 + b"\x02\x01\x02"
         sig_push = bytes([len(der_with_trailing)])
         script_sig = sig_push + der_with_trailing
@@ -407,19 +403,16 @@ class TestExtractLegacy:
         assert records == []
 
     def test_element_not_bytes(self) -> None:
-        """Opcode elements in scriptSig are skipped."""
-        tx = base_tx(script_sig=b"\x00")  # OP_0
+        tx = base_tx(script_sig=b"\x00")
         records = extract_signatures(tx)
         assert records == []
 
     def test_element_too_short(self) -> None:
-        """Single-byte elements are skipped."""
         tx = base_tx(script_sig=bytes([1]) + b"\x00")
         records = extract_signatures(tx)
         assert records == []
 
     def test_legacy_recovery_fails_no_fallback(self) -> None:
-        """Recovery fails and no pubkey_bytes → pubkey is None → continue."""
         non_qr_sig = NON_QR_SIG + b"\x01"
         sig_push = bytes([len(non_qr_sig)])
         tx = base_tx(script_sig=sig_push + non_qr_sig)
@@ -427,7 +420,6 @@ class TestExtractLegacy:
         assert records == []
 
     def test_recovery_fallback_pubkey_bytes(self) -> None:
-        """When recovery fails but pubkey_bytes exists, fallback is used."""
         non_qr_der = NON_QR_SIG
         non_qr_sig = non_qr_der + b"\x01"
         sig_push = bytes([len(non_qr_sig)])
@@ -436,7 +428,48 @@ class TestExtractLegacy:
         sc = p2pkh_script(TEST_PUB_HASH)
         tx = base_tx(script_sig=script_sig, script_pubkey=sc)
         records = extract_signatures(tx, utxo_script_pubkeys=[sc])
-        assert len(records) >= 1
+        assert len(records) == 1
+
+
+class TestExtractP2PK:
+    def test_p2pk_extraction(self) -> None:
+        from bitcoin.script.builder import build_p2pk
+        sc = build_p2pk(TEST_PUB_SEC)
+        sig_push = bytes([len(SIG_R1S1_ALL)])
+        tx = base_tx(
+            script_sig=sig_push + SIG_R1S1_ALL,
+            script_pubkey=sc,
+        )
+        records = extract_signatures(tx, utxo_script_pubkeys=[sc])
+        assert len(records) == 1
+        assert records[0].script_type == P2PK
+        assert records[0].sig == DER_R1S1
+
+    def test_p2pk_no_sig(self) -> None:
+        from bitcoin.script.builder import build_p2pk
+        sc = build_p2pk(TEST_PUB_SEC)
+        tx = base_tx(script_pubkey=sc)
+        records = extract_signatures(tx, utxo_script_pubkeys=[sc])
+        assert records == []
+
+
+class TestExtractMultisig:
+    def test_p2ms_extraction(self) -> None:
+        sc = bytes([0x51]) + bytes([len(TEST_PUB_SEC)]) + TEST_PUB_SEC + bytes([0x51]) + bytes([0xae])
+        sig_push = bytes([len(SIG_R1S1_ALL)])
+        tx = base_tx(
+            script_sig=sig_push + SIG_R1S1_ALL + bytes([0x00]),
+            script_pubkey=sc,
+        )
+        records = extract_signatures(tx, utxo_script_pubkeys=[sc])
+        assert len(records) == 1
+        assert records[0].script_type == classify_script_pubkey(sc)
+
+    def test_p2ms_empty_script_sig(self) -> None:
+        sc = bytes([0x51]) + bytes([len(TEST_PUB_SEC)]) + TEST_PUB_SEC + bytes([0x51]) + bytes([0xae])
+        tx = base_tx(script_pubkey=sc)
+        records = extract_signatures(tx, utxo_script_pubkeys=[sc])
+        assert records == []
 
 
 class TestExtractP2WPKH:
@@ -449,9 +482,8 @@ class TestExtractP2WPKH:
             utxo_script_pubkeys=[sc],
             utxo_values=[1000],
         )
-        assert len(records) >= 1
-        for r in records:
-            assert r.script_type == P2WPKH
+        assert len(records) == 1
+        assert records[0].script_type == P2WPKH
 
     def test_p2wpkh_without_script_pubkey(self) -> None:
         """When script_pubkey is empty, default script code fallback."""
@@ -494,9 +526,8 @@ class TestExtractP2WSH:
             utxo_script_pubkeys=[sc],
             utxo_values=[2000],
         )
-        assert len(records) >= 1
-        for r in records:
-            assert r.script_type == P2WSH
+        assert len(records) == 1
+        assert records[0].script_type == P2WSH
 
     def test_p2wsh_empty_witness(self) -> None:
         sc = p2wsh_script(sha256(b"\xac"))
@@ -550,7 +581,7 @@ class TestExtractP2SHSegWit:
             utxo_script_pubkeys=[sc],
             utxo_values=[3000],
         )
-        assert len(records) >= 1
+        assert len(records) == 1
         assert records[0].script_type == f"p2sh_{P2WPKH}"
 
     def test_p2sh_p2wsh(self) -> None:
@@ -572,7 +603,7 @@ class TestExtractP2SHSegWit:
             utxo_script_pubkeys=[sc],
             utxo_values=[4000],
         )
-        assert len(records) >= 1
+        assert len(records) == 1
         assert records[0].script_type == f"p2sh_{P2WSH}"
 
     def test_p2sh_short_scriptsig(self) -> None:
@@ -786,7 +817,7 @@ class TestExtractUnknownScriptType:
             script_pubkey=b"",
         )
         records = extract_signatures(tx, utxo_script_pubkeys=[b""])
-        assert len(records) >= 1
+        assert len(records) == 1
         assert records[0].script_type == "unknown"
 
 
@@ -828,12 +859,12 @@ class TestExtractGuessP2PKH:
     def test_guess_not_found(self) -> None:
         from bitcoin.signature.extraction.engine import guess_p2pkh_script
 
-        assert guess_p2pkh_script([b"\x00" * 32]) == b""
+        assert guess_p2pkh_script([b"\x00" * 32]) is None
 
     def test_guess_not_bytes(self) -> None:
         from bitcoin.signature.extraction.engine import guess_p2pkh_script
 
-        assert guess_p2pkh_script([1, 2, 0x76]) == b""
+        assert guess_p2pkh_script([1, 2, 0x76]) is None
 
 
 class TestExtractP2WPKHScriptCode:

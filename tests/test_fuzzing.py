@@ -132,8 +132,6 @@ def test_parse_psbt_crash(data):
 
 
 def test_psbt_roundtrip():
-    # serialize_psbt has known separator bugs for non-empty PSBTs;
-    # test roundtrip with zero inputs/outputs only.
     txin = TxIn(
         previous_output=OutPoint(txid=b"\x00" * 32, vout=0),
         script_sig=b"",
@@ -144,10 +142,12 @@ def test_psbt_roundtrip():
     tx = Tx(version=2, inputs=(txin,), outputs=(txout,), lock_time=0)
     raw_tx = serialize_legacy_tx(tx)
 
+    inp = PsbtInput()
+    out = PsbtOutput()
     psbt = Psbt(
         tx=raw_tx,
-        inputs=(),
-        outputs=(),
+        inputs=(inp,),
+        outputs=(out,),
     )
 
     serialized = serialize_psbt(psbt)

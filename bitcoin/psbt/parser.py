@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List, Tuple, Optional
+import logging
+from typing import TYPE_CHECKING, Dict, Sequence, Tuple
 
 if TYPE_CHECKING:
     from bitcoin.signature.collection import SignatureCollection
@@ -10,6 +11,9 @@ if TYPE_CHECKING:
 
 from bitcoin.encoding.varint import decode_varint, encode_varint
 from bitcoin.psbt.models import Psbt, PsbtInput, PsbtOutput
+from bitcoin.transaction.parser import parse_tx
+
+logger = logging.getLogger(__name__)
 
 MAX_KEY_VALUE_MAP_ENTRIES = 10000
 
@@ -47,32 +51,25 @@ def parse_psbt(data: bytes) -> Psbt:
     offset = 5
 
     # Global map
-    global_map, offset = __parse_key_value_map(data, offset)
+    global_map, offset = parse_key_value_map(data, offset)
     unsigned_tx = global_map.get(PSBT_GLOBAL_UNSIGNED_TX)
     if unsigned_tx is None:
         raise ValueError("PSBT missing unsigned transaction.")
 
     # Input maps
+    parsed_tx, _ = parse_tx(unsigned_tx)
+    num_inputs = len(parsed_tx.inputs)
+    num_outputs = len(parsed_tx.outputs)
     inputs: list[PsbtInput] = []
-    while offset < len(data):
-        if len(data) - offset < 1:
-            break
-        inp_map, offset = __parse_input_map(data, offset)
+    for _ in range(num_inputs):
+        inp_map, offset = parse_input_map(data, offset)
         inputs.append(inp_map)
-        if data[offset:offset + 1] == b"\x00":
-            offset += 1
-            break
 
     # Output maps
     outputs: list[PsbtOutput] = []
-    while offset < len(data):
-        if len(data) - offset < 1:
-            break
-        out_map, offset = __parse_output_map(data, offset)
+    for _ in range(num_outputs):
+        out_map, offset = parse_output_map(data, offset)
         outputs.append(out_map)
-        if data[offset:offset + 1] == b"\x00":
-            offset += 1
-            break
 
     return Psbt(
         tx=unsigned_tx,
@@ -94,17 +91,17 @@ def serialize_psbt(psbt: Psbt) -> bytes:
 
     # Global map
     result.extend(
-        __serialize_key_value(PSBT_GLOBAL_UNSIGNED_TX, psbt.tx, [b"\x00"]))
+        serialize_key_value(PSBT_GLOBAL_UNSIGNED_TX, psbt.tx, [b"\x00"]))
     result.append(0x00)  # global map separator
 
     # Input maps
     for inp in psbt.inputs:
-        result.extend(__serialize_input_map(inp))
+        result.extend(serialize_input_map(inp))
         result.append(0x00)
 
     # Output maps
     for out in psbt.outputs:
-        result.extend(__serialize_output_map(out))
+        result.extend(serialize_output_map(out))
         result.append(0x00)
 
     return bytes(result)
@@ -113,7 +110,7 @@ def serialize_psbt(psbt: Psbt) -> bytes:
 # ── Internal helpers ────────────────────────────────────────────────────
 
 
-def __parse_key_value_map(data: bytes,
+def parse_key_value_map(data: bytes,
                           offset: int) -> Tuple[Dict[int, bytes], int]:
     """Parse a PSBT key-value map (global, input, or output).
 
@@ -146,7 +143,7 @@ def __parse_key_value_map(data: bytes,
     return result, offset
 
 
-def __serialize_key_value(key_type: int, value: bytes,
+def serialize_key_value(key_type: int, value: bytes,
                           key_data: list[bytes]) -> bytes:
     """Serialize a single PSBT key-value pair.
 
@@ -169,7 +166,7 @@ def __serialize_key_value(key_type: int, value: bytes,
     return bytes(result)
 
 
-def __parse_input_map(data: bytes, offset: int) -> Tuple[PsbtInput, int]:
+def parse_input_map(data: bytes, offset: int) -> Tuple[PsbtInput, int]:
     """Parse a single PSBT input map from *data* at *offset*.
 
     Args:
@@ -206,7 +203,7 @@ def __parse_input_map(data: bytes, offset: int) -> Tuple[PsbtInput, int]:
             object.__setattr__(inp, "final_script_sig", value)
         elif key_type == PSBT_IN_FINAL_SCRIPTWITNESS:
             object.__setattr__(inp, "final_script_witness",
-                               __parse_witness_stack(value))
+                               parse_witness_stack(value))
         elif key_type == PSBT_IN_PARTIAL_SIG:
             dict.__setitem__(inp.partial_sigs, key_data, value)
         elif key_type == PSBT_IN_BIP32_DERIVATION:
@@ -216,7 +213,7 @@ def __parse_input_map(data: bytes, offset: int) -> Tuple[PsbtInput, int]:
     return inp, offset
 
 
-def __serialize_input_map(inp: PsbtInput) -> bytes:
+def serialize_input_map(inp: PsbtInput) -> bytes:
     """Serialize a single PSBT input map to wire format.
 
     Args:
@@ -228,28 +225,42 @@ def __serialize_input_map(inp: PsbtInput) -> bytes:
     result = bytearray()
     if inp.non_witness_utxo is not None:
         key = PSBT_IN_NON_WITNESS_UTXO
-        result.extend(__serialize_key_value(key, inp.non_witness_utxo, [b""]))
+        result.extend(serialize_key_value(key, inp.non_witness_utxo, [b""]))
     if inp.witness_utxo is not None:
         key = PSBT_IN_WITNESS_UTXO
-        result.extend(__serialize_key_value(key, inp.witness_utxo, [b""]))
+        result.extend(serialize_key_value(key, inp.witness_utxo, [b""]))
     if inp.sighash_type is not None:
         key = PSBT_IN_SIGHASH_TYPE
         result.extend(
-            __serialize_key_value(key, inp.sighash_type.to_bytes(4, "little"),
+            serialize_key_value(key, inp.sighash_type.to_bytes(4, "little"),
                                   [b""]))
     if inp.redeem_script is not None:
         key = PSBT_IN_REDEEM_SCRIPT
-        result.extend(__serialize_key_value(key, inp.redeem_script, [b""]))
+        result.extend(serialize_key_value(key, inp.redeem_script, [b""]))
     if inp.witness_script is not None:
         key = PSBT_IN_WITNESS_SCRIPT
-        result.extend(__serialize_key_value(key, inp.witness_script, [b""]))
+        result.extend(serialize_key_value(key, inp.witness_script, [b""]))
     if inp.final_script_sig is not None:
         key = PSBT_IN_FINAL_SCRIPTSIG
-        result.extend(__serialize_key_value(key, inp.final_script_sig, [b""]))
+        result.extend(serialize_key_value(key, inp.final_script_sig, [b""]))
+    if inp.final_script_witness is not None:
+        key = PSBT_IN_FINAL_SCRIPTWITNESS
+        result.extend(
+            serialize_key_value(key, serialize_witness_stack(inp.final_script_witness), [b""]))
+    for pubkey, sig in inp.partial_sigs.items():
+        key = PSBT_IN_PARTIAL_SIG
+        result.extend(serialize_key_value(key, sig, [pubkey]))
+    for pubkey, path in inp.bip32_derivations.items():
+        key = PSBT_IN_BIP32_DERIVATION
+        result.extend(serialize_key_value(key, path, [pubkey]))
+    for key_data, value in inp.unknown.items():
+        key_type = key_data[0]
+        extra = key_data[1:]
+        result.extend(serialize_key_value(key_type, value, [extra]))
     return bytes(result)
 
 
-def __parse_output_map(data: bytes, offset: int) -> Tuple[PsbtOutput, int]:
+def parse_output_map(data: bytes, offset: int) -> Tuple[PsbtOutput, int]:
     """Parse a single PSBT output map from *data* at *offset*.
 
     Args:
@@ -282,7 +293,7 @@ def __parse_output_map(data: bytes, offset: int) -> Tuple[PsbtOutput, int]:
     return out, offset
 
 
-def __serialize_output_map(out: PsbtOutput) -> bytes:
+def serialize_output_map(out: PsbtOutput) -> bytes:
     """Serialize a single PSBT output map to wire format.
 
     Args:
@@ -294,12 +305,19 @@ def __serialize_output_map(out: PsbtOutput) -> bytes:
     result = bytearray()
     if out.redeem_script is not None:
         result.extend(
-            __serialize_key_value(PSBT_OUT_REDEEM_SCRIPT, out.redeem_script,
+            serialize_key_value(PSBT_OUT_REDEEM_SCRIPT, out.redeem_script,
                                   [b""]))
     if out.witness_script is not None:
         result.extend(
-            __serialize_key_value(PSBT_OUT_WITNESS_SCRIPT, out.witness_script,
+            serialize_key_value(PSBT_OUT_WITNESS_SCRIPT, out.witness_script,
                                   [b""]))
+    for pubkey, path in out.bip32_derivations.items():
+        result.extend(
+            serialize_key_value(PSBT_OUT_BIP32_DERIVATION, path, [pubkey]))
+    for key_data, value in out.unknown.items():
+        key_type = key_data[0]
+        extra = key_data[1:]
+        result.extend(serialize_key_value(key_type, value, [extra]))
     return bytes(result)
 
 
@@ -333,6 +351,10 @@ def parse_keypath_value(value: bytes) -> tuple[str, tuple[str, ...]]:
     offset += 4
     count = value[offset]
     offset += 1
+    if len(value) < 5 + count * 4:
+        raise ValueError(
+            f"Keypath value too short: {len(value)} bytes "
+            f"for {count} derivations (need {5 + count * 4})")
     path: list[str] = []
     for _ in range(count):
         idx = int.from_bytes(value[offset:offset + 4], "little")
@@ -360,7 +382,7 @@ def psbt_extract_signatures(
     Returns:
         A ``SignatureCollection`` containing all extracted records.
     """
-    from bitcoin.curve import INFINITY, parse_public_key
+    from bitcoin.curve import parse_public_key
     from bitcoin.encoding.der import decode_der
     from bitcoin.signature.record import Record
     from bitcoin.signature.collection import SignatureCollection
@@ -377,7 +399,7 @@ def psbt_extract_signatures(
         for pubkey_bytes, sig_bytes in inp.partial_sigs.items():
             try:
                 public_key = parse_public_key(pubkey_bytes)
-            except Exception:
+            except (ValueError, TypeError):
                 continue
             if len(sig_bytes) < 2:
                 continue
@@ -408,23 +430,52 @@ def psbt_extract_signatures(
                         sig_candidate = element[:-1]
                         flag = element[-1]
                         decode_der(sig_candidate)
+                        # Try to extract pubkey from scriptSig; skip if not found
+                        pubkey = extract_pubkey_from_elements(parsed)
+                        if pubkey is None or pubkey.infinity:
+                            continue
                         records.append(
                             Record(
                                 txid=txid,
                                 vin=vin,
                                 sig=sig_candidate,
-                                public_key=INFINITY,
+                                public_key=pubkey,
                                 script_type="finalized",
                                 sighash_flag=flag,
                                 amount=value,
                             ))
             except (ValueError, IndexError):
-                pass
+                logger.debug("Failed to parse finalized scriptSig for input %d", vin)
 
     return SignatureCollection(records=tuple(records))
 
 
-def __parse_witness_stack(data: bytes) -> Tuple[bytes, ...]:
+def extract_pubkey_from_elements(
+        elements: Sequence[object]) -> Point | None:
+    """Extract the public key from a list of parsed script elements.
+
+    Searches for a 33- or 65-byte element that is a valid SEC-encoded
+    public key on the secp256k1 curve.
+
+    Args:
+        elements: Parsed script elements.
+
+    Returns:
+        The public key ``Point``, or ``None`` if no valid pubkey found.
+    """
+    from bitcoin.curve import parse_public_key
+    for element in reversed(tuple(elements)):
+        if isinstance(element, bytes) and len(element) in (33, 65):
+            try:
+                point = parse_public_key(element)
+                if point is not None and not point.infinity:
+                    return point
+            except (ValueError, TypeError):
+                continue
+    return None
+
+
+def parse_witness_stack(data: bytes) -> Tuple[bytes, ...]:
     """Parse a serialised witness stack from raw bytes.
 
     Args:
@@ -440,3 +491,19 @@ def __parse_witness_stack(data: bytes) -> Tuple[bytes, ...]:
         items.append(data[offset:offset + n])
         offset += n
     return tuple(items)
+
+
+def serialize_witness_stack(items: Tuple[bytes, ...]) -> bytes:
+    """Serialize a witness stack to wire format (varint-prefixed items).
+
+    Args:
+        items: A tuple of witness item bytes.
+
+    Returns:
+        The serialized bytes.
+    """
+    result = bytearray()
+    for item in items:
+        result.extend(encode_varint(len(item)))
+        result.extend(item)
+    return bytes(result)

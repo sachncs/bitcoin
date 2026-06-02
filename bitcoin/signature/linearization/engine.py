@@ -20,9 +20,9 @@ def linearize_signatures(records: list[Record]) -> list[Record]:
     Returns:
         A new list sorted by ``(txid, vin)``.
     """
-    return sorted(records, key=__record_sort_key)
+    return sorted(records, key=record_sort_key)
 
 
-def __record_sort_key(record: Record) -> tuple[bytes, int]:
+def record_sort_key(record: Record) -> tuple[bytes, int]:
     """Sort key: ``(txid, vin)``."""
     return (record.txid, record.vin)

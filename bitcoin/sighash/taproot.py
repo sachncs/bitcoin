@@ -9,21 +9,24 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 from bitcoin.encoding.hasher import tagged_hash
+from bitcoin.encoding.varint import encode_varint
 
 if TYPE_CHECKING:
     from bitcoin.transaction.models import Tx
 
+NO_CODESEPARATOR = 0xFFFFFFFF
+
 
 def sighash_taproot(
-    tx: Tx,
+    transaction: Tx,
     input_index: int,
     script: Optional[bytes],
-    flag: int,
+    sighash_flag: int,
     *,
     extension: bytes = b"",
     tapleaf_hash: Optional[bytes] = None,
     key_version: int = 0,
-    codeseparator_position: int = 0xFFFFFFFF,
+    codeseparator_position: int = NO_CODESEPARATOR,
     annex: Optional[bytes] = None,
 ) -> bytes:
     """Compute the BIP-341 Taproot sighash for a transaction input.
@@ -32,11 +35,11 @@ def sighash_taproot(
     The hash is computed as ``tagged_hash("TapSighash", ...)``.
 
     Args:
-        tx: The transaction.
+        transaction: The transaction.
         input_index: Index of the input being signed.
         script: The script being executed, or ``None`` for key-path
             spending.
-        flag: SIGHASH flag byte (``0x00`` for default, or standard
+        sighash_flag: SIGHASH flag byte (``0x00`` for default, or standard
             sighash values ``0x01``–``0x83``).
         extension: Extra data for future extensions (default ``b""``).
         tapleaf_hash: The ``tapleaf_hash`` as defined in BIP-341.
@@ -59,64 +62,38 @@ def sighash_taproot(
     from bitcoin.services.serializer import serialize_tx_for_sighash_taproot
 
     data = bytearray()
-    # Hash type
-    data.extend(flag.to_bytes(1, "little"))
+    data.extend(sighash_flag.to_bytes(1, "little"))
     data.extend(extension)
 
-    # Epoch (0 for current)
     data.extend((0).to_bytes(1, "little"))
 
-    # Control block
-    if input_index >= len(tx.inputs):
+    if input_index >= len(transaction.inputs):
         raise IndexError("Input index out of range.")
-    inp = tx.inputs[input_index]
+    inp = transaction.inputs[input_index]
     data.extend(inp.previous_output.txid)
     data.extend(inp.previous_output.vout.to_bytes(4, "little"))
     data.extend(inp.sequence.to_bytes(4, "little"))
 
-    # Script path details
     if script is not None:
         if tapleaf_hash is None:
             raise ValueError("tapleaf_hash required for script-path signing.")
-        data.extend((1).to_bytes(1, "little"))  # script path
+        data.extend((1).to_bytes(1, "little"))
         data.extend(tapleaf_hash)
         data.extend(key_version.to_bytes(1, "little"))
         data.extend(codeseparator_position.to_bytes(4, "little"))
     else:
-        data.extend((0).to_bytes(1, "little"))  # key path
+        data.extend((0).to_bytes(1, "little"))
 
-    # Annex
     if annex is not None:
         data.extend((1).to_bytes(1, "little"))
         data.extend(annex)
     else:
         data.extend((0).to_bytes(1, "little"))
 
-    # Serialize remaining transaction data for sighash
-    data.extend(serialize_tx_for_sighash_taproot(tx, flag))
+    data.extend(serialize_tx_for_sighash_taproot(transaction, sighash_flag))
 
-    # Script (if present)
     if script is not None:
         data.extend(encode_varint(len(script)))
         data.extend(script)
 
     return tagged_hash("TapSighash", bytes(data))
-
-
-def encode_varint(value: int) -> bytes:
-    """Encode an integer as a Bitcoin variable-length integer.
-
-    Args:
-        value: Non-negative integer to encode.
-
-    Returns:
-        The varint-encoded bytes (1, 3, 5, or 9 bytes depending on the
-        value range).
-    """
-    if value < 0xFD:
-        return value.to_bytes(1, "little")
-    if value <= 0xFFFF:
-        return b"\xfd" + value.to_bytes(2, "little")
-    if value <= 0xFFFFFFFF:
-        return b"\xfe" + value.to_bytes(4, "little")
-    return b"\xff" + value.to_bytes(8, "little")

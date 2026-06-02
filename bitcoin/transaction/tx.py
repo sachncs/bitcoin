@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness, EMPTY_WITNESS
+from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness
 
 
 def make_tx(

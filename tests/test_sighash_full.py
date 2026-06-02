@@ -472,9 +472,9 @@ class TestSerializer:
     def test_taproot_sighash_serialize(self) -> None:
         raw = serialize_tx_for_sighash_taproot(TX_TAPROOT, 0x00)
         assert isinstance(raw, bytes)
-        assert len(raw) > 0
+        assert raw
 
     def test_taproot_sighash_serialize_with_flag(self) -> None:
         raw = serialize_tx_for_sighash_taproot(TX_TAPROOT, 0x83)
         assert isinstance(raw, bytes)
-        assert len(raw) > 0
+        assert raw

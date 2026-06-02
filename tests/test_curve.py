@@ -144,9 +144,23 @@ class TestBackendDispatch:
         set_backend(backend)
         assert get_backend() is backend
         import bitcoin.curve.dispatch as d
-        d.__dict__["__backend"] = None  # __slots__-style to avoid name mangling
+        d.backend = None
         assert get_backend() is None
 
     def test_invalid_backend(self) -> None:
         with pytest.raises(TypeError):
             set_backend("invalid")  # type: ignore[arg-type]
+
+    def test_dispatch_auto_resolve(self) -> None:
+        """Dispatch functions auto-resolve backend without explicit set_backend."""
+        from bitcoin.curve.dispatch import resolve_backend
+        backend = resolve_backend()
+        from bitcoin.curve.backend.native import NativeBackend
+        assert isinstance(backend, NativeBackend)
+
+    def test_dispatch_functions_work_without_set_backend(self) -> None:
+        """Operations work with auto-resolved backend."""
+        from bitcoin.curve.dispatch import is_on_curve, negate, add
+        assert is_on_curve(GENERATOR)
+        neg = negate(GENERATOR)
+        assert add(GENERATOR, neg) == INFINITY

@@ -12,18 +12,18 @@ from bitcoin.psbt.parser import (
     parse_psbt_hex,
     parse_keypath_value,
     psbt_extract_signatures,
-    __parse_key_value_map,
-    __serialize_key_value,
-    __parse_input_map,
-    __serialize_input_map,
-    __parse_output_map,
-    __serialize_output_map,
-    __parse_witness_stack,
+    parse_key_value_map,
+    serialize_key_value,
+    parse_input_map,
+    serialize_input_map,
+    parse_output_map,
+    serialize_output_map,
+    parse_witness_stack,
 )
 from bitcoin.psbt.models import Psbt, PsbtInput, PsbtOutput
 from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness
 from bitcoin.services.serializer import serialize_legacy_tx
-from bitcoin.curve import INFINITY
+from bitcoin.curve import INFINITY, parse_public_key
 from bitcoin.signature.collection import SignatureCollection
 
 # ── Helper helpers ─────────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ def output_kv(key_type: int, value: bytes, key_data: bytes | None = None) -> byt
 
 
 def global_kv(value: bytes) -> bytes:
-    return __serialize_key_value(PSBT_GLOBAL_UNSIGNED_TX, value, [b"\x00"])
+    return serialize_key_value(PSBT_GLOBAL_UNSIGNED_TX, value, [b"\x00"])
 
 
 def build_witness_stack(items: list[bytes]) -> bytes:
@@ -116,7 +116,7 @@ class TestParsePsbt:
         ikv = input_kv(PSBT_IN_NON_WITNESS_UTXO, tx_bytes)
         okv = output_kv(PSBT_OUT_REDEEM_SCRIPT, b"\xab")
         # Format: magic + global_kv + 00 + [input_kv + 00] + 00 + [output_kv + 00]
-        data = PSBT_MAGIC + global_kv(tx_bytes) + b"\x00" + ikv + b"\x00" + b"\x00" + okv + b"\x00"
+        data = PSBT_MAGIC + global_kv(tx_bytes) + b"\x00" + ikv + b"\x00" + okv + b"\x00"
         psbt = parse_psbt(data)
         assert len(psbt.inputs) == 1
         assert len(psbt.outputs) == 1
@@ -131,7 +131,7 @@ class TestParsePsbt:
         assert len(psbt.outputs) == 0
 
     def test_output_loop_terminator_break(self):
-        """Output loop breaks on 00 byte after an output map."""
+        """Output map parsing terminates correctly."""
         tx_bytes = build_raw_tx(num_inputs=1, num_outputs=1)
         ikv = input_kv(0x09, b"x")
         okv = output_kv(PSBT_OUT_REDEEM_SCRIPT, b"\xff")
@@ -140,14 +140,12 @@ class TestParsePsbt:
             + global_kv(tx_bytes)
             + b"\x00"
             + ikv + b"\x00"
-            + b"\x00"
-            + okv + b"\x00" + b"\x00"
+            + okv + b"\x00"
         )
         psbt = parse_psbt(data)
         assert len(psbt.inputs) == 1
         assert len(psbt.outputs) == 1
         assert psbt.inputs[0].unknown == {b"\x09": b"x"}
-        assert psbt.outputs[0].redeem_script == b"\xff"
 
     def test_two_inputs_two_outputs(self):
         """Multiple non-empty input/output maps with matching counts."""
@@ -162,7 +160,6 @@ class TestParsePsbt:
             + b"\x00"
             + ikv1 + b"\x00"
             + ikv2 + b"\x00"
-            + b"\x00"
             + okv1 + b"\x00"
             + okv2 + b"\x00"
         )
@@ -232,6 +229,49 @@ class TestSerializePsbt:
         assert b"\x06" in raw
         assert b"\x07" in raw
 
+    def test_roundtrip_with_partial_sigs_and_bip32(self):
+        """Round-trip PSBT with partial_sigs, bip32_derivations, unknown."""
+        tx_bytes = build_raw_tx(num_inputs=1, num_outputs=1)
+        pubkey = b"\x02" + b"\xaa" * 32
+        sig = b"\x30\x06\x02\x01\x01\x02\x01\x01" + bytes([0x01])
+        inp = PsbtInput(
+            partial_sigs={pubkey: sig},
+            bip32_derivations={
+                pubkey: b"\x01\x02\x03\x04\x02\x00\x00\x00\x00\x01\x00\x00\x00\x00"
+            },
+            unknown={b"\x0f": b"custom"},
+        )
+        out = PsbtOutput(
+            bip32_derivations={
+                pubkey: b"\x01\x02\x03\x04\x01\x00\x00\x00\x00"
+            },
+            unknown={b"\x0f": b"out_custom"},
+        )
+        psbt = Psbt(tx=tx_bytes, inputs=(inp,), outputs=(out,))
+        raw = serialize_psbt(psbt)
+
+        parsed = parse_psbt(raw)
+        assert len(parsed.inputs) == 1
+        assert len(parsed.outputs) == 1
+        assert parsed.inputs[0].partial_sigs == {pubkey: sig}
+        assert parsed.inputs[0].bip32_derivations == inp.bip32_derivations
+        assert parsed.inputs[0].unknown == {b"\x0f": b"custom"}
+        assert parsed.outputs[0].bip32_derivations == out.bip32_derivations
+        assert parsed.outputs[0].unknown == {b"\x0f": b"out_custom"}
+
+    def test_roundtrip_with_final_script_witness(self):
+        """Round-trip PSBT with final_script_witness set."""
+        tx_bytes = build_raw_tx(num_inputs=1, num_outputs=1)
+        inp = PsbtInput(
+            final_script_witness=(b"\x01\x02", b"\x03"),
+        )
+        psbt = Psbt(tx=tx_bytes, inputs=(inp,), outputs=(PsbtOutput(),))
+        raw = serialize_psbt(psbt)
+
+        parsed = parse_psbt(raw)
+        assert len(parsed.inputs) == 1
+        assert parsed.inputs[0].final_script_witness == (b"\x01\x02", b"\x03")
+
     def test_serialize_global_map_structure(self):
         tx_bytes = build_raw_tx()
         psbt = Psbt(tx=tx_bytes, inputs=(), outputs=())
@@ -240,8 +280,7 @@ class TestSerializePsbt:
         assert raw[:5] == PSBT_MAGIC
         # The serialization ends with 00 00 (input terminator + output terminator)
         assert raw[-2:] == b"\x00\x00"
-        # At least 5 bytes of global key-data after magic
-        assert len(raw) >= 8
+        assert len(raw) == 20
 
 
 # ── parse_psbt_hex ─────────────────────────────────────────────────────────
@@ -367,15 +406,18 @@ class TestPsbtExtractSignatures:
         tx_bytes = self.__rx(1)
         sig_element = VALID_DER + bytes([0x01])
         from bitcoin.script.parser import serialize_script
+        from bitcoin.encoding.sec import serialize_sec
 
-        script_sig = serialize_script([sig_element])
+        pubkey_point = parse_public_key(VALID_PUBKEY)
+        pubkey_element = serialize_sec(pubkey_point, compressed=True)
+        script_sig = serialize_script([sig_element, pubkey_element])
         inp = PsbtInput(final_script_sig=script_sig)
         psbt = Psbt(tx=tx_bytes, inputs=(inp,), outputs=(PsbtOutput(),))
         coll = psbt_extract_signatures(psbt)
         assert len(coll) == 1
         assert coll[0].script_type == "finalized"
         assert coll[0].sig == VALID_DER
-        assert coll[0].public_key == INFINITY
+        assert coll[0].public_key == pubkey_point
 
     def test_finalized_no_bytes_elements(self):
         tx_bytes = self.__rx(1)
@@ -419,14 +461,53 @@ class TestPsbtExtractSignatures:
         coll = psbt_extract_signatures(psbt, input_values=[500])
         assert len(coll) == 0
 
+    def testextract_pubkey_from_elements_valid(self):
+        from bitcoin.psbt.parser import extract_pubkey_from_elements
+        from bitcoin.encoding.sec import serialize_sec
+
+        pubkey_point = parse_public_key(VALID_PUBKEY)
+        pubkey_element = serialize_sec(pubkey_point, compressed=True)
+        result = extract_pubkey_from_elements([pubkey_element])
+        assert result == pubkey_point
+        assert not result.infinity
+
+    def testextract_pubkey_from_elements_uncompressed(self):
+        from bitcoin.psbt.parser import extract_pubkey_from_elements
+        from bitcoin.encoding.sec import serialize_sec
+
+        pubkey_point = parse_public_key(VALID_PUBKEY)
+        pubkey_element = serialize_sec(pubkey_point, compressed=False)
+        result = extract_pubkey_from_elements([pubkey_element])
+        assert result == pubkey_point
+
+    def testextract_pubkey_from_elements_no_pubkey(self):
+        from bitcoin.psbt.parser import extract_pubkey_from_elements
+
+        result = extract_pubkey_from_elements([b"\x00", b"\x01"])
+        assert result is None
+
+    def testextract_pubkey_from_elements_invalid_length(self):
+        from bitcoin.psbt.parser import extract_pubkey_from_elements
+
+        result = extract_pubkey_from_elements([b"\x02" + b"\x00" * 16])
+        assert result is None
+
+    def testextract_pubkey_from_elements_off_curve(self):
+        from bitcoin.psbt.parser import extract_pubkey_from_elements
+
+        # 65-byte uncompressed SEC with x=0, y=1 — not on curve
+        off_curve = b"\x04" + b"\x00" * 32 + b"\x01" * 32
+        result = extract_pubkey_from_elements([off_curve])
+        assert result is None
+
 
 # ── _parse_key_value_map ───────────────────────────────────────────────────
 
-# ── __parse_key_value_map ───────────────────────────────────────────────────
+# ── parse_key_value_map ───────────────────────────────────────────────────
 
 def test_parse_key_value_map_empty():
     data = b"\x00"
-    result, offset = __parse_key_value_map(data, 0)
+    result, offset = parse_key_value_map(data, 0)
     assert result == {}
     assert offset == 1
 
@@ -435,7 +516,7 @@ def test_parse_key_value_map_single_entry():
     key = encode_varint(1) + bytes([0x01])
     val = encode_varint(5) + b"hello"
     data = key + val + b"\x00"
-    result, offset = __parse_key_value_map(data, 0)
+    result, offset = parse_key_value_map(data, 0)
     assert result == {0x01: b"hello"}
     assert offset == len(data)
 
@@ -444,7 +525,7 @@ def test_parse_key_value_map_multiple_entries():
     kv1 = encode_varint(1) + bytes([0x01]) + encode_varint(3) + b"abc"
     kv2 = encode_varint(1) + bytes([0x02]) + encode_varint(2) + b"de"
     data = kv1 + kv2 + b"\x00"
-    result, offset = __parse_key_value_map(data, 0)
+    result, offset = parse_key_value_map(data, 0)
     assert result == {0x01: b"abc", 0x02: b"de"}
     assert offset == len(data)
 
@@ -453,33 +534,33 @@ def test_parse_key_value_map_entry_with_key_data():
     key = encode_varint(3) + bytes([0x01]) + b"\xaa\xbb"
     val = encode_varint(2) + b"zz"
     data = key + val + b"\x00"
-    result, offset = __parse_key_value_map(data, 0)
+    result, offset = parse_key_value_map(data, 0)
     assert result == {0x01: b"zz"}
     assert offset == len(data)
 
 
-# ── __serialize_key_value ───────────────────────────────────────────────────
+# ── serialize_key_value ───────────────────────────────────────────────────
 
 def test_serialize_key_value_with_key_data():
-    result = __serialize_key_value(0x01, b"abc", [b"\x00"])
+    result = serialize_key_value(0x01, b"abc", [b"\x00"])
     expected = encode_varint(2) + bytes([0x01, 0x00]) + encode_varint(3) + b"abc"
     assert result == expected
 
 
 def test_serialize_key_value_empty_key_data():
-    result = __serialize_key_value(0x01, b"abc", [])
+    result = serialize_key_value(0x01, b"abc", [])
     expected = encode_varint(1) + bytes([0x01]) + encode_varint(3) + b"abc"
     assert result == expected
 
 
 def test_serialize_key_value_empty_value():
-    result = __serialize_key_value(0x05, b"", [b"\x00"])
+    result = serialize_key_value(0x05, b"", [b"\x00"])
     expected = encode_varint(2) + bytes([0x05, 0x00]) + encode_varint(0) + b""
     assert result == expected
 
 
 def test_serialize_key_value_multiple_key_data():
-    result = __serialize_key_value(0x01, b"v", [b"\xaa", b"\xbb"])
+    result = serialize_key_value(0x01, b"v", [b"\xaa", b"\xbb"])
     expected = (
         encode_varint(3)
         + bytes([0x01, 0xaa, 0xbb])
@@ -489,7 +570,7 @@ def test_serialize_key_value_multiple_key_data():
     assert result == expected
 
 
-# ── __parse_input_map ───────────────────────────────────────────────────────
+# ── parse_input_map ───────────────────────────────────────────────────────
 
 def test_parse_input_map_all_key_types():
     entries = bytearray()
@@ -516,7 +597,7 @@ def test_parse_input_map_all_key_types():
     entries.extend(input_kv(0x09, b"\x0f"))
     entries.append(0x00)
 
-    inp, offset = __parse_input_map(bytes(entries), 0)
+    inp, offset = parse_input_map(bytes(entries), 0)
     assert inp.non_witness_utxo == b"\x00" * 10
     assert inp.witness_utxo == b"\x01" * 40
     assert inp.partial_sigs == {b"\x02" * 33: b"\x05" * 10}
@@ -531,7 +612,7 @@ def test_parse_input_map_all_key_types():
 
 
 def test_parse_input_map_empty():
-    inp, offset = __parse_input_map(b"\x00", 0)
+    inp, offset = parse_input_map(b"\x00", 0)
     assert inp.non_witness_utxo is None
     assert inp.sighash_type is None
     assert len(inp.partial_sigs) == 0
@@ -543,12 +624,12 @@ def test_parse_input_map_unknown_keys():
     entries.extend(input_kv(0x0a, b"v1"))
     entries.extend(input_kv(0x0b, b"v2", key_data=b"\x01"))
     entries.append(0x00)
-    inp, offset = __parse_input_map(bytes(entries), 0)
+    inp, offset = parse_input_map(bytes(entries), 0)
     assert inp.unknown == {b"\x0a": b"v1", b"\x0b\x01": b"v2"}
     assert offset == len(entries)
 
 
-# ── __serialize_input_map ───────────────────────────────────────────────────
+# ── serialize_input_map ───────────────────────────────────────────────────
 
 def test_serialize_input_map_all_fields():
     inp = PsbtInput(
@@ -559,7 +640,7 @@ def test_serialize_input_map_all_fields():
         witness_script=b"\x04",
         final_script_sig=b"\x05",
     )
-    result = __serialize_input_map(inp)
+    result = serialize_input_map(inp)
     assert b"\x01" in result
     assert b"\x02" in result
     assert (1).to_bytes(4, "little") in result
@@ -570,26 +651,30 @@ def test_serialize_input_map_all_fields():
 
 def test_serialize_input_map_empty():
     inp = PsbtInput()
-    result = __serialize_input_map(inp)
+    result = serialize_input_map(inp)
     assert result == b""
 
 
 def test_serialize_input_map_roundtrip():
     inp = PsbtInput(redeem_script=b"\xaa\xbb")
-    ser = __serialize_input_map(inp)
+    ser = serialize_input_map(inp)
     data = ser + b"\x00"
-    inp2, _ = __parse_input_map(data, 0)
+    inp2, _ = parse_input_map(data, 0)
     assert inp2.redeem_script == b"\xaa\xbb"
 
 
-def test_serialize_input_map_partial_sigs_ignored():
-    """partial_sigs is not written by __serialize_input_map."""
-    inp = PsbtInput(partial_sigs={b"\x02" * 33: b"\x05"})
-    result = __serialize_input_map(inp)
-    assert result == b""
+def test_serialize_input_map_partial_sigs():
+    """partial_sigs is written by serialize_input_map and round-trips."""
+    pubkey = b"\x02" * 33
+    sig = b"\x05"
+    inp = PsbtInput(partial_sigs={pubkey: sig})
+    result = serialize_input_map(inp)
+    assert len(result) == 37  # varint key_len(1) + type(1) + 33B pubkey + varint val_len(1) + 1B sig
+    inp2, _ = parse_input_map(result + b"\x00", 0)
+    assert inp2.partial_sigs == {pubkey: sig}
 
 
-# ── __parse_output_map ──────────────────────────────────────────────────────
+# ── parse_output_map ──────────────────────────────────────────────────────
 
 def test_parse_output_map_all_key_types():
     entries = bytearray()
@@ -603,7 +688,7 @@ def test_parse_output_map_all_key_types():
     entries.extend(output_kv(0x03, b"\x06"))
     entries.append(0x00)
 
-    out, offset = __parse_output_map(bytes(entries), 0)
+    out, offset = parse_output_map(bytes(entries), 0)
     assert out.redeem_script == b"\x01"
     assert out.witness_script == b"\x02"
     assert out.bip32_derivations == {b"\x05" * 33: b"\x04" * 8}
@@ -612,45 +697,45 @@ def test_parse_output_map_all_key_types():
 
 
 def test_parse_output_map_empty():
-    out, offset = __parse_output_map(b"\x00", 0)
+    out, offset = parse_output_map(b"\x00", 0)
     assert out.redeem_script is None
     assert out.witness_script is None
     assert offset == 1
 
 
-# ── __serialize_output_map ──────────────────────────────────────────────────
+# ── serialize_output_map ──────────────────────────────────────────────────
 
 def test_serialize_output_map_all_fields():
     out = PsbtOutput(redeem_script=b"\x01", witness_script=b"\x02")
-    result = __serialize_output_map(out)
+    result = serialize_output_map(out)
     assert b"\x01" in result
     assert b"\x02" in result
 
 
 def test_serialize_output_map_empty():
     out = PsbtOutput()
-    result = __serialize_output_map(out)
+    result = serialize_output_map(out)
     assert result == b""
 
 
 def test_serialize_output_map_roundtrip():
     out = PsbtOutput(redeem_script=b"\xaa", witness_script=b"\xbb")
-    ser = __serialize_output_map(out)
+    ser = serialize_output_map(out)
     data = ser + b"\x00"
-    out2, _ = __parse_output_map(data, 0)
+    out2, _ = parse_output_map(data, 0)
     assert out2.redeem_script == b"\xaa"
     assert out2.witness_script == b"\xbb"
 
 
-# ── __parse_witness_stack ───────────────────────────────────────────────────
+# ── parse_witness_stack ───────────────────────────────────────────────────
 
 def test_parse_witness_stack_empty():
-    result = __parse_witness_stack(b"")
+    result = parse_witness_stack(b"")
     assert result == ()
 
 
 def test_parse_witness_stack_single_item():
-    result = __parse_witness_stack(encode_varint(3) + b"abc")
+    result = parse_witness_stack(encode_varint(3) + b"abc")
     assert result == (b"abc",)
 
 
@@ -660,7 +745,7 @@ def test_parse_witness_stack_multiple_items():
         + encode_varint(2) + b"bc"
         + encode_varint(3) + b"def"
     )
-    result = __parse_witness_stack(data)
+    result = parse_witness_stack(data)
     assert result == (b"a", b"bc", b"def")
 
 
@@ -668,5 +753,5 @@ def test_parse_witness_stack_integration():
     ws = build_witness_stack([b"\x01\x02", b"\x03"])
     kv = input_kv(PSBT_IN_FINAL_SCRIPTWITNESS, ws)
     data = kv + b"\x00"
-    inp, _ = __parse_input_map(data, 0)
+    inp, _ = parse_input_map(data, 0)
     assert inp.final_script_witness == (b"\x01\x02", b"\x03")

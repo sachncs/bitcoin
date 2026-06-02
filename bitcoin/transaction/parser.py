@@ -38,12 +38,11 @@ def parse_tx(data: bytes, offset: int = 0) -> Tuple[Tx, int]:
     if is_segwit:
         offset += 2
 
-    inputs_list, offset = __parse_inputs(data, offset, is_segwit)
-    outputs, offset = __parse_outputs(data, offset)
-
+    inputs_list, offset = parse_inputs(data, offset, is_segwit)
+    outputs, offset = parse_outputs(data, offset)
     if is_segwit:
         for i in range(len(inputs_list)):
-            witness, offset = __parse_witness(data, offset)
+            witness, offset = parse_witness(data, offset)
             inputs_list[i] = TxIn(
                 previous_output=inputs_list[i].previous_output,
                 script_sig=inputs_list[i].script_sig,
@@ -60,7 +59,7 @@ def parse_tx(data: bytes, offset: int = 0) -> Tuple[Tx, int]:
               lock_time=lock_time), offset
 
 
-def __parse_inputs(data: bytes, offset: int,
+def parse_inputs(data: bytes, offset: int,
                    is_segwit: bool) -> Tuple[List[TxIn], int]:
     """Parse the input list from a serialised transaction.
 
@@ -101,7 +100,7 @@ def __parse_inputs(data: bytes, offset: int,
     return inputs, offset
 
 
-def __parse_outputs(data: bytes, offset: int) -> Tuple[List[TxOut], int]:
+def parse_outputs(data: bytes, offset: int) -> Tuple[List[TxOut], int]:
     """Parse the output list from a serialised transaction.
 
     Each output consists of an 8-byte value and a varint-length
@@ -128,7 +127,7 @@ def __parse_outputs(data: bytes, offset: int) -> Tuple[List[TxOut], int]:
     return outputs, offset
 
 
-def __parse_witness(data: bytes, offset: int) -> Tuple[Witness, int]:
+def parse_witness(data: bytes, offset: int) -> Tuple[Witness, int]:
     """Parse a witness stack from a serialised transaction.
 
     The witness is encoded as a varint item count followed by

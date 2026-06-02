@@ -208,12 +208,14 @@ def serialize_tx_for_sighash_taproot(tx: Tx, flag: int) -> bytes:
 
     Produces the common transaction data shared across all inputs during
     Taproot sighash computation (inputs and outputs, without witness
-    data).
+    data).  Note: *flag* is accepted for signature compatibility with
+    the caller but does not affect output serialisation — the caller
+    is responsible for output pruning based on the flag.
 
     Args:
         tx: The transaction.
-        flag: The SIGHASH flag (used for flag-dependent output handling
-            per BIP-341).
+        flag: The SIGHASH flag (accepted for caller compatibility;
+            not used internally).
 
     Returns:
         Serialised bytes of inputs and outputs for the Taproot sighash.

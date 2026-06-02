@@ -1,4 +1,4 @@
-"""The :class:`Point` value type — a point on the secp256k1 curve."""
+"""The ``Point`` value type — a point on the secp256k1 curve."""
 
 from __future__ import annotations
 

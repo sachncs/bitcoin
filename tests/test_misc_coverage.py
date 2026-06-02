@@ -5,7 +5,7 @@ import pytest
 
 from bitcoin.curve import GENERATOR
 from bitcoin.signature import Record, SignatureCollection, linearize_signatures
-from bitcoin.signature.attack import (
+from bitcoin.signature.linearization.coefficients import (
     LinearCoefficientCollection,
     LinearCoefficientRecord,
     derive_linear_coefficients,

@@ -6,21 +6,19 @@ constants naming each type identifier.
 """
 from __future__ import annotations
 
-from bitcoin.encoding.hex import decode_hex
-
-# Script opcodes
-OP_DUP = 0x76
-OP_HASH160 = 0xA9
-OP_EQUALVERIFY = 0x88
-OP_CHECKSIG = 0xAC
-OP_PUSH_20 = 0x14
-OP_PUSH_32 = 0x20
-OP_CHECKMULTISIG = 0xAE
-OP_RETURN = 0x6A
-OP_CHECKLOCKTIMEVERIFY = 0xB1
-OP_CHECKSEQUENCEVERIFY = 0xB2
-OP_0 = 0x00
-OP_1 = 0x51
+from bitcoin.script.opcodes import (
+    OP_CHECKSIG,
+    OP_CHECKLOCKTIMEVERIFY,
+    OP_CHECKMULTISIG,
+    OP_CHECKSEQUENCEVERIFY,
+    OP_DUP,
+    OP_EQUAL,
+    OP_EQUALVERIFY,
+    OP_HASH160,
+    OP_RETURN,
+    OP_0,
+    OP_1,
+)
 
 # Standard script type identifiers returned by classify_script_pubkey.
 P2PK = "p2pk"
@@ -49,32 +47,27 @@ def classify_script_pubkey(script: bytes) -> str:
     if not script:
         return NON_STANDARD
 
-    # P2PKH: OP_DUP OP_HASH160 OP_PUSH_20 <20 bytes> OP_EQUALVERIFY OP_CHECKSIG
+    # P2PKH: OP_DUP OP_HASH160 <20 bytes> OP_EQUALVERIFY OP_CHECKSIG
     if (len(script) == 25 and script[0] == OP_DUP and
-            script[1] == OP_HASH160 and script[2] == OP_PUSH_20 and
+            script[1] == OP_HASH160 and script[2] == 0x14 and
             script[23] == OP_EQUALVERIFY and script[24] == OP_CHECKSIG):
         return P2PKH
 
-    # P2SH: OP_HASH160 OP_PUSH_20 <20 bytes> OP_EQUAL
+    # P2SH: OP_HASH160 <20 bytes> OP_EQUAL
     if (len(script) == 23 and script[0] == OP_HASH160 and
-            script[1] == OP_PUSH_20 and script[-1] == 0x87):
+            script[1] == 0x14 and script[-1] == OP_EQUAL):
         return P2SH
 
-    # P2SH (alternate form used in some test vectors)
-    if (len(script) == 23 and script[0] == OP_HASH160 and
-            script[1] == OP_PUSH_20 and script[-1] == 0x87):
-        return P2SH
-
-    # P2WPKH: OP_0 OP_PUSH_20 <20 bytes>
-    if (len(script) == 22 and script[0] == OP_0 and script[1] == OP_PUSH_20):
+    # P2WPKH: OP_0 <20 bytes>
+    if (len(script) == 22 and script[0] == OP_0 and script[1] == 0x14):
         return P2WPKH
 
-    # P2WSH: OP_0 OP_PUSH_32 <32 bytes>
-    if (len(script) == 34 and script[0] == OP_0 and script[1] == OP_PUSH_32):
+    # P2WSH: OP_0 <32 bytes>
+    if (len(script) == 34 and script[0] == OP_0 and script[1] == 0x20):
         return P2WSH
 
-    # P2TR: OP_1 OP_PUSH_32 <32 bytes>
-    if (len(script) == 34 and script[0] == OP_1 and script[1] == OP_PUSH_32):
+    # P2TR: OP_1 <32 bytes>
+    if (len(script) == 34 and script[0] == OP_1 and script[1] == 0x20):
         return P2TR
 
     # P2PK: <push> <pubkey> OP_CHECKSIG (simplified heuristic)
@@ -155,7 +148,7 @@ def is_op_return(script_pubkey: bytes) -> bool:
     Returns:
         ``True`` if the script starts with ``OP_RETURN`` (0x6A).
     """
-    return len(script_pubkey) >= 1 and script_pubkey[0] == 0x6A
+    return len(script_pubkey) >= 1 and script_pubkey[0] == OP_RETURN
 
 
 def is_bare_multisig(script_pubkey: bytes) -> bool:

@@ -13,7 +13,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Sequence
 
 from bitcoin.field import inverse as field_inverse
 from bitcoin.curve.params import CURVE_ORDER
@@ -21,7 +20,6 @@ from bitcoin.exceptions import BitcoinError
 from bitcoin.signature.linearization.coefficients import (
     LinearCoefficientCollection,
     LinearCoefficientRecord,
-    derive_linear_coefficients,
 )
 
 
@@ -30,11 +28,11 @@ class NonceRecoveryError(BitcoinError):
 
 
 class SameNonceError(NonceRecoveryError):
-    """Raised when two signatures have different ``r`` values."""
+    """Raised when two signatures have different ``r`` values preventing nonce-reuse recovery."""
 
 
 class NoNonceReuseError(NonceRecoveryError):
-    """Raised when no nonce reuse can be detected."""
+    """Raised when no nonce reuse can be detected in a collection of signatures."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,18 +174,3 @@ def detect_nonce_reuse(
 
     groups.sort(key=lambda g: g.count, reverse=True)
     return groups
-
-
-__all__ = [
-    "LinearCoefficientCollection",
-    "LinearCoefficientRecord",
-    "NonceReuseGroup",
-    "NonceRecoveryError",
-    "NoNonceReuseError",
-    "RecoveredKey",
-    "SameNonceError",
-    "derive_linear_coefficients",
-    "detect_nonce_reuse",
-    "recover_from_nonce_reuse",
-    "recover_from_related_nonces",
-]

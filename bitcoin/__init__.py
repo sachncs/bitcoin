@@ -100,14 +100,9 @@ from bitcoin.services import serialize_tx, serialize_legacy_tx, tx_to_json, Bloc
 from bitcoin.exceptions import (
     BitcoinError,
     NotInvertible,
-    NotInvertibleError,
-    InvalidLinearCoefficientError,
-    NonInvertibleLinearCoefficientError,
-    UnsupportedScriptPathError,
     PointError,
-    InvalidSignature,
-    InvalidDerSignature,
     ParsingError,
+    UnsupportedScriptPathError,
 )
 from bitcoin.settings import settings
 
@@ -120,16 +115,11 @@ __all__ = [
     "FIELD_PRIME",
     "GENERATOR",
     "INFINITY",
-    "InvalidDerSignature",
-    "InvalidLinearCoefficientError",
-    "InvalidSignature",
     "LibsecpBackend",
     "MULTISIG",
     "MempoolSpaceProvider",
     "NativeBackend",
-    "NonInvertibleLinearCoefficientError",
     "NotInvertible",
-    "NotInvertibleError",
     "OutPoint",
     "P2PK",
     "P2PKH",

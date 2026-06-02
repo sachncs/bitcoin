@@ -7,7 +7,7 @@ transaction inputs using the appropriate sighash algorithm.
 
 from __future__ import annotations
 
-import hashlib
+import hmac
 
 from typing import TYPE_CHECKING
 
@@ -18,13 +18,65 @@ from bitcoin.signature.extraction.engine import compute_sighash
 if TYPE_CHECKING:
     from bitcoin.transaction.models import Tx
 
+HASH_BYTE_LENGTH = 32
+
+
+def bits2int(data: bytes) -> int:
+    """Convert bytes to an integer, right-shifted to match curve order bit length.
+
+    Args:
+        data: The bytes to convert.
+
+    Returns:
+        The integer value right-shifted by ``(8 * len(data) - qlen)`` bits.
+    """
+    return int.from_bytes(data, "big") >> (len(data) * 8 - CURVE_ORDER.bit_length())
+
+
+def hmac_drbg_generate_k(
+    private_key_bytes: bytes, message_hash: bytes, q: int = CURVE_ORDER
+) -> int:
+    """Generate a deterministic nonce *k* via RFC 6979 HMAC-DRBG.
+
+    Args:
+        private_key_bytes: 32-byte big-endian encoding of the private key.
+        message_hash: 32-byte message hash (``H(m)``).
+        q: Curve order (default ``CURVE_ORDER``).
+
+    Returns:
+        A non-zero integer *k* in ``[1, q-1]``.
+    """
+    qlen = q.bit_length()
+    rolen = (qlen + 7) // 8
+
+    K = b"\x00" * HASH_BYTE_LENGTH
+    V = b"\x01" * HASH_BYTE_LENGTH
+
+    K = hmac.new(K, V + b"\x00" + private_key_bytes + message_hash, "sha256").digest()
+    V = hmac.new(K, V, "sha256").digest()
+
+    K = hmac.new(K, V + b"\x01" + private_key_bytes + message_hash, "sha256").digest()
+    V = hmac.new(K, V, "sha256").digest()
+
+    while True:
+        T = b""
+        while len(T) < rolen:
+            V = hmac.new(K, V, "sha256").digest()
+            T += V
+
+        k = bits2int(T[:rolen])
+        if 1 <= k < q:
+            return k
+
+        K = hmac.new(K, V + b"\x00", "sha256").digest()
+        V = hmac.new(K, V, "sha256").digest()
+
 
 def sign(message_hash: bytes, private_key: int) -> bytes:
     """Create a DER-encoded ECDSA signature.
 
-    Uses a simplified RFC 6979 deterministic nonce (SHA256 of the
-    private key concatenated with the message hash) rather than the
-    full HMAC-DRBG construction.
+    Uses the full RFC 6979 HMAC-DRBG construction (section 3.2) to
+    generate a deterministic nonce *k*.
 
     Args:
         message_hash: 32-byte message hash.
@@ -37,20 +89,18 @@ def sign(message_hash: bytes, private_key: int) -> bytes:
         ValueError: If *message_hash* is not 32 bytes or the signing
             computation fails.
     """
-    if len(message_hash) != 32:
+    if len(message_hash) != HASH_BYTE_LENGTH:
         raise ValueError(
-            f"Message hash must be 32 bytes, got {len(message_hash)}.")
+            f"Message hash must be {HASH_BYTE_LENGTH} bytes, "
+            f"got {len(message_hash)}.")
 
-    z = int.from_bytes(message_hash, "big")
+    z = int.from_bytes(message_hash, "big") % CURVE_ORDER
     d = private_key
 
-    # Deterministic k via simplified RFC 6979
-    data = private_key.to_bytes(32, "big") + message_hash
-    k = int.from_bytes(hashlib.sha256(data).digest(), "big") % CURVE_ORDER
-    if k == 0:
-        k = 1
+    x = private_key.to_bytes(HASH_BYTE_LENGTH, "big")
+    h1 = message_hash
+    k = hmac_drbg_generate_k(x, h1)
 
-    # R = k * G
     R = multiply(k, GENERATOR)
     if R.infinity:
         raise ValueError("Generated point at infinity during signing.")
@@ -61,7 +111,6 @@ def sign(message_hash: bytes, private_key: int) -> bytes:
     if r == 0:
         raise ValueError("Signature r is zero — try a different k.")
 
-    # s = k^-1 * (z + r * d) mod n
     k_inv = pow(k, -1, CURVE_ORDER)
     s = (k_inv * (z + r * d)) % CURVE_ORDER
     if s == 0:
@@ -71,8 +120,8 @@ def sign(message_hash: bytes, private_key: int) -> bytes:
 
 
 def sign_tx_input(
-    tx: Tx,
-    vin: int,
+    transaction: Tx,
+    input_index: int,
     private_key: int,
     *,
     script: bytes = b"",
@@ -82,12 +131,12 @@ def sign_tx_input(
     """Sign a transaction input.
 
     Computes the appropriate sighash (legacy or SegWit depending on
-    whether *tx* has witness data), signs it, and appends the sighash
-    flag byte.
+    whether *transaction* has witness data), signs it, and appends the
+    sighash flag byte.
 
     Args:
-        tx: The transaction containing the input to sign.
-        vin: Index of the input being signed.
+        transaction: The transaction containing the input to sign.
+        input_index: Index of the input being signed.
         private_key: Private key as an integer.
         script: Script code used for sighash computation (typically the
             ``scriptPubKey`` for legacy or the witness script for SegWit).
@@ -97,6 +146,7 @@ def sign_tx_input(
     Returns:
         Signature bytes (DER-encoded signature + sighash flag byte).
     """
-    message_hash = compute_sighash(tx, vin, script, sighash_flag, value)
-    der_sig = sign(message_hash, private_key)
-    return der_sig + bytes([sighash_flag])
+    message_hash = compute_sighash(transaction, input_index, script,
+                                   sighash_flag, value)
+    der_signature = sign(message_hash, private_key)
+    return der_signature + bytes([sighash_flag])

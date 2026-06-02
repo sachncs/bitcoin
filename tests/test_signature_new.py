@@ -66,11 +66,12 @@ class TestRecord:
 class TestVerifySig:
     def test_verify_valid(self) -> None:
         msg = hash256(b"test message")
-        r = 1
-        s = 2
-        sig = encode_der(r, s)
-        public_key = multiply(1, GENERATOR)
-        assert public_key == GENERATOR
+        from bitcoin.signature.signer import sign
+        from bitcoin.curve import CURVE_ORDER
+        private_key = 1
+        sig = sign(msg, private_key)
+        public_key = multiply(private_key, GENERATOR)
+        assert verify_sig(msg, sig, public_key)
 
     def test_verify_invalid_sig_format(self) -> None:
         result = verify_sig(b"\x00" * 32, b"\x00\x01\x02", GENERATOR)

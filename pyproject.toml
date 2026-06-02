@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "bitcoin"
 version = "0.4.0"
-description = "Extract and linearize ECDSA signatures (r, s, z) from Bitcoin transactions with pure-Python secp256k1"
+description = "Extract and linearize ECDSA and Schnorr signatures (r, s, z) from Bitcoin transactions with pure-Python secp256k1"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }

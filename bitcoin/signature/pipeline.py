@@ -11,6 +11,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
+from threading import Lock
 
 from bitcoin.encoding.der import decode_der
 from bitcoin.encoding.hex import decode_hex
@@ -43,7 +44,7 @@ class BatchResult:
     failed: int = 0
 
 
-def __process_single(
+def process_single(
     tx_input: str | bytes,
     utxo_scripts: Sequence[bytes] | None,
     utxo_values: Sequence[int] | None,
@@ -59,19 +60,25 @@ def __process_single(
         A list of ``Record`` instances.
 
     Raises:
-        ValueError: If the transaction cannot be parsed.
+        ValueError: If the transaction cannot be parsed or no signatures
+            are found for a non-coinbase transaction.
     """
     if isinstance(tx_input, str):
         raw = decode_hex(tx_input.strip())
     else:
         raw = tx_input
     tx, _ = parse_tx(raw)
-    return extract_signatures(
+    records = extract_signatures(
         tx,
         utxo_script_pubkeys=list(utxo_scripts)
         if utxo_scripts is not None else None,
         utxo_values=list(utxo_values) if utxo_values is not None else None,
     )
+    if not records and any(
+        txin.previous_output.txid != b"\x00" * 32 for txin in tx.inputs
+    ):
+        raise ValueError("No signatures found in transaction")
+    return records
 
 
 def batch_extract(
@@ -112,6 +119,7 @@ def batch_extract(
     all_records: list[Record] = []
     errors: list[tuple[str, str]] = []
     successful = 0
+    _lock = Lock()
 
     if max_workers <= 1:
         for tx_input, tx_scripts, tx_values in zip(transactions,
@@ -120,11 +128,12 @@ def batch_extract(
                                                    strict=True):
             label = tx_input[:64] if isinstance(tx_input, str) else "<bytes>"
             try:
-                records = __process_single(tx_input, tx_scripts, tx_values)
+                records = process_single(tx_input, tx_scripts, tx_values)
                 all_records.extend(records)
                 successful += 1
-            except Exception as exc:
-                logger.debug("Failed to process %s: %s", label, exc)
+            except (ValueError, IndexError, OSError) as exc:
+                logger.warning("Failed to process %s: %s", label, exc,
+                               exc_info=True)
                 errors.append((label, str(exc)))
     else:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -135,7 +144,7 @@ def batch_extract(
                                                        strict=True):
                 label = (tx_input[:64]
                          if isinstance(tx_input, str) else "<bytes>")
-                fut = executor.submit(__process_single, tx_input, tx_scripts,
+                fut = executor.submit(process_single, tx_input, tx_scripts,
                                       tx_values)
                 future_map[fut] = label
 
@@ -143,11 +152,14 @@ def batch_extract(
                 label = future_map[future]
                 try:
                     records = future.result()
-                    all_records.extend(records)
-                    successful += 1
-                except Exception as exc:
-                    logger.debug("Failed to process %s: %s", label, exc)
-                    errors.append((label, str(exc)))
+                    with _lock:
+                        all_records.extend(records)
+                        successful += 1
+                except (ValueError, IndexError, OSError) as exc:
+                    logger.warning("Failed to process %s: %s", label, exc,
+                                   exc_info=True)
+                    with _lock:
+                        errors.append((label, str(exc)))
 
     return BatchResult(
         records=all_records,
@@ -181,7 +193,7 @@ def batch_extract_from_file(
     Raises:
         FileNotFoundError: If *file_path* does not exist.
     """
-    with open(file_path) as f:
+    with open(file_path, encoding="utf-8") as f:
         text = f.read()
 
     lines: list[str] = text.split(delimiter)
@@ -221,8 +233,11 @@ def merge_records(results: Sequence[BatchResult]) -> list[Record]:
     return merged
 
 
-def __extract_r_from_record(record: Record) -> int | None:
-    """Decode the ``r`` value from a ``Record``'s DER signature.
+def extract_r_from_record(record: Record) -> int | None:
+    """Decode the ``r`` value from a ``Record``'s signature.
+
+    Handles both DER-encoded ECDSA signatures and 64-byte Schnorr
+    signatures (Taproot).  For Schnorr, the first 32 bytes are ``r``.
 
     Args:
         record: A signature record.
@@ -230,8 +245,11 @@ def __extract_r_from_record(record: Record) -> int | None:
     Returns:
         The integer ``r`` value, or ``None`` if decoding fails.
     """
+    sig = record.sig
+    if len(sig) == 64:
+        return int.from_bytes(sig[:32], "big")
     try:
-        r, _ = decode_der(record.sig)
+        r, _ = decode_der(sig)
         return r
     except (ValueError, IndexError):
         return None
@@ -244,6 +262,9 @@ def correlate_across_transactions(
     Groups records by *script_type*, then within each group groups
     records sharing the same ``r`` value.  Only groups with two or
     more records are reported.
+
+    Handles both DER-encoded ECDSA signatures and 64-byte Schnorr
+    (Taproot) signatures.
 
     Args:
         records: A list of ``Record`` instances from one or more
@@ -262,7 +283,7 @@ def correlate_across_transactions(
     for script_type, group_records in by_script.items():
         r_groups: defaultdict[int, list[int]] = defaultdict(list)
         for idx, rec in enumerate(group_records):
-            r_val = __extract_r_from_record(rec)
+            r_val = extract_r_from_record(rec)
             if r_val is not None:
                 r_groups[r_val].append(idx)
 
@@ -283,5 +304,7 @@ __all__ = [
     "batch_extract",
     "batch_extract_from_file",
     "correlate_across_transactions",
+    "extract_r_from_record",
     "merge_records",
+    "process_single",
 ]

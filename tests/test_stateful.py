@@ -25,7 +25,7 @@ class ExtractionPipeline(stateful.RuleBasedStateMachine):
         try:
             data = bytes.fromhex(tx_hex)
             self.tx, _ = parse_tx(data)
-        except Exception:
+        except ValueError:
             self.tx = None
 
     @stateful.rule(scripts=st.lists(st.binary(min_size=1, max_size=100)))
@@ -48,7 +48,7 @@ class ExtractionPipeline(stateful.RuleBasedStateMachine):
                 self.tx,
                 utxo_script_pubkeys=utxo_scripts,
             )
-        except Exception:
+        except (ValueError, IndexError, TypeError):
             self.records = []
 
     @stateful.invariant()

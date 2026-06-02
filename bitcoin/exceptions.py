@@ -13,29 +13,8 @@ class PointError(BitcoinError):
     """Raised for invalid curve-point operations."""
 
 
-class InvalidSignature(BitcoinError):
-    """Raised when a signature is malformed or cannot be decoded."""
-
-
-class InvalidDerSignature(BitcoinError):
-    """Raised specifically for malformed DER-encoded signatures."""
-
-
 class ParsingError(BitcoinError):
     """Raised when binary parsing fails."""
-
-
-class NotInvertibleError(BitcoinError):
-    """Raised when a linear coefficient is not invertible.  Deprecated —
-    prefer ``NotInvertible``."""
-
-
-class InvalidLinearCoefficientError(BitcoinError):
-    """Raised for invalid linear coefficients."""
-
-
-class NonInvertibleLinearCoefficientError(BitcoinError):
-    """Raised when a linear coefficient cannot be inverted."""
 
 
 class UnsupportedScriptPathError(BitcoinError):

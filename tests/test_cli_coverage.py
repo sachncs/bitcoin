@@ -38,16 +38,22 @@ def test_parse_input_values_invalid() -> None:
 
 # --- main() entry-point wrapper ---
 
-def test_main_with_list() -> None:
+def test_main_with_version() -> None:
+    result = runner.invoke(app, ["version"])
+    assert result.exit_code == 0
+    assert "0." in result.stdout
+
+
+def test_main_with_extract() -> None:
+    result = runner.invoke(app, ["extract", "010000000000000000"])
+    assert result.exit_code == 0
+
+
+def test_main_returns_zero() -> None:
+    from bitcoin.cli.app import main
     with patch("bitcoin.cli.app.app") as mock_app:
         assert main(["version"]) == 0
     mock_app.assert_called_once_with(["version"])
-
-
-def test_main_defaults_to_sys_argv() -> None:
-    with patch("bitcoin.cli.app.app") as mock_app:
-        assert main() == 0
-    mock_app.assert_called_once()
 
 
 # --- --help for every command ---

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Self
 
-from bitcoin.transaction.models import EMPTY_WITNESS, OutPoint, Tx, TxIn, TxOut, Witness
+from bitcoin.transaction.models import OutPoint, Tx, TxIn, TxOut, Witness
 
 
 class TransactionBuilder:

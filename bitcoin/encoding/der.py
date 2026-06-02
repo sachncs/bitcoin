@@ -67,8 +67,8 @@ def decode_der(sig: bytes) -> Tuple[int, int]:
     if sig[1] != len(sig) - 2:
         raise ValueError("Invalid DER sequence length.")
 
-    r, offset = __decode_int(sig, offset)
-    s, offset = __decode_int(sig, offset)
+    r, offset = decode_int(sig, offset)
+    s, offset = decode_int(sig, offset)
 
     if offset != len(sig):
         raise ValueError("Trailing data in DER signature.")
@@ -76,7 +76,7 @@ def decode_der(sig: bytes) -> Tuple[int, int]:
     return r, s
 
 
-def __decode_int(data: bytes, offset: int) -> Tuple[int, int]:
+def decode_int(data: bytes, offset: int) -> Tuple[int, int]:
     """Decode a DER INTEGER tag at a given offset.
 
     Args:

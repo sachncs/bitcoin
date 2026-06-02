@@ -14,10 +14,7 @@ logger = logging.getLogger(__name__)
 
 from bitcoin.curve import INFINITY, Point
 from bitcoin.encoding.der import decode_der
-from bitcoin.sighash.flag import (
-    SIGHASH_ALL,
-    SIGHASH_MASK,
-)
+from bitcoin.sighash.flag import SIGHASH_ALL
 from bitcoin.signature.check import recover_public_key
 from bitcoin.signature.record import Record
 from bitcoin.script.classifier import (
@@ -40,7 +37,7 @@ def extract_signatures(
     utxo_script_pubkeys: list[bytes] | None = None,
     utxo_values: list[int] | None = None,
 ) -> list[Record]:
-    """Extract all ECDSA signatures from a transaction.
+    """Extract all signatures (ECDSA and Schnorr) from a transaction.
 
     Iterates over each input, determines the script type, and dispatches
     to the appropriate extraction handler (legacy, P2WPKH, P2WSH,
@@ -55,10 +52,19 @@ def extract_signatures(
 
     Returns:
         A list of ``Record`` instances — one per extracted signature.
+
+    Raises:
+        IndexError: If *utxo_script_pubkeys* or *utxo_values* are shorter
+            than *tx.inputs*.
+        AttributeError: If *tx* is malformed.
+        ValueError: If sighash computation fails (e.g. invalid flag).
     """
     records: list[Record] = []
     script_type_counts: dict[str, int] = {}
     failed_inputs = 0
+
+    if not tx.inputs:
+        return records
 
     for vin, txin in enumerate(tx.inputs):
         parsed_sig: Sequence[object] = list(parse_script(
@@ -74,23 +80,23 @@ def extract_signatures(
         if is_segwit:
             if script_type == P2WPKH:
                 records.extend(
-                    __extract_p2wpkh(tx, vin, script_pubkey, value,
+                    extract_p2wpkh(tx, vin, script_pubkey, value,
                                      txin.witness.items))
             elif script_type == P2WSH:
                 records.extend(
-                    __extract_p2wsh(tx, vin, script_pubkey, value,
+                    extract_p2wsh(tx, vin, script_pubkey, value,
                                     txin.witness.items))
             elif script_type == P2SH:
                 records.extend(
-                    __extract_p2sh_segwit(tx, vin, script_pubkey, value, txin))
+                    extract_p2sh_segwit(tx, vin, script_pubkey, value, txin))
             elif script_type == P2TR:
                 records.extend(
-                    __extract_taproot(tx, vin, script_pubkey, value,
+                    extract_taproot(tx, vin, script_pubkey, value,
                                       txin.witness.items))
             else:
                 failed_inputs += 1
         else:
-                records.extend(__extract_legacy(tx, vin, script_pubkey, parsed_sig))
+                records.extend(extract_legacy(tx, vin, script_pubkey, parsed_sig))
 
     type_summary = ", ".join(
         f"{n} {t}" for t, n in sorted(script_type_counts.items()))
@@ -121,7 +127,7 @@ def determine_script_type(script_pubkey: bytes,
 # ── Legacy (non-segwit) extraction ─────────────────────────────────
 
 
-def __extract_legacy(
+def extract_legacy(
     tx: Tx,
     vin: int,
     script_pubkey: bytes,
@@ -140,9 +146,13 @@ def __extract_legacy(
 
     Returns:
         A list of ``Record`` instances.
+
+    Raises:
+        AttributeError: If *tx* is malformed (e.g. ``tx.txid()`` fails).
     """
     records: list[Record] = []
-    effective_script = script_pubkey or guess_p2pkh_script(script_sig)
+    guessed = guess_p2pkh_script(script_sig)
+    effective_script = script_pubkey or guessed or b""
     pubkey_bytes = extract_pubkey_from_script_sig(script_sig)
     for element in script_sig:
         if isinstance(element, bytes) and len(element) > 1:
@@ -174,25 +184,29 @@ def __extract_legacy(
                         amount=0,
                     ))
                 logger.debug("Signature extracted from input %d", vin)
-            except ValueError:
-                logger.debug("Signature skipped for input %d (ValueError)", vin)
+            except (ValueError, TypeError, IndexError):
+                logger.debug("Signature skipped for input %d", vin)
                 continue
     return records
 
 
-def guess_p2pkh_script(script_sig: Sequence[object]) -> bytes:
-    """Build a P2PKH scriptPubKey from the pubkey in *script_sig*, if present."""
+def guess_p2pkh_script(script_sig: Sequence[object]) -> bytes | None:
+    """Build a P2PKH scriptPubKey from the pubkey in *script_sig*, if present.
+
+    Returns:
+        The P2PKH ``scriptPubKey`` bytes, or ``None`` if no pubkey found.
+    """
     for element in script_sig:
         if isinstance(element, bytes) and len(element) in {33, 65}:
             from bitcoin.script.builder import make_p2pkh_script
             return make_p2pkh_script(element)
-    return b""
+    return None
 
 
 # ── SegWit extraction ─────────────────────────────────────────────
 
 
-def __extract_p2wpkh(
+def extract_p2wpkh(
     tx: Tx,
     vin: int,
     script_pubkey: bytes,
@@ -210,6 +224,9 @@ def __extract_p2wpkh(
 
     Returns:
         A list of ``Record`` instances.
+
+    Raises:
+        AttributeError: If *tx* is malformed.
     """
     script_code = p2wpkh_script_code(
         script_pubkey) if script_pubkey else default_script_code()
@@ -243,13 +260,13 @@ def __extract_p2wpkh(
                         amount=value,
                     ))
                 logger.debug("P2WPKH signature extracted for input %d", vin)
-            except ValueError:
+            except (ValueError, TypeError, IndexError):
                 logger.debug("P2WPKH signature skipped for input %d", vin)
                 continue
     return records
 
 
-def __extract_p2wsh(
+def extract_p2wsh(
     tx: Tx,
     vin: int,
     script_pubkey: bytes,
@@ -270,6 +287,9 @@ def __extract_p2wsh(
 
     Returns:
         A list of ``Record`` instances.
+
+    Raises:
+        AttributeError: If *tx* is malformed.
     """
     witness_script = witness_items[-1] if witness_items else b""
     script_code = witness_script if witness_script else default_script_code()
@@ -303,13 +323,13 @@ def __extract_p2wsh(
                         amount=value,
                     ))
                 logger.debug("P2WSH signature extracted for input %d", vin)
-            except ValueError:
+            except (ValueError, TypeError, IndexError):
                 logger.debug("P2WSH signature skipped for input %d", vin)
                 continue
     return records
 
 
-def __extract_p2sh_segwit(
+def extract_p2sh_segwit(
     tx: Tx,
     vin: int,
     script_pubkey: bytes,
@@ -330,10 +350,13 @@ def __extract_p2sh_segwit(
 
     Returns:
         A list of ``Record`` instances.
+
+    Raises:
+        AttributeError: If *tx* or *txin* is malformed.
     """
     records: list[Record] = []
     parsed_sig = list(parse_script(txin.script_sig))
-    if len(parsed_sig) < 2:
+    if not parsed_sig:
         return records
     redeem_script = parsed_sig[-1] if isinstance(parsed_sig[-1], bytes) else b""
     redeem_type = classify_script_pubkey(
@@ -379,7 +402,7 @@ def __extract_p2sh_segwit(
                     ))
                 logger.debug("P2SH-SegWit signature extracted for input %d",
                              vin)
-            except ValueError:
+            except (ValueError, TypeError, IndexError):
                 logger.debug("P2SH-SegWit signature skipped for input %d", vin)
                 continue
     return records
@@ -388,7 +411,7 @@ def __extract_p2sh_segwit(
 # ── Taproot extraction ────────────────────────────────────────────
 
 
-def __extract_taproot(
+def extract_taproot(
     tx: Tx,
     vin: int,
     script_pubkey: bytes,
@@ -411,12 +434,15 @@ def __extract_taproot(
 
     Returns:
         A list of ``Record`` instances.
+
+    Raises:
+        AttributeError: If *tx* is malformed.
     """
     records: list[Record] = []
     if not witness_items:
         return records
 
-    pubkey = __pubkey_from_p2tr_script(script_pubkey)
+    pubkey = pubkey_from_p2tr_script(script_pubkey)
 
     # Key-path spend: single witness item (signature)
     if len(witness_items) == 1:
@@ -442,8 +468,11 @@ def __extract_taproot(
                     amount=value,
                 ))
         except ValueError:
-            pass
+            logger.debug("Taproot key-path spend extraction failed for input %d", vin)
         return records
+
+
+
 
     # Script-path spend: stack is [sig, ..., script, control_block]
     last_idx = len(witness_items) - 1
@@ -468,11 +497,11 @@ def __extract_taproot(
                         amount=value,
                     ))
         except ValueError:
-            continue
+            logger.debug("Taproot script-path item skipped for input %d", vin)
     return records
 
 
-def __pubkey_from_p2tr_script(script_pubkey: bytes) -> Point:
+def pubkey_from_p2tr_script(script_pubkey: bytes) -> Point:
     """Recover the public key Point from a P2TR scriptPubKey.
 
     P2TR outputs contain a 32-byte x-only public key.  We reconstruct
@@ -492,7 +521,7 @@ def __pubkey_from_p2tr_script(script_pubkey: bytes) -> Point:
         try:
             return Point.from_sec_compressed(bytes([0x02]) + xonly)
         except ValueError:
-            pass
+            logger.debug("Failed to lift x-only pubkey from P2TR script")
     return INFINITY
 
 
@@ -544,8 +573,15 @@ def recover_or_parse_pubkey(
 
     Returns:
         The recovered ``Point``, or ``None`` if every method fails.
+
+    Raises:
+        AttributeError: If *tx* is malformed.
     """
-    message = compute_sighash(tx, vin, script, flag, value)
+    try:
+        message = compute_sighash(tx, vin, script, flag, value)
+    except ValueError:
+        logger.debug("Sighash computation failed for input %d", vin)
+        return None
     for rec_id in range(4):
         recovery_flag = 27 + rec_id + 4
         try:
@@ -554,13 +590,14 @@ def recover_or_parse_pubkey(
             continue
     logger.debug("Public key recovery failed for input %d", vin)
     if pubkey_bytes:
+        from bitcoin.curve import parse_public_key, is_on_curve
         try:
-            from bitcoin.curve import parse_public_key, is_on_curve
             point = parse_public_key(pubkey_bytes)
             if point is not None and not point.infinity and is_on_curve(point):
                 return point
-        except Exception:
-            return None
+        except (ValueError, TypeError):
+            logger.debug("Failed to parse fallback public key for input %d",
+                         vin)
     return None
 
 
@@ -583,6 +620,10 @@ def compute_sighash(tx: Tx, vin: int, script: bytes, flag: int,
 
     Returns:
         The 32-byte sighash digest.
+
+    Raises:
+        ValueError: If ``SIGHASH_SINGLE`` is used with out-of-bounds
+            input index, or for other invalid flag combinations.
     """
     from bitcoin.sighash.legacy import sighash_legacy
     from bitcoin.sighash.segwit import sighash_segwit
@@ -612,11 +653,11 @@ def p2wpkh_script_code(script_pubkey: bytes) -> bytes:
         program = script_pubkey[
             2:] if script_pubkey[:1] == b"\x00" else script_pubkey
         if len(program) >= 20:
-            return __build_p2pkh_script_code(program[:20])
+            return build_p2pkh_script_code(program[:20])
     return default_script_code()
 
 
-def __build_p2pkh_script_code(pubkey_hash: bytes) -> bytes:
+def build_p2pkh_script_code(pubkey_hash: bytes) -> bytes:
     """Build the 25-byte P2PKH script code from a 20-byte pubkey hash.
 
     Args:
@@ -625,7 +666,13 @@ def __build_p2pkh_script_code(pubkey_hash: bytes) -> bytes:
     Returns:
         A 25-byte script: ``<len> OP_DUP OP_HASH160 OP_PUSH_20 <hash>
         OP_EQUALVERIFY OP_CHECKSIG``.
+
+    Raises:
+        ValueError: If *pubkey_hash* is not 20 bytes.
     """
+    if len(pubkey_hash) != 20:
+        raise ValueError(
+            f"pubkey_hash must be 20 bytes, got {len(pubkey_hash)}")
     return b"".join([
         bytes([0x19]),  # length
         bytes([0x76]),  # OP_DUP

@@ -1,11 +1,14 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: all setup lint typecheck test clean
+.PHONY: all setup venv lint typecheck test test-verbose test-cov clean
 
 all: lint typecheck test
 
 setup:
 	./setup.sh
+
+venv:
+	python3 -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]"
 
 lint:
 	ruff check .

@@ -43,7 +43,7 @@ def parse_input_values(value_str: str) -> list[int | None]:
     return result
 
 
-def __resolve_output_format(
+def resolve_output_format(
     *,
     json_output: bool,
     csv_output: bool,
@@ -62,7 +62,7 @@ def __resolve_output_format(
     return "text"
 
 
-def __read_tx_hex(tx_hex: str | None, input_file: Path | None) -> str:
+def read_tx_hex(tx_hex: str | None, input_file: Path | None) -> str:
     """Return tx hex from the positional arg or ``--input-file``.
 
     If both are provided ``--input-file`` wins.
@@ -76,7 +76,7 @@ def __read_tx_hex(tx_hex: str | None, input_file: Path | None) -> str:
     raise typer.Exit(1)
 
 
-def __output_records(records: list[Record], fmt: str) -> None:
+def output_records(records: list[Record], fmt: str) -> None:
     """Output records (for ``extract``) in the requested format."""
     if not records:
         typer.echo("No signatures found.")
@@ -117,7 +117,7 @@ def __output_records(records: list[Record], fmt: str) -> None:
             typer.echo("---")
 
 
-def __output_sorted_records(records: list[Record], fmt: str) -> None:
+def output_sorted_records(records: list[Record], fmt: str) -> None:
     """Output sorted/linearized records (for ``linearize``) in the requested format."""
     if not records:
         typer.echo("No signatures found.")
@@ -151,7 +151,7 @@ def decode(
                                               help="Read tx hex from file"),
 ) -> None:
     """Decode a raw transaction and output as JSON."""
-    tx_hex_resolved = __read_tx_hex(tx_hex, input_file)
+    tx_hex_resolved = read_tx_hex(tx_hex, input_file)
     tx_bytes = decode_hex(tx_hex_resolved)
     tx, _ = parse_tx(tx_bytes)
     typer.echo(json.dumps(tx_to_json(tx), indent=2))
@@ -174,12 +174,12 @@ def extract(
                                   help="Show progress dots"),
 ) -> None:
     """Extract ECDSA signatures from a raw transaction hex."""
-    fmt = __resolve_output_format(
+    fmt = resolve_output_format(
         json_output=json_output,
         csv_output=csv_output,
         output_format=output_format,
     )
-    tx_hex_resolved = __read_tx_hex(tx_hex, input_file)
+    tx_hex_resolved = read_tx_hex(tx_hex, input_file)
 
     tx_bytes = decode_hex(tx_hex_resolved)
     tx, _ = parse_tx(tx_bytes)
@@ -196,7 +196,7 @@ def extract(
     if progress:
         typer.echo(f" Found {len(records)} signature(s).", err=True)
 
-    __output_records(records, fmt)
+    output_records(records, fmt)
 
 
 @app.command()
@@ -212,12 +212,12 @@ def linearize(
                                   help="Show progress dots"),
 ) -> None:
     """Extract and linearize (sort) signatures from a raw transaction hex."""
-    fmt = __resolve_output_format(
+    fmt = resolve_output_format(
         json_output=json_output,
         csv_output=csv_output,
         output_format=output_format,
     )
-    tx_hex_resolved = __read_tx_hex(tx_hex, input_file)
+    tx_hex_resolved = read_tx_hex(tx_hex, input_file)
 
     tx_bytes = decode_hex(tx_hex_resolved)
     tx, _ = parse_tx(tx_bytes)
@@ -232,7 +232,7 @@ def linearize(
     if progress:
         typer.echo(f" Linearized {len(sorted_records)} signature(s).", err=True)
 
-    __output_sorted_records(sorted_records, fmt)
+    output_sorted_records(sorted_records, fmt)
 
 
 @app.command()

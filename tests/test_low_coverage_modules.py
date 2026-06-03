@@ -12,7 +12,7 @@ from bitcoin.script.parser import (
     serialize_script,
     script_to_string,
     chunks_to_pushes,
-    remove_code_separators,
+    reject_code_separators,
     parse_multisig_redeem_script,
     ScriptChunk,
 )
@@ -229,13 +229,13 @@ class TestChunksToPushes:
         assert result == [b"", b"ab"]
 
 
-class TestRemoveCodeSeparators:
+class TestRejectCodeSeparators:
     def test_no_separator(self) -> None:
-        assert remove_code_separators(b"\x51\x52") == b"\x51\x52"
+        assert reject_code_separators(b"\x51\x52") == b"\x51\x52"
 
     def test_separator_raises(self) -> None:
         with pytest.raises(UnsupportedScriptPathError, match="OP_CODESEPARATOR"):
-            remove_code_separators(b"\xab")
+            reject_code_separators(b"\xab")
 
 
 class TestSerializeScript:

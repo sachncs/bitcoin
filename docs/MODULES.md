@@ -147,7 +147,7 @@
 **Public API**:
 | Symbol | Kind | Description |
 |--------|------|-------------|
-| `Record` | Class | Frozen extraction result: `txid`, `vin`, `sig`, `public_key`, `script_type`, `sighash_flag`, `amount` |
+| `Record` | Class | Frozen extraction result: `txid`, `input_index`, `signature`, `public_key`, `script_type`, `sighash_flag`, `amount` |
 | `SignatureCollection` | Class | Collection of records with shared state |
 | `extract_signatures` | Function | `Tx` → `list[Record]` |
 | `linearize_signatures` | Function | `list[Record]` → sorted `list[Record]` |

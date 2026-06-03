@@ -94,6 +94,7 @@ from bitcoin.signature import (
     sign_tx_input,
     verify_sig,
     verify_schnorr_sig,
+    verify_all,
 )
 from bitcoin.psbt import Psbt, PsbtInput, PsbtOutput, PsbtEditor, parse_psbt, serialize_psbt, parse_psbt_hex, psbt_extract_signatures, parse_keypath_value
 from bitcoin.services import serialize_tx, serialize_legacy_tx, tx_to_json, BlockstreamProvider, BlockchainInfoProvider, MempoolSpaceProvider, enrich_transaction
@@ -150,6 +151,7 @@ __all__ = [
     "add",
     "batch_extract",
     "batch_verify",
+    "verify_all",
     "build_p2pk",
     "build_p2pkh",
     "build_p2sh",

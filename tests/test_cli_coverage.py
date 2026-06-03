@@ -131,8 +131,8 @@ def test_extract_with_utxo_value() -> None:
 def test_extract_with_records() -> None:
     mock_record = Record(
         txid=b"\x00" * 32,
-        vin=0,
-        sig=b"\x30\x45\x02\x21\x00" + b"\xaa" * 28 + b"\x02\x20" + b"\xbb" * 32 + b"\x01",
+        input_index=0,
+        signature=b"\x30\x45\x02\x21\x00" + b"\xaa" * 28 + b"\x02\x20" + b"\xbb" * 32 + b"\x01",
         public_key=INFINITY,
         script_type="p2pkh",
         sighash_flag=1,
@@ -142,10 +142,10 @@ def test_extract_with_records() -> None:
         result = runner.invoke(app, ["extract", "010000000000000000"])
     assert result.exit_code == 0
     assert "txid:" in result.stdout
-    assert "vin:" in result.stdout
-    assert "sig:" in result.stdout
+    assert "input_index:" in result.stdout
+    assert "signature:" in result.stdout
     assert "type:" in result.stdout
-    assert "flag:" in result.stdout
+    assert "sighash_flag:" in result.stdout
     assert "value:" in result.stdout
     assert "---" in result.stdout
 
@@ -155,8 +155,8 @@ def test_extract_with_records() -> None:
 def test_linearize_with_records() -> None:
     mock_record = Record(
         txid=b"\x00" * 32,
-        vin=0,
-        sig=b"\x30\x45\x02\x21\x00" + b"\xaa" * 28 + b"\x02\x20" + b"\xbb" * 32 + b"\x01",
+        input_index=0,
+        signature=b"\x30\x45\x02\x21\x00" + b"\xaa" * 28 + b"\x02\x20" + b"\xbb" * 32 + b"\x01",
         public_key=INFINITY,
         script_type="p2pkh",
         sighash_flag=1,

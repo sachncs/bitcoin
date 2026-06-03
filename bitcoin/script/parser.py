@@ -59,7 +59,6 @@ def parse_script_chunks(script_bytes: bytes) -> list[ScriptChunk]:
     Returns:
         List of ``ScriptChunk`` instances parsed from the script.
     """
-    elements = parse_script(script_bytes)
     chunks: list[ScriptChunk] = []
     i = 0
     while i < len(script_bytes):
@@ -111,7 +110,7 @@ def chunks_to_pushes(chunks: list[ScriptChunk]) -> list[bytes]:
     return [c.data for c in chunks if c.data is not None]
 
 
-def remove_code_separators(script: bytes) -> bytes:
+def reject_code_separators(script: bytes) -> bytes:
     """Verify that no OP_CODESEPARATOR appears in the script.
 
     Args:

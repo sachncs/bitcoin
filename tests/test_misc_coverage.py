@@ -21,11 +21,11 @@ from bitcoin.transaction.models import (
 
 class TestRecordCoverage:
     def test_empty_sig(self) -> None:
-        with pytest.raises(ValueError, match="sig must be non-empty"):
+        with pytest.raises(ValueError, match="signature must be non-empty"):
             Record(
                 txid=b"\x00" * 32,
-                vin=0,
-                sig=b"",
+                input_index=0,
+                signature=b"",
                 public_key=GENERATOR,
                 script_type="p2pkh",
                 sighash_flag=0x01,
@@ -33,11 +33,11 @@ class TestRecordCoverage:
             )
 
     def test_non_bytes_sig(self) -> None:
-        with pytest.raises(ValueError, match="sig must be non-empty"):
+        with pytest.raises(ValueError, match="signature must be non-empty"):
             Record(
                 txid=b"\x00" * 32,
-                vin=0,
-                sig=123,  # type: ignore[arg-type]
+                input_index=0,
+                signature=123,  # type: ignore[arg-type]
                 public_key=GENERATOR,
                 script_type="p2pkh",
                 sighash_flag=0x01,
@@ -48,8 +48,8 @@ class TestRecordCoverage:
         with pytest.raises(ValueError, match="amount must be non-negative"):
             Record(
                 txid=b"\x00" * 32,
-                vin=0,
-                sig=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+                input_index=0,
+                signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
                 public_key=GENERATOR,
                 script_type="p2pkh",
                 sighash_flag=0x01,
@@ -61,8 +61,8 @@ class TestCollectionCoverage:
     def test_iter(self) -> None:
         rec = Record(
             txid=b"\x00" * 32,
-            vin=0,
-            sig=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+            input_index=0,
+            signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
             public_key=GENERATOR,
             script_type="p2pkh",
             sighash_flag=0x01,
@@ -77,8 +77,8 @@ class TestCollectionCoverage:
     def test_getitem(self) -> None:
         rec = Record(
             txid=b"\x00" * 32,
-            vin=0,
-            sig=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+            input_index=0,
+            signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
             public_key=GENERATOR,
             script_type="p2pkh",
             sighash_flag=0x01,
@@ -90,8 +90,8 @@ class TestCollectionCoverage:
     def test_linearize_with_collection(self) -> None:
         recs = [
             Record(
-                txid=b"\x01" * 32, vin=1,
-                sig=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+                txid=b"\x01" * 32, input_index=1,
+                signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
                 public_key=GENERATOR, script_type="p2pkh",
                 sighash_flag=0x01, amount=0,
             ),

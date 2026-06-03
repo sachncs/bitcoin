@@ -14,7 +14,7 @@ from bitcoin.signature.pipeline import (
 )
 from bitcoin.signature.record import Record
 from bitcoin.signature.schnorr import lift_x, verify_schnorr_sig
-from bitcoin.signature.batch_verify import batch_verify
+from bitcoin.signature.batch_verify import batch_verify, verify_all
 from bitcoin.signature.signer import sign, sign_tx_input
 
 __all__ = [
@@ -33,6 +33,7 @@ __all__ = [
     "recover_public_key",
     "sign",
     "sign_tx_input",
+    "verify_all",
     "verify_sig",
     "verify_schnorr_sig",
 ]

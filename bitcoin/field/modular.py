@@ -21,11 +21,10 @@ def inverse(value: int, modulus: int) -> int:
         NotInvertible: If *value* and *modulus* are not coprime
             (including when *value* is zero).
     """
-    t_value, t_modulus = type(value), type(modulus)
-    if t_value is not int:
-        raise TypeError(f"Value must be int, got {t_value.__name__}.")
+    if not isinstance(value, int):
+        raise TypeError(f"Value must be int, got {type(value).__name__}.")
     if not isinstance(modulus, int):
-        raise TypeError(f"Modulus must be int, got {t_modulus.__name__}.")
+        raise TypeError(f"Modulus must be int, got {type(modulus).__name__}.")
     if modulus <= 1:
         raise ValueError(f"Modulus must be > 1, got {modulus}.")
     if value < 0:
@@ -60,7 +59,7 @@ def validate_non_negative(value: int, label: str = "value") -> int:
         TypeError: If *value* is not an ``int``.
         ValueError: If *value* is negative.
     """
-    if type(value) is not int:
+    if not isinstance(value, int):
         raise TypeError(f"{label} must be an int, got {type(value).__name__}.")
     if value < 0:
         raise ValueError(f"{label} must be non-negative, got {value}.")

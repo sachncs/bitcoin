@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 USER_AGENT = "bitcoin/0.4.0"
+DEFAULT_HTTP_TIMEOUT = 30
 MAX_RETRIES = 3
 RETRY_BACKOFF = 1.0  # seconds
 RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
@@ -302,32 +303,30 @@ def fetch_text(url: str) -> str:
     for attempt in range(MAX_RETRIES):
         try:
             req = Request(url, headers={"User-Agent": USER_AGENT})
-            with urlopen(req, timeout=30) as resp:
+            with urlopen(req, timeout=DEFAULT_HTTP_TIMEOUT) as resp:
                 data: bytes = resp.read()
                 return data.decode("utf-8")
         except HTTPError as exc:
+            msg = f"HTTP {exc.code} fetching {url}: {exc.reason}"
             if exc.code in RETRYABLE_STATUSES and attempt < MAX_RETRIES - 1:
                 wait = RETRY_BACKOFF * (2 ** attempt)
                 logger.debug(
                     "HTTP %d fetching %s, retrying in %.1fs (attempt %d/%d)",
                     exc.code, url, wait, attempt + 1, MAX_RETRIES)
                 time.sleep(wait)
-                last_error = OSError(
-                    f"HTTP {exc.code} fetching {url}: {exc.reason}")
+                last_error = OSError(msg)
                 continue
-            msg = f"HTTP {exc.code} fetching {url}: {exc.reason}"
             raise OSError(msg) from exc
         except URLError as exc:
+            msg = f"URL error fetching {url}: {exc.reason}"
             if attempt < MAX_RETRIES - 1:
                 wait = RETRY_BACKOFF * (2 ** attempt)
                 logger.debug(
                     "URL error fetching %s, retrying in %.1fs (attempt %d/%d)",
                     url, wait, attempt + 1, MAX_RETRIES)
                 time.sleep(wait)
-                last_error = OSError(
-                    f"URL error fetching {url}: {exc.reason}")
+                last_error = OSError(msg)
                 continue
-            msg = f"URL error fetching {url}: {exc.reason}"
             raise OSError(msg) from exc
     if last_error is not None:
         raise last_error

@@ -38,7 +38,7 @@ def parse_tx(data: bytes, offset: int = 0) -> Tuple[Tx, int]:
     if is_segwit:
         offset += 2
 
-    inputs_list, offset = parse_inputs(data, offset, is_segwit)
+    inputs_list, offset = parse_inputs(data, offset)
     outputs, offset = parse_outputs(data, offset)
     if is_segwit:
         for i in range(len(inputs_list)):
@@ -59,8 +59,7 @@ def parse_tx(data: bytes, offset: int = 0) -> Tuple[Tx, int]:
               lock_time=lock_time), offset
 
 
-def parse_inputs(data: bytes, offset: int,
-                   is_segwit: bool) -> Tuple[List[TxIn], int]:
+def parse_inputs(data: bytes, offset: int) -> Tuple[List[TxIn], int]:
     """Parse the input list from a serialised transaction.
 
     Each input consists of a 32-byte txid, 4-byte vout, varint-length
@@ -70,8 +69,6 @@ def parse_inputs(data: bytes, offset: int,
     Args:
         data: Raw transaction bytes.
         offset: Start of the input count varint.
-        is_segwit: Whether the transaction uses SegWit encoding
-            (currently unused, reserved for future handling).
 
     Returns:
         A tuple ``(inputs, new_offset)``.

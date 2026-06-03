@@ -284,70 +284,70 @@ class TestSighashTaproot:
     """100 % line / branch coverage of ``sighash_taproot``."""
 
     def test_key_path(self) -> None:
-        h = sighash_taproot(TX_TAPROOT, 0, script=None, flag=0x00)
+        h = sighash_taproot(TX_TAPROOT, 0, script=None, sighash_flag=0x00)
         assert len(h) == 32
 
     def test_key_path_with_flag(self) -> None:
-        h = sighash_taproot(TX_TAPROOT, 0, script=None, flag=0x01)
+        h = sighash_taproot(TX_TAPROOT, 0, script=None, sighash_flag=0x01)
         assert len(h) == 32
 
     def test_script_path(self) -> None:
         h = sighash_taproot(
-            TX_TAPROOT, 0, script=SCRIPT, flag=0x00,
+            TX_TAPROOT, 0, script=SCRIPT, sighash_flag=0x00,
             tapleaf_hash=TAPLEAF_HASH,
         )
         assert len(h) == 32
 
     def test_script_path_missing_tapleaf_hash(self) -> None:
         with pytest.raises(ValueError, match="tapleaf_hash required"):
-            sighash_taproot(TX_TAPROOT, 0, script=SCRIPT, flag=0x00)
+            sighash_taproot(TX_TAPROOT, 0, script=SCRIPT, sighash_flag=0x00)
 
     def test_input_index_out_of_range(self) -> None:
         with pytest.raises(IndexError, match="out of range"):
-            sighash_taproot(TX_TAPROOT, 5, script=None, flag=0x00)
+            sighash_taproot(TX_TAPROOT, 5, script=None, sighash_flag=0x00)
 
     def test_with_annex(self) -> None:
         h = sighash_taproot(
-            TX_TAPROOT, 0, script=None, flag=0x00, annex=b"\x50\x00",
+            TX_TAPROOT, 0, script=None, sighash_flag=0x00, annex=b"\x50\x00",
         )
         assert len(h) == 32
 
     def test_with_extension(self) -> None:
         h = sighash_taproot(
-            TX_TAPROOT, 0, script=None, flag=0x00, extension=b"\x01\x02",
+            TX_TAPROOT, 0, script=None, sighash_flag=0x00, extension=b"\x01\x02",
         )
         assert len(h) == 32
 
     def test_key_version_nonzero(self) -> None:
         h = sighash_taproot(
-            TX_TAPROOT, 0, script=SCRIPT, flag=0x00,
+            TX_TAPROOT, 0, script=SCRIPT, sighash_flag=0x00,
             tapleaf_hash=TAPLEAF_HASH, key_version=1,
         )
         assert len(h) == 32
 
     def test_codeseparator_position(self) -> None:
         h = sighash_taproot(
-            TX_TAPROOT, 0, script=SCRIPT, flag=0x00,
+            TX_TAPROOT, 0, script=SCRIPT, sighash_flag=0x00,
             tapleaf_hash=TAPLEAF_HASH, codeseparator_position=42,
         )
         assert len(h) == 32
 
     def test_script_path_with_annex(self) -> None:
         h = sighash_taproot(
-            TX_TAPROOT, 0, script=SCRIPT, flag=0x00,
+            TX_TAPROOT, 0, script=SCRIPT, sighash_flag=0x00,
             tapleaf_hash=TAPLEAF_HASH, annex=b"\x50",
         )
         assert len(h) == 32
 
     def test_flag_with_acp(self) -> None:
-        h = sighash_taproot(TX_TAPROOT, 0, script=None, flag=0x83)
+        h = sighash_taproot(TX_TAPROOT, 0, script=None, sighash_flag=0x83)
         assert len(h) == 32
 
     def test_large_script_fd_varint(self) -> None:
         """Script length >= 0xFD exercises the 2-byte varint branch."""
         big_script = b"\x00" * 254
         h = sighash_taproot(
-            TX_TAPROOT, 0, script=big_script, flag=0x00,
+            TX_TAPROOT, 0, script=big_script, sighash_flag=0x00,
             tapleaf_hash=TAPLEAF_HASH,
         )
         assert len(h) == 32
@@ -356,15 +356,15 @@ class TestSighashTaproot:
         """Script length > 0xFFFF exercises the 4-byte varint branch."""
         big_script = b"\x00" * 0x10001
         h = sighash_taproot(
-            TX_TAPROOT, 0, script=big_script, flag=0x00,
+            TX_TAPROOT, 0, script=big_script, sighash_flag=0x00,
             tapleaf_hash=TAPLEAF_HASH,
         )
         assert len(h) == 32
 
     def test_script_path_tapleaf_hash_none_with_flag(self) -> None:
-        """Also test with flag=0x83 and script path — different code path combos."""
+        """Also test with sighash_flag=0x83 and script path — different code path combos."""
         h = sighash_taproot(
-            TX_TAPROOT, 0, script=SCRIPT, flag=0x83,
+            TX_TAPROOT, 0, script=SCRIPT, sighash_flag=0x83,
             tapleaf_hash=TAPLEAF_HASH,
         )
         assert len(h) == 32
@@ -470,11 +470,11 @@ class TestSerializer:
     # -- serialize_tx_for_sighash_taproot --
 
     def test_taproot_sighash_serialize(self) -> None:
-        raw = serialize_tx_for_sighash_taproot(TX_TAPROOT, 0x00)
+        raw = serialize_tx_for_sighash_taproot(TX_TAPROOT)
         assert isinstance(raw, bytes)
         assert raw
 
     def test_taproot_sighash_serialize_with_flag(self) -> None:
-        raw = serialize_tx_for_sighash_taproot(TX_TAPROOT, 0x83)
+        raw = serialize_tx_for_sighash_taproot(TX_TAPROOT)
         assert isinstance(raw, bytes)
         assert raw

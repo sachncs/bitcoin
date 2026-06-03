@@ -196,8 +196,8 @@ class TestLinearizeSignatures:
 
     def test_linearize_preserves_single(self) -> None:
         rec = Record(
-            txid=b"\x00" * 32, vin=0,
-            sig=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+            txid=b"\x00" * 32, input_index=0,
+            signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
             public_key=GENERATOR, script_type="p2pkh",
             sighash_flag=0x01, amount=0,
         )
@@ -207,14 +207,14 @@ class TestLinearizeSignatures:
 
     def test_linearize_sorts_by_txid(self) -> None:
         rec_a = Record(
-            txid=b"\x00" * 32, vin=0,
-            sig=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+            txid=b"\x00" * 32, input_index=0,
+            signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
             public_key=GENERATOR, script_type="p2pkh",
             sighash_flag=0x01, amount=0,
         )
         rec_b = Record(
-            txid=b"\x01" * 32, vin=0,
-            sig=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+            txid=b"\x01" * 32, input_index=0,
+            signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
             public_key=GENERATOR, script_type="p2pkh",
             sighash_flag=0x01, amount=0,
         )

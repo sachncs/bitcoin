@@ -2,16 +2,16 @@
 
 
 def encode_hex(data: bytes) -> str:
-    """Return the lowercase hex-encoded representation of *data*.
+    """Encode bytes as a hexadecimal string.
 
     Args:
-        data: Bytes to encode.
+        data: The bytes to encode.
 
     Returns:
-        Hex-encoded string.
+        The hex-encoded string.
 
     Raises:
-        TypeError: If *data* is not ``bytes``.
+        AttributeError: If *data* is not bytes (delegates to ``data.hex()``).
     """
     return data.hex()
 

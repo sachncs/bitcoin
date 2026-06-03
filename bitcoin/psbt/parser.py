@@ -176,7 +176,11 @@ def parse_input_map(data: bytes, offset: int) -> Tuple[PsbtInput, int]:
     Returns:
         A tuple of ``(PsbtInput, new_offset)``.
     """
-    inp = PsbtInput()
+    attrs: dict[str, object] = {}
+    partial_sigs: dict[bytes, bytes] = {}
+    bip32_derivations: dict[bytes, bytes] = {}
+    unknown: dict[bytes, bytes] = {}
+
     while offset < len(data):
         if data[offset:offset + 1] == b"\x00":
             offset += 1
@@ -189,27 +193,38 @@ def parse_input_map(data: bytes, offset: int) -> Tuple[PsbtInput, int]:
         value = data[offset:offset + value_len]
         offset += value_len
         if key_type == PSBT_IN_NON_WITNESS_UTXO:
-            object.__setattr__(inp, "non_witness_utxo", value)
+            attrs["non_witness_utxo"] = value
         elif key_type == PSBT_IN_WITNESS_UTXO:
-            object.__setattr__(inp, "witness_utxo", value)
+            attrs["witness_utxo"] = value
         elif key_type == PSBT_IN_SIGHASH_TYPE:
-            object.__setattr__(inp, "sighash_type",
-                               int.from_bytes(value, "little"))
+            attrs["sighash_type"] = int.from_bytes(value, "little")
         elif key_type == PSBT_IN_REDEEM_SCRIPT:
-            object.__setattr__(inp, "redeem_script", value)
+            attrs["redeem_script"] = value
         elif key_type == PSBT_IN_WITNESS_SCRIPT:
-            object.__setattr__(inp, "witness_script", value)
+            attrs["witness_script"] = value
         elif key_type == PSBT_IN_FINAL_SCRIPTSIG:
-            object.__setattr__(inp, "final_script_sig", value)
+            attrs["final_script_sig"] = value
         elif key_type == PSBT_IN_FINAL_SCRIPTWITNESS:
-            object.__setattr__(inp, "final_script_witness",
-                               parse_witness_stack(value))
+            attrs["final_script_witness"] = parse_witness_stack(value)
         elif key_type == PSBT_IN_PARTIAL_SIG:
-            dict.__setitem__(inp.partial_sigs, key_data, value)
+            partial_sigs[key_data] = value
         elif key_type == PSBT_IN_BIP32_DERIVATION:
-            dict.__setitem__(inp.bip32_derivations, key_data, value)
+            bip32_derivations[key_data] = value
         else:
-            dict.__setitem__(inp.unknown, bytes([key_type]) + key_data, value)
+            unknown[bytes([key_type]) + key_data] = value
+
+    inp = PsbtInput(
+        non_witness_utxo=attrs.get("non_witness_utxo"),
+        witness_utxo=attrs.get("witness_utxo"),
+        sighash_type=attrs.get("sighash_type"),
+        redeem_script=attrs.get("redeem_script"),
+        witness_script=attrs.get("witness_script"),
+        final_script_sig=attrs.get("final_script_sig"),
+        final_script_witness=attrs.get("final_script_witness"),
+        partial_sigs=partial_sigs,
+        bip32_derivations=bip32_derivations,
+        unknown=unknown,
+    )
     return inp, offset
 
 
@@ -270,7 +285,10 @@ def parse_output_map(data: bytes, offset: int) -> Tuple[PsbtOutput, int]:
     Returns:
         A tuple of ``(PsbtOutput, new_offset)``.
     """
-    out = PsbtOutput()
+    attrs: dict[str, object] = {}
+    bip32_derivations: dict[bytes, bytes] = {}
+    unknown: dict[bytes, bytes] = {}
+
     while offset < len(data):
         if data[offset:offset + 1] == b"\x00":
             offset += 1
@@ -283,13 +301,20 @@ def parse_output_map(data: bytes, offset: int) -> Tuple[PsbtOutput, int]:
         value = data[offset:offset + value_len]
         offset += value_len
         if key_type == PSBT_OUT_REDEEM_SCRIPT:
-            object.__setattr__(out, "redeem_script", value)
+            attrs["redeem_script"] = value
         elif key_type == PSBT_OUT_WITNESS_SCRIPT:
-            object.__setattr__(out, "witness_script", value)
+            attrs["witness_script"] = value
         elif key_type == PSBT_OUT_BIP32_DERIVATION:
-            dict.__setitem__(out.bip32_derivations, key_data, value)
+            bip32_derivations[key_data] = value
         else:
-            dict.__setitem__(out.unknown, bytes([key_type]) + key_data, value)
+            unknown[bytes([key_type]) + key_data] = value
+
+    out = PsbtOutput(
+        redeem_script=attrs.get("redeem_script"),
+        witness_script=attrs.get("witness_script"),
+        bip32_derivations=bip32_derivations,
+        unknown=unknown,
+    )
     return out, offset
 
 
@@ -412,8 +437,8 @@ def psbt_extract_signatures(
             records.append(
                 Record(
                     txid=txid,
-                    vin=vin,
-                    sig=sig_der,
+                    input_index=vin,
+                    signature=sig_der,
                     public_key=public_key,
                     script_type="psbt_partial",
                     sighash_flag=flag,
@@ -437,8 +462,8 @@ def psbt_extract_signatures(
                         records.append(
                             Record(
                                 txid=txid,
-                                vin=vin,
-                                sig=sig_candidate,
+                                input_index=vin,
+                                signature=sig_candidate,
                                 public_key=pubkey,
                                 script_type="finalized",
                                 sighash_flag=flag,

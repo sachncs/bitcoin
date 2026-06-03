@@ -147,6 +147,7 @@ def serialize_legacy_tx_for_sighash(tx: Tx, input_index: int, script: bytes,
     """
     from bitcoin.sighash.flag import SIGHASH_ANYONECANPAY, SIGHASH_MASK, SIGHASH_NONE, SIGHASH_SINGLE
 
+    base_flag = flag & SIGHASH_MASK
     data = bytearray()
     data.extend(tx.version.to_bytes(4, "little"))
 
@@ -168,16 +169,14 @@ def serialize_legacy_tx_for_sighash(tx: Tx, input_index: int, script: bytes,
                 data.extend(script)
                 data.extend(txin.sequence.to_bytes(4, "little"))
             else:
-                if flag & SIGHASH_NONE or flag & SIGHASH_SINGLE:
-                    data.append(0x00)  # empty script
+                data.append(0x00)  # empty script length
+                if base_flag in (SIGHASH_NONE, SIGHASH_SINGLE):
                     data.extend(b"\x00\x00\x00\x00")
                 else:
-                    data.append(0x00)
                     data.extend(txin.sequence.to_bytes(4, "little"))
 
-    base_flag = flag & SIGHASH_MASK
     if base_flag == SIGHASH_NONE:
-        data.extend(b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+        data.append(0x00)  # varint 0 — zero outputs
     elif base_flag == SIGHASH_SINGLE:
         if input_index >= len(tx.outputs):
             raise ValueError("Input index out of bounds for SIGHASH_SINGLE.")
@@ -203,19 +202,16 @@ def serialize_legacy_tx_for_sighash(tx: Tx, input_index: int, script: bytes,
     return bytes(data)
 
 
-def serialize_tx_for_sighash_taproot(tx: Tx, flag: int) -> bytes:
+def serialize_tx_for_sighash_taproot(tx: Tx) -> bytes:
     """Serialise transaction data for BIP-341 Taproot sighash.
 
     Produces the common transaction data shared across all inputs during
     Taproot sighash computation (inputs and outputs, without witness
-    data).  Note: *flag* is accepted for signature compatibility with
-    the caller but does not affect output serialisation — the caller
-    is responsible for output pruning based on the flag.
+    data).  The caller is responsible for output pruning based on the
+    sighash flag.
 
     Args:
         tx: The transaction.
-        flag: The SIGHASH flag (accepted for caller compatibility;
-            not used internally).
 
     Returns:
         Serialised bytes of inputs and outputs for the Taproot sighash.

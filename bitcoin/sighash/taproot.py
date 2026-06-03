@@ -16,6 +16,10 @@ if TYPE_CHECKING:
 
 NO_CODESEPARATOR = 0xFFFFFFFF
 
+# BIP-341 hash_type extension byte values
+HASH_TYPE_KEY_PATH = 0
+HASH_TYPE_SCRIPT_PATH = 1
+
 
 def sighash_taproot(
     transaction: Tx,
@@ -65,7 +69,7 @@ def sighash_taproot(
     data.extend(sighash_flag.to_bytes(1, "little"))
     data.extend(extension)
 
-    data.extend((0).to_bytes(1, "little"))
+    data.extend(HASH_TYPE_KEY_PATH.to_bytes(1, "little"))
 
     if input_index >= len(transaction.inputs):
         raise IndexError("Input index out of range.")
@@ -77,12 +81,12 @@ def sighash_taproot(
     if script is not None:
         if tapleaf_hash is None:
             raise ValueError("tapleaf_hash required for script-path signing.")
-        data.extend((1).to_bytes(1, "little"))
+        data.extend(HASH_TYPE_SCRIPT_PATH.to_bytes(1, "little"))
         data.extend(tapleaf_hash)
         data.extend(key_version.to_bytes(1, "little"))
         data.extend(codeseparator_position.to_bytes(4, "little"))
     else:
-        data.extend((0).to_bytes(1, "little"))
+        data.extend(HASH_TYPE_KEY_PATH.to_bytes(1, "little"))
 
     if annex is not None:
         data.extend((1).to_bytes(1, "little"))
@@ -90,7 +94,7 @@ def sighash_taproot(
     else:
         data.extend((0).to_bytes(1, "little"))
 
-    data.extend(serialize_tx_for_sighash_taproot(transaction, sighash_flag))
+    data.extend(serialize_tx_for_sighash_taproot(transaction))
 
     if script is not None:
         data.extend(encode_varint(len(script)))

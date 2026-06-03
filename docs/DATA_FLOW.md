@@ -50,7 +50,7 @@ User provides --utxo-value, --utxo-script
 ## 2. CLI `linearize` Command
 
 ```
-extract() → list[Record] → linearize_signatures() → sort by (txid, vin)
+extract() → list[Record] → linearize_signatures() → sort by (txid, input_index)
         │
         ▼
   CLI prints sorted table (or JSON/CSV)

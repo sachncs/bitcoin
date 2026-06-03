@@ -79,10 +79,7 @@ class Witness:
         items: Tuple of witness elements, each as raw bytes.
     """
 
-    items: tuple[bytes, ...]
-
-    def __init__(self, items: tuple[bytes, ...] = ()) -> None:
-        object.__setattr__(self, "items", items)
+    items: tuple[bytes, ...] = ()
 
     def __len__(self) -> int:
         return len(self.items)

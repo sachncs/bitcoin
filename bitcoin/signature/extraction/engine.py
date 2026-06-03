@@ -175,8 +175,8 @@ def extract_legacy(
                 records.append(
                     Record(
                         txid=tx.txid(),
-                        vin=vin,
-                        sig=der,
+                        input_index=vin,
+                        signature=der,
                         public_key=pubkey,
                         script_type=determine_script_type(
                             script_pubkey, script_sig),
@@ -252,8 +252,8 @@ def extract_p2wpkh(
                 records.append(
                     Record(
                         txid=tx.txid(),
-                        vin=vin,
-                        sig=der,
+                        input_index=vin,
+                        signature=der,
                         public_key=pubkey,
                         script_type=P2WPKH,
                         sighash_flag=flag,
@@ -315,8 +315,8 @@ def extract_p2wsh(
                 records.append(
                     Record(
                         txid=tx.txid(),
-                        vin=vin,
-                        sig=der,
+                        input_index=vin,
+                        signature=der,
                         public_key=pubkey,
                         script_type=P2WSH,
                         sighash_flag=flag,
@@ -393,8 +393,8 @@ def extract_p2sh_segwit(
                 records.append(
                     Record(
                         txid=tx.txid(),
-                        vin=vin,
-                        sig=der,
+                        input_index=vin,
+                        signature=der,
                         public_key=pubkey,
                         script_type=f"p2sh_{redeem_type}",
                         sighash_flag=flag,
@@ -460,8 +460,8 @@ def extract_taproot(
             records.append(
                 Record(
                     txid=tx.txid(),
-                    vin=vin,
-                    sig=sig_bytes,
+                    input_index=vin,
+                    signature=sig_bytes,
                     public_key=pubkey,
                     script_type=P2TR,
                     sighash_flag=flag,
@@ -489,8 +489,8 @@ def extract_taproot(
                 records.append(
                     Record(
                         txid=tx.txid(),
-                        vin=vin,
-                        sig=sig_bytes,
+                        input_index=vin,
+                        signature=sig_bytes,
                         public_key=pubkey,
                         script_type=P2TR,
                         sighash_flag=flag,
@@ -609,7 +609,9 @@ def compute_sighash(tx: Tx, vin: int, script: bytes, flag: int,
     """Compute the transaction sighash for a given input.
 
     Dispatches to legacy or SegWit sighash depending on whether the
-    transaction has any witness data.
+    *script* is a witness program (``OP_0 <20|32 bytes>``).  This is
+    correct even for P2SH-wrapped SegWit inputs where the transaction
+    itself may not have witness data.
 
     Args:
         tx: The transaction.
@@ -628,7 +630,10 @@ def compute_sighash(tx: Tx, vin: int, script: bytes, flag: int,
     from bitcoin.sighash.legacy import sighash_legacy
     from bitcoin.sighash.segwit import sighash_segwit
 
-    if tx.is_segwit():
+    # A witness program is OP_0 followed by a 20- or 32-byte push.
+    is_witness = (len(script) >= 2 and script[0] == 0x00
+                  and script[1] in (0x14, 0x20))
+    if is_witness:
         return sighash_segwit(tx, vin, script, value, flag)
     return sighash_legacy(tx, vin, script, flag)
 

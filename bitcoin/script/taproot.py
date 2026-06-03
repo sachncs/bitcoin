@@ -86,6 +86,11 @@ def extract_taproot_scripts(records: list[Record]) -> list[Record]:
     return list(records)
 
 
+P2TR_SCRIPT_LENGTH = 34
+P2TR_OP_1_BYTE = 0x51
+P2TR_PUSH_32_BYTE = 0x20
+
+
 def get_x_only_pubkey(script_pubkey: bytes) -> bytes | None:
     """Extract the 32-byte x-only public key from a P2TR output.
 
@@ -99,7 +104,8 @@ def get_x_only_pubkey(script_pubkey: bytes) -> bytes | None:
         The 32-byte x-only public key, or ``None`` if the script does
         not match the P2TR format.
     """
-    if (len(script_pubkey) == 34 and script_pubkey[0] == 0x51 and
-            script_pubkey[1] == 0x20):
-        return script_pubkey[2:34]
+    if (len(script_pubkey) == P2TR_SCRIPT_LENGTH and
+            script_pubkey[0] == P2TR_OP_1_BYTE and
+            script_pubkey[1] == P2TR_PUSH_32_BYTE):
+        return script_pubkey[2:P2TR_SCRIPT_LENGTH]
     return None

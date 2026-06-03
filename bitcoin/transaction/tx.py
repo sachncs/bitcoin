@@ -10,7 +10,7 @@ from typing import Sequence
 from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness
 
 
-def make_tx(
+def build_transaction(
     version: int,
     inputs: Sequence[dict[str, object]],
     outputs: Sequence[dict[str, object]],
@@ -70,3 +70,6 @@ def make_tx(
               inputs=tuple(txins),
               outputs=tuple(txouts),
               lock_time=lock_time)
+
+
+make_tx = build_transaction

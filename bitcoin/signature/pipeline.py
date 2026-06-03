@@ -224,12 +224,12 @@ def merge_records(results: Sequence[BatchResult]) -> list[Record]:
 
     for result in results:
         for rec in result.records:
-            key = (rec.txid, rec.vin)
+            key = (rec.txid, rec.input_index)
             if key not in seen:
                 seen.add(key)
                 merged.append(rec)
 
-    merged.sort(key=lambda r: (r.txid, r.vin))
+    merged.sort(key=lambda r: (r.txid, r.input_index))
     return merged
 
 
@@ -245,7 +245,7 @@ def extract_r_from_record(record: Record) -> int | None:
     Returns:
         The integer ``r`` value, or ``None`` if decoding fails.
     """
-    sig = record.sig
+    sig = record.signature
     if len(sig) == 64:
         return int.from_bytes(sig[:32], "big")
     try:

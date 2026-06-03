@@ -9,7 +9,7 @@ from bitcoin.script.parser import (
     chunks_to_pushes,
     parse_script_chunks as parse_script,
     parse_multisig_redeem_script,
-    remove_code_separators,
+    reject_code_separators,
     serialize_script,
     script_to_string,
     Push,
@@ -118,7 +118,7 @@ __all__ = [
     "make_p2pkh_script",
     "parse_multisig_redeem_script",
     "parse_script",
-    "remove_code_separators",
+    "reject_code_separators",
     "script_to_string",
     "serialize_script",
 ]

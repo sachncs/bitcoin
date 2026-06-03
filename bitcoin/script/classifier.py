@@ -96,9 +96,9 @@ def classify_script_sig(script: bytes) -> str:
         sig_len = script[0]
         pubkey_len = script[sig_len + 1] if sig_len + 1 < len(script) else 0
         if pubkey_len in (33, 65) and len(script) == sig_len + pubkey_len + 2:
-            return "p2pkh"
+            return P2PKH
 
-    return "non_standard"
+    return NON_STANDARD
 
 
 def parse_p2pkh_script_sig(script: bytes) -> tuple[bytes, bytes]:

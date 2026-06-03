@@ -68,7 +68,7 @@
 
 **r** — The x-coordinate of `R = k·G`, the first component of an ECDSA signature.
 
-**Record** — Frozen dataclass holding a single extracted signature result with txid, vin, sig, public key, script type, and sighash flag.
+**Record** — Frozen dataclass holding a single extracted signature result with txid, input_index, signature, public key, script type, and sighash flag.
 
 **RecoveredKey** — Dataclass holding the recovered private key and nonce from a nonce-reuse attack.
 

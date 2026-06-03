@@ -57,7 +57,7 @@ python -m bitcoin.cli version
 | Command | Description |
 |---|---|
 | `extract` | Extract ECDSA signatures from a raw transaction hex |
-| `linearize` | Extract and sort signatures by txid/vin |
+| `linearize` | Extract and sort signatures by txid/input_index |
 | `version` | Print the installed package version |
 
 `extract` options: `--utxo-script`, `--utxo-value`, `--json`, `--csv`, `--format` (text/json/csv), `--input-file`.
@@ -84,7 +84,7 @@ tx, _ = parse_tx(bytes.fromhex(raw_hex))
 records = extract_signatures(tx)
 
 for rec in records:
-    print(encode_hex(rec.txid), rec.vin, encode_hex(rec.sig))
+    print(encode_hex(rec.txid), rec.input_index, encode_hex(rec.signature))
 ```
 
 SegWit v0 inputs need UTXO values and/or scriptPubKeys:
@@ -102,7 +102,7 @@ records = extract_signatures(tx,
 from bitcoin import linearize_signatures
 
 sorted_recs = linearize_signatures(records)
-# sorted by (txid, vin) — ready for nonce-reuse analysis
+# sorted by (txid, input_index) — ready for nonce-reuse analysis
 ```
 
 ### Point & curve math

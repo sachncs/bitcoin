@@ -541,11 +541,11 @@ class TestPipeline:
 
     def test_merge_records(self) -> None:
         r1 = Record(
-            txid=b"\x01" * 32, vin=0, sig=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+            txid=b"\x01" * 32, input_index=0, signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
             public_key=GENERATOR, script_type="p2pkh", sighash_flag=1, amount=0,
         )
         r2 = Record(
-            txid=b"\x02" * 32, vin=0, sig=b"\x30\x06\x02\x01\x02\x02\x01\x02",
+            txid=b"\x02" * 32, input_index=0, signature=b"\x30\x06\x02\x01\x02\x02\x01\x02",
             public_key=GENERATOR, script_type="p2pkh", sighash_flag=1, amount=0,
         )
         result1 = BatchResult(records=[r1], total_transactions=1, successful=1)
@@ -555,7 +555,7 @@ class TestPipeline:
 
     def test_merge_records_dedup(self) -> None:
         rec = Record(
-            txid=b"\x01" * 32, vin=0, sig=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+            txid=b"\x01" * 32, input_index=0, signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
             public_key=GENERATOR, script_type="p2pkh", sighash_flag=1, amount=0,
         )
         result = BatchResult(records=[rec, rec], total_transactions=2, successful=2)
@@ -566,11 +566,11 @@ class TestPipeline:
         sig = encode_der(42, 7)
         records = [
             Record(
-                txid=b"\x01" * 32, vin=0, sig=sig,
+                txid=b"\x01" * 32, input_index=0, signature=sig,
                 public_key=GENERATOR, script_type="p2pkh", sighash_flag=1, amount=0,
             ),
             Record(
-                txid=b"\x02" * 32, vin=0, sig=sig,
+                txid=b"\x02" * 32, input_index=0, signature=sig,
                 public_key=GENERATOR, script_type="p2pkh", sighash_flag=1, amount=0,
             ),
         ]
@@ -581,11 +581,11 @@ class TestPipeline:
     def test_correlate_across_transactions_no_reuse(self) -> None:
         records = [
             Record(
-                txid=b"\x01" * 32, vin=0, sig=encode_der(1, 2),
+                txid=b"\x01" * 32, input_index=0, signature=encode_der(1, 2),
                 public_key=GENERATOR, script_type="p2pkh", sighash_flag=1, amount=0,
             ),
             Record(
-                txid=b"\x02" * 32, vin=0, sig=encode_der(3, 4),
+                txid=b"\x02" * 32, input_index=0, signature=encode_der(3, 4),
                 public_key=GENERATOR, script_type="p2pkh", sighash_flag=1, amount=0,
             ),
         ]
@@ -595,7 +595,7 @@ class TestPipeline:
     def test_correlate_with_bad_sig(self) -> None:
         records = [
             Record(
-                txid=b"\x01" * 32, vin=0, sig=b"\x00",
+                txid=b"\x01" * 32, input_index=0, signature=b"\x00",
                 public_key=GENERATOR, script_type="p2pkh", sighash_flag=1, amount=0,
             ),
         ]
@@ -608,7 +608,7 @@ class TestPipeline:
         r_val = 42
         sig_64 = r_val.to_bytes(32, "big") + b"\x00" * 32
         rec = Record(
-            txid=b"\x01" * 32, vin=0, sig=sig_64,
+            txid=b"\x01" * 32, input_index=0, signature=sig_64,
             public_key=GENERATOR, script_type="taproot",
             sighash_flag=0, amount=0,
         )
@@ -618,7 +618,7 @@ class TestPipeline:
         """extract_r_from_record handles DER-encoded ECDSA signatures."""
         from bitcoin.signature.pipeline import extract_r_from_record
         rec = Record(
-            txid=b"\x01" * 32, vin=0, sig=encode_der(7, 8),
+            txid=b"\x01" * 32, input_index=0, signature=encode_der(7, 8),
             public_key=GENERATOR, script_type="p2pkh",
             sighash_flag=1, amount=0,
         )
@@ -628,7 +628,7 @@ class TestPipeline:
         """extract_r_from_record returns None for invalid sigs."""
         from bitcoin.signature.pipeline import extract_r_from_record
         rec = Record(
-            txid=b"\x01" * 32, vin=0, sig=b"\x00",
+            txid=b"\x01" * 32, input_index=0, signature=b"\x00",
             public_key=GENERATOR, script_type="p2pkh",
             sighash_flag=1, amount=0,
         )
@@ -1146,7 +1146,7 @@ class TestTaproot:
     def test_extract_taproot_scripts(self) -> None:
         records = [
             Record(
-                txid=b"\x01" * 32, vin=0, sig=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+                txid=b"\x01" * 32, input_index=0, signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
                 public_key=GENERATOR, script_type="p2tr", sighash_flag=1, amount=0,
             ),
         ]

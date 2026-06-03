@@ -15,8 +15,8 @@ class TestRecord:
     def test_creation(self) -> None:
         rec = Record(
             txid=b"\x00" * 32,
-            vin=0,
-            sig=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+            input_index=0,
+            signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
             public_key=GENERATOR,
             script_type="p2pkh",
             sighash_flag=0x01,
@@ -29,8 +29,8 @@ class TestRecord:
         with pytest.raises(ValueError, match="txid must be 32 bytes"):
             Record(
                 txid=b"\x00" * 31,
-                vin=0,
-                sig=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+                input_index=0,
+                signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
                 public_key=GENERATOR,
                 script_type="p2pkh",
                 sighash_flag=0x01,
@@ -38,11 +38,11 @@ class TestRecord:
             )
 
     def test_negative_vin(self) -> None:
-        with pytest.raises(ValueError, match="vin must be non-negative"):
+        with pytest.raises(ValueError, match="input_index must be non-negative"):
             Record(
                 txid=b"\x00" * 32,
-                vin=-1,
-                sig=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+                input_index=-1,
+                signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
                 public_key=GENERATOR,
                 script_type="p2pkh",
                 sighash_flag=0x01,
@@ -52,8 +52,8 @@ class TestRecord:
     def test_frozen(self) -> None:
         rec = Record(
             txid=b"\x00" * 32,
-            vin=0,
-            sig=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+            input_index=0,
+            signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
             public_key=GENERATOR,
             script_type="p2pkh",
             sighash_flag=0x01,
@@ -90,14 +90,14 @@ class TestLinearization:
     def test_linearize_orders_by_txid_then_vin(self) -> None:
         records = [
             Record(
-                txid=b"\x01" * 32, vin=1,
-                sig=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+                txid=b"\x01" * 32, input_index=1,
+                signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
                 public_key=GENERATOR, script_type="p2pkh",
                 sighash_flag=0x01, amount=0,
             ),
             Record(
-                txid=b"\x00" * 32, vin=0,
-                sig=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+                txid=b"\x00" * 32, input_index=0,
+                signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
                 public_key=GENERATOR, script_type="p2pkh",
                 sighash_flag=0x01, amount=0,
             ),

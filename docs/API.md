@@ -103,14 +103,13 @@ For SegWit v0 inputs, provide either `utxo_script_pubkeys` or `utxo_values` (amo
 @dataclass(frozen=True, slots=True)
 class Record:
     txid: bytes
-    vin: int
-    sig: bytes
+    input_index: int
+    signature: bytes
     public_key: Point
     parity: int
     sighash_flag: bytes
     script_type: str
     script_class: str
-    input_index: int
     amount: int | None
 ```
 

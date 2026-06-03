@@ -305,8 +305,8 @@ class TestVerifySig:
 
 
 class TestRecoverPublicKey:
-    # This recovery uses: pub = s^(-1) * (R - e*G)
-    # So for a valid (r,s) we need: s = (k - e) * d^(-1) mod n
+    # Standard ECDSA: s = k^(-1) * (e + r*d) mod n
+    # Recovery:       Q = r^(-1) * (s * R - e * G)
 
     VALID_PRIV = 123456
     VALID_PUB: Point = multiply(VALID_PRIV, GENERATOR)
@@ -317,7 +317,8 @@ class TestRecoverPublicKey:
     assert VALID_R_PT.x is not None
     assert VALID_R_PT.y is not None
     VALID_R = VALID_R_PT.x % CURVE_ORDER
-    VALID_S = ((VALID_K - VALID_E) * pow(VALID_PRIV, -1, CURVE_ORDER)) % CURVE_ORDER
+    VALID_S = (pow(VALID_K, -1, CURVE_ORDER) *
+               (VALID_E + VALID_R * VALID_PRIV)) % CURVE_ORDER
     VALID_SIG = encode_der(VALID_R, VALID_S)
 
     def test_recover_success(self) -> None:

@@ -74,7 +74,10 @@ def verify_schnorr_signature(
     return R.x == r
 
 
+verify_schnorr_sig = verify_schnorr_signature
+
 __all__ = [
     "lift_x",
     "verify_schnorr_signature",
+    "verify_schnorr_sig",
 ]

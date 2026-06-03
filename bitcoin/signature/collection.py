@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterator, Sequence
+from typing import Iterator
 
 from bitcoin.signature.record import Record
 
@@ -19,9 +19,6 @@ class SignatureCollection:
     """
 
     records: tuple[Record, ...]
-
-    def __init__(self, records: Sequence[Record] = ()) -> None:
-        object.__setattr__(self, "records", tuple(records))
 
     def __len__(self) -> int:
         """Return the number of records in the collection."""

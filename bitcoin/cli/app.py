@@ -85,22 +85,24 @@ def output_records(records: list[Record], fmt: str) -> None:
     if fmt == "json":
         data = [{
             "txid": encode_hex(r.txid),
-            "vin": r.vin,
-            "sig": encode_hex(r.sig),
+            "input_index": r.input_index,
+            "signature": encode_hex(r.signature),
             "type": r.script_type,
-            "flag": r.sighash_flag,
+            "sighash_flag": r.sighash_flag,
             "value": r.amount,
         } for r in records]
         typer.echo(json.dumps(data, indent=2))
     elif fmt == "csv":
         buf = io.StringIO()
         writer = csv.writer(buf)
-        writer.writerow(["txid", "vin", "sig", "type", "flag", "value"])
+        writer.writerow(
+            ["txid", "input_index", "signature", "type", "sighash_flag",
+             "value"])
         for r in records:
             writer.writerow([
                 encode_hex(r.txid),
-                r.vin,
-                encode_hex(r.sig),
+                r.input_index,
+                encode_hex(r.signature),
                 r.script_type,
                 r.sighash_flag,
                 r.amount,
@@ -109,10 +111,10 @@ def output_records(records: list[Record], fmt: str) -> None:
     else:
         for rec in records:
             typer.echo(f"txid:  {encode_hex(rec.txid)}")
-            typer.echo(f"vin:   {rec.vin}")
-            typer.echo(f"sig:   {encode_hex(rec.sig)}")
+            typer.echo(f"input_index: {rec.input_index}")
+            typer.echo(f"signature:   {encode_hex(rec.signature)}")
             typer.echo(f"type:  {rec.script_type}")
-            typer.echo(f"flag:  {rec.sighash_flag}")
+            typer.echo(f"sighash_flag:  {rec.sighash_flag}")
             typer.echo(f"value: {rec.amount}")
             typer.echo("---")
 
@@ -126,21 +128,24 @@ def output_sorted_records(records: list[Record], fmt: str) -> None:
     if fmt == "json":
         data = [{
             "txid": encode_hex(r.txid),
-            "vin": r.vin,
-            "sig": encode_hex(r.sig),
+            "input_index": r.input_index,
+            "signature": encode_hex(r.signature),
         } for r in records]
         typer.echo(json.dumps(data, indent=2))
     elif fmt == "csv":
         buf = io.StringIO()
         writer = csv.writer(buf)
-        writer.writerow(["txid", "vin", "sig"])
+        writer.writerow(["txid", "input_index", "signature"])
         for r in records:
-            writer.writerow([encode_hex(r.txid), r.vin, encode_hex(r.sig)])
+            writer.writerow([
+                encode_hex(r.txid), r.input_index,
+                encode_hex(r.signature)
+            ])
         typer.echo(buf.getvalue().rstrip())
     else:
         for rec in records:
             typer.echo(
-                f"{encode_hex(rec.txid)}:{rec.vin} {encode_hex(rec.sig)}")
+                f"{encode_hex(rec.txid)}:{rec.input_index} {encode_hex(rec.signature)}")
 
 
 @app.command()

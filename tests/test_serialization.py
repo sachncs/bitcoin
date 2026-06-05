@@ -3,11 +3,10 @@ from __future__ import annotations
 
 import json
 
-import pytest
 
 from bitcoin import Tx, TxIn, TxOut, OutPoint, Witness, parse_tx
 from bitcoin.services.serializer import serialize_tx, serialize_legacy_tx, tx_to_json
-from bitcoin.encoding import decode_hex, encode_varint
+from bitcoin.encoding import encode_varint
 
 
 class TestSerializeTx:
@@ -105,7 +104,10 @@ class TestSerializeTx:
             sequence=0xFFFFFFFF,
             witness=Witness(()),
         )
-        txout = TxOut(value=50000, script_pubkey=b"\x76\xa9\x14" + b"\x00" * 20 + b"\x88\xac")
+        txout = TxOut(
+            value=50000,
+            script_pubkey=b"\x76\xa9\x14" + b"\x00" * 20 + b"\x88\xac",
+        )
         tx = Tx(version=1, inputs=(txin,), outputs=(txout,), lock_time=0)
         j = tx_to_json(tx)
         dumped = json.dumps(j)

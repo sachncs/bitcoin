@@ -2,13 +2,10 @@
 
 import pytest
 
-from bitcoin.signature import Record, extract_signatures, linearize_signatures
-from bitcoin.signature.check import verify_sig, recover_public_key
-from bitcoin.curve import GENERATOR, is_on_curve, multiply
-from bitcoin.encoding.der import encode_der
+from bitcoin.signature import Record, linearize_signatures
+from bitcoin.signature.check import verify_sig
+from bitcoin.curve import GENERATOR, multiply
 from bitcoin.encoding.hasher import hash256
-from bitcoin.curve.params import CURVE_ORDER
-from bitcoin.field import inverse
 
 
 class TestRecord:
@@ -67,7 +64,6 @@ class TestVerifySig:
     def test_verify_valid(self) -> None:
         msg = hash256(b"test message")
         from bitcoin.signature.signer import sign
-        from bitcoin.curve import CURVE_ORDER
         private_key = 1
         sig = sign(msg, private_key)
         public_key = multiply(private_key, GENERATOR)
@@ -78,7 +74,9 @@ class TestVerifySig:
         assert not result
 
     def test_verify_bad_r_s_range(self) -> None:
-        result = verify_sig(b"\x00" * 32, b"\x30\x06\x02\x01\x00\x02\x01\x01", GENERATOR)
+        result = verify_sig(
+            b"\x00" * 32, b"\x30\x06\x02\x01\x00\x02\x01\x01", GENERATOR
+        )
         assert not result
 
 

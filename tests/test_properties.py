@@ -10,9 +10,10 @@ from __future__ import annotations
 
 from hypothesis import assume, given, strategies as st
 
-from bitcoin.curve import GENERATOR, INFINITY, add, double, multiply, negate, is_on_curve
+from bitcoin.curve import (
+    GENERATOR, INFINITY, add, double, multiply, negate, is_on_curve
+)
 from bitcoin.curve.params import CURVE_ORDER, FIELD_PRIME
-from bitcoin.curve.point import Point
 from bitcoin.encoding.der import encode_der, decode_der
 from bitcoin.encoding.sec import serialize_sec, parse_sec
 from bitcoin.field import inverse

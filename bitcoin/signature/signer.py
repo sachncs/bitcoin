@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from bitcoin.transaction.models import Tx
 
 HASH_BYTE_LENGTH = 32
+_HMAC_DRBG_MAX_RETRIES = 1000
 
 
 def bits2int(data: bytes) -> int:
@@ -58,7 +59,7 @@ def hmac_drbg_generate_k(
     K = hmac.new(K, V + b"\x01" + private_key_bytes + message_hash, "sha256").digest()
     V = hmac.new(K, V, "sha256").digest()
 
-    while True:
+    for _ in range(_HMAC_DRBG_MAX_RETRIES):
         T = b""
         while len(T) < rolen:
             V = hmac.new(K, V, "sha256").digest()
@@ -70,6 +71,10 @@ def hmac_drbg_generate_k(
 
         K = hmac.new(K, V + b"\x00", "sha256").digest()
         V = hmac.new(K, V, "sha256").digest()
+
+    raise RuntimeError(
+        f"HMAC-DRBG failed to generate a valid k after "
+        f"{_HMAC_DRBG_MAX_RETRIES} attempts.")
 
 
 def sign(message_hash: bytes, private_key: int) -> bytes:
@@ -115,6 +120,14 @@ def sign(message_hash: bytes, private_key: int) -> bytes:
     s = (k_inv * (z + r * d)) % CURVE_ORDER
     if s == 0:
         raise ValueError("Signature s is zero.")
+
+    # Wipe sensitive values from the stack frame to reduce
+    # exposure in core dumps / memory snapshots.
+    x = b"\x00" * len(x)
+    k = 0
+    k_inv = 0
+    d = 0
+    z = 0
 
     return encode_der(r, s)
 

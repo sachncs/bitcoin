@@ -1,4 +1,5 @@
-"""Typer-based CLI application exposing ``decode``, ``extract``, ``linearize``, and ``version`` commands."""
+# ruff: noqa: B008
+"""Typer-based CLI app: decode, extract, linearize, version commands."""
 
 from __future__ import annotations
 
@@ -7,7 +8,6 @@ import io
 import json
 from collections.abc import Sequence
 from pathlib import Path
-from typing import List, Optional
 
 import typer
 
@@ -150,8 +150,8 @@ def output_sorted_records(records: list[Record], fmt: str) -> None:
 
 @app.command()
 def decode(
-    tx_hex: Optional[str] = typer.Argument(None, help="Transaction hex"),
-    input_file: Optional[Path] = typer.Option(None,
+    tx_hex: str | None = typer.Argument(None, help="Transaction hex"),
+    input_file: Path | None = typer.Option(None,
                                               "--input-file",
                                               help="Read tx hex from file"),
 ) -> None:
@@ -164,15 +164,15 @@ def decode(
 
 @app.command()
 def extract(
-    tx_hex: Optional[str] = typer.Argument(None, help="Transaction hex"),
-    utxo_scripts: Optional[List[str]] = typer.Option(
+    tx_hex: str | None = typer.Argument(None, help="Transaction hex"),
+    utxo_scripts: list[str] | None = typer.Option(
         None, "--utxo-script", help="UTXO scriptPubKey (one per input)"),
-    utxo_values: Optional[List[int]] = typer.Option(
+    utxo_values: list[int] | None = typer.Option(
         None, "--utxo-value", help="UTXO value in satoshis (one per input)"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
     csv_output: bool = typer.Option(False, "--csv", help="Output as CSV"),
     output_format: str = typer.Option("text", "--format", help="Output format"),
-    input_file: Optional[Path] = typer.Option(None,
+    input_file: Path | None = typer.Option(None,
                                               "--input-file",
                                               help="Read tx hex from file"),
     progress: bool = typer.Option(False, "--progress", "-p",
@@ -206,11 +206,11 @@ def extract(
 
 @app.command()
 def linearize(
-    tx_hex: Optional[str] = typer.Argument(None, help="Transaction hex"),
+    tx_hex: str | None = typer.Argument(None, help="Transaction hex"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
     csv_output: bool = typer.Option(False, "--csv", help="Output as CSV"),
     output_format: str = typer.Option("text", "--format", help="Output format"),
-    input_file: Optional[Path] = typer.Option(None,
+    input_file: Path | None = typer.Option(None,
                                               "--input-file",
                                               help="Read tx hex from file"),
     progress: bool = typer.Option(False, "--progress", "-p",

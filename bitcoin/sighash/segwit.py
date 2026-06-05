@@ -10,7 +10,9 @@ from typing import TYPE_CHECKING
 
 from bitcoin.encoding.hasher import hash256
 from bitcoin.encoding.varint import encode_varint
-from bitcoin.sighash.flag import SIGHASH_ANYONECANPAY, SIGHASH_MASK, SIGHASH_NONE, SIGHASH_SINGLE
+from bitcoin.sighash.flag import (
+    SIGHASH_ANYONECANPAY, SIGHASH_MASK, SIGHASH_NONE, SIGHASH_SINGLE,
+)
 
 if TYPE_CHECKING:
     from bitcoin.transaction.models import Tx

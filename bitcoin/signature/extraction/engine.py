@@ -8,9 +8,8 @@ for each discovered signature.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Sequence
-
-logger = logging.getLogger(__name__)
+from typing import TYPE_CHECKING
+from collections.abc import Sequence
 
 from bitcoin.curve import INFINITY, Point
 from bitcoin.encoding.der import decode_der
@@ -18,8 +17,6 @@ from bitcoin.sighash.flag import SIGHASH_ALL
 from bitcoin.signature.check import recover_public_key
 from bitcoin.signature.record import Record
 from bitcoin.script.classifier import (
-    P2PK,
-    P2PKH,
     P2SH,
     P2WPKH,
     P2WSH,
@@ -27,6 +24,8 @@ from bitcoin.script.classifier import (
     classify_script_pubkey,
 )
 from bitcoin.script.parser import parse_script
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from bitcoin.transaction.models import Tx, TxIn
@@ -184,8 +183,8 @@ def extract_legacy(
                         amount=0,
                     ))
                 logger.debug("Signature extracted from input %d", vin)
-            except (ValueError, TypeError, IndexError):
-                logger.debug("Signature skipped for input %d", vin)
+            except (ValueError, TypeError, IndexError) as exc:
+                logger.warning("Signature skipped for input %d: %s", vin, exc)
                 continue
     return records
 
@@ -260,8 +259,9 @@ def extract_p2wpkh(
                         amount=value,
                     ))
                 logger.debug("P2WPKH signature extracted for input %d", vin)
-            except (ValueError, TypeError, IndexError):
-                logger.debug("P2WPKH signature skipped for input %d", vin)
+            except (ValueError, TypeError, IndexError) as exc:
+                logger.warning("P2WPKH signature skipped for input %d: %s",
+                               vin, exc)
                 continue
     return records
 
@@ -323,8 +323,9 @@ def extract_p2wsh(
                         amount=value,
                     ))
                 logger.debug("P2WSH signature extracted for input %d", vin)
-            except (ValueError, TypeError, IndexError):
-                logger.debug("P2WSH signature skipped for input %d", vin)
+            except (ValueError, TypeError, IndexError) as exc:
+                logger.warning("P2WSH signature skipped for input %d: %s",
+                               vin, exc)
                 continue
     return records
 
@@ -402,8 +403,9 @@ def extract_p2sh_segwit(
                     ))
                 logger.debug("P2SH-SegWit signature extracted for input %d",
                              vin)
-            except (ValueError, TypeError, IndexError):
-                logger.debug("P2SH-SegWit signature skipped for input %d", vin)
+            except (ValueError, TypeError, IndexError) as exc:
+                logger.warning("P2SH-SegWit signature skipped for input %d: %s",
+                               vin, exc)
                 continue
     return records
 

@@ -4,14 +4,12 @@ from __future__ import annotations
 import pytest
 
 from bitcoin import (
-    parse_tx, extract_signatures, linearize_signatures, Record,
+    extract_signatures, linearize_signatures, Record,
     sighash_legacy, sighash_segwit, sighash_taproot,
     SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, SIGHASH_ANYONECANPAY,
     Tx, TxIn, TxOut, OutPoint, Witness,
-    encode_der, hash256,
 )
-from bitcoin.curve import GENERATOR, CURVE_ORDER, multiply
-from bitcoin.encoding import decode_hex, encode_hex, int_to_bytes
+from bitcoin.curve import GENERATOR
 
 
 class TestExtractSignatures:

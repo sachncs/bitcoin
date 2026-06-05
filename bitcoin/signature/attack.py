@@ -28,7 +28,7 @@ class NonceRecoveryError(BitcoinError):
 
 
 class SameNonceError(NonceRecoveryError):
-    """Raised when two signatures have different ``r`` values preventing nonce-reuse recovery."""
+    """Signatures have different ``r`` values; cannot recover nonce."""
 
 
 class NoNonceReuseError(NonceRecoveryError):

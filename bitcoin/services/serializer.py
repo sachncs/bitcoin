@@ -145,7 +145,9 @@ def serialize_legacy_tx_for_sighash(tx: Tx, input_index: int, script: bytes,
         ValueError: If ``SIGHASH_SINGLE`` is used and *input_index* is
             out of bounds for the outputs.
     """
-    from bitcoin.sighash.flag import SIGHASH_ANYONECANPAY, SIGHASH_MASK, SIGHASH_NONE, SIGHASH_SINGLE
+    from bitcoin.sighash.flag import (
+        SIGHASH_ANYONECANPAY, SIGHASH_MASK, SIGHASH_NONE, SIGHASH_SINGLE,
+    )
 
     base_flag = flag & SIGHASH_MASK
     data = bytearray()

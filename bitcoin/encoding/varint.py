@@ -1,6 +1,5 @@
 """Bitcoin variable-length integer (``varint``) encoding."""
 
-from typing import Tuple
 
 
 def encode_varint(value: int) -> bytes:
@@ -29,7 +28,7 @@ def encode_varint(value: int) -> bytes:
     return b"\xff" + value.to_bytes(8, "little")
 
 
-def decode_varint(stream: bytes, offset: int = 0) -> Tuple[int, int]:
+def decode_varint(stream: bytes, offset: int = 0) -> tuple[int, int]:
     """Decode a Bitcoin variable-length integer from a byte stream.
 
     Args:

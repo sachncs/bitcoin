@@ -6,7 +6,6 @@ and opcodes.
 
 from bitcoin.script.parser import (
     ScriptChunk,
-    chunks_to_pushes,
     parse_script_chunks as parse_script,
     parse_multisig_redeem_script,
     reject_code_separators,

@@ -5,7 +5,7 @@ Provides ``make_tx`` to build a ``Tx`` from simple Python dictionaries.
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness
 

@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import pytest
 
-from bitcoin.psbt import Psbt, PsbtInput, PsbtOutput, parse_psbt, serialize_psbt
+from bitcoin.psbt import PsbtInput, PsbtOutput, parse_psbt, serialize_psbt
 from bitcoin.psbt.models import Psbt as PsbtModel
-from bitcoin.transaction import Tx, TxIn, TxOut, OutPoint, Witness, parse_tx
+from bitcoin.transaction import Tx
 from bitcoin.services.serializer import serialize_legacy_tx
 
 
@@ -66,7 +66,7 @@ class TestPsbt:
         inp = PsbtInput(sighash_type=1)
         out = PsbtOutput()
         psbt = PsbtModel(tx=raw_tx, inputs=(inp,), outputs=(out,))
-        raw = serialize_psbt(psbt)
+        serialize_psbt(psbt)
         # This will fail validation because len(inputs) != len(outputs)
         # in production, but serialize_psbt doesn't validate
         assert psbt.tx == raw_tx

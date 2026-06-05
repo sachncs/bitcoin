@@ -7,7 +7,6 @@ dataclasses with basic validation in ``__post_init__``.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
 
 
 @dataclass(frozen=True, slots=True)

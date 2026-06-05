@@ -5,19 +5,19 @@ Supports both legacy and SegWit (BIP-144) encoded transactions.
 
 from __future__ import annotations
 
-from typing import List, Tuple
 
 from bitcoin.encoding.varint import decode_varint
 from bitcoin.exceptions import ParsingError
 from bitcoin.transaction.models import OutPoint, TxIn, TxOut, Tx, Witness
 
+MAX_TX_SIZE = 4_000_000
 MAX_INPUTS = 100000
 MAX_OUTPUTS = 100000
 MAX_WITNESS_ITEMS = 10000
-MAX_WITNESS_ITEM_SIZE = 10000000
+MAX_WITNESS_ITEM_SIZE = 10_000_000
 
 
-def parse_tx(data: bytes, offset: int = 0) -> Tuple[Tx, int]:
+def parse_tx(data: bytes, offset: int = 0) -> tuple[Tx, int]:
     """Parse a transaction from raw bytes, detecting SegWit.
 
     Automatically detects the SegWit marker + flag (``0x00 0x01``) and
@@ -30,7 +30,13 @@ def parse_tx(data: bytes, offset: int = 0) -> Tuple[Tx, int]:
     Returns:
         A tuple ``(Tx, new_offset)`` where *new_offset* is the position
         immediately after the parsed transaction.
+
+    Raises:
+        ParsingError: If *data* exceeds ``MAX_TX_SIZE``.
     """
+    if len(data) > MAX_TX_SIZE:
+        raise ParsingError(
+            f"Transaction size {len(data)} exceeds maximum {MAX_TX_SIZE}")
     version = int.from_bytes(data[offset:offset + 4], "little")
     offset += 4
 
@@ -59,7 +65,7 @@ def parse_tx(data: bytes, offset: int = 0) -> Tuple[Tx, int]:
               lock_time=lock_time), offset
 
 
-def parse_inputs(data: bytes, offset: int) -> Tuple[List[TxIn], int]:
+def parse_inputs(data: bytes, offset: int) -> tuple[list[TxIn], int]:
     """Parse the input list from a serialised transaction.
 
     Each input consists of a 32-byte txid, 4-byte vout, varint-length
@@ -76,7 +82,7 @@ def parse_inputs(data: bytes, offset: int) -> Tuple[List[TxIn], int]:
     n, offset = decode_varint(data, offset)
     if n > MAX_INPUTS:
         raise ParsingError(f"Input count {n} exceeds maximum {MAX_INPUTS}")
-    inputs: List[TxIn] = []
+    inputs: list[TxIn] = []
     for _ in range(n):
         txid = data[offset:offset + 32]
         offset += 32
@@ -97,7 +103,7 @@ def parse_inputs(data: bytes, offset: int) -> Tuple[List[TxIn], int]:
     return inputs, offset
 
 
-def parse_outputs(data: bytes, offset: int) -> Tuple[List[TxOut], int]:
+def parse_outputs(data: bytes, offset: int) -> tuple[list[TxOut], int]:
     """Parse the output list from a serialised transaction.
 
     Each output consists of an 8-byte value and a varint-length
@@ -113,7 +119,7 @@ def parse_outputs(data: bytes, offset: int) -> Tuple[List[TxOut], int]:
     n, offset = decode_varint(data, offset)
     if n > MAX_OUTPUTS:
         raise ParsingError(f"Output count {n} exceeds maximum {MAX_OUTPUTS}")
-    outputs: List[TxOut] = []
+    outputs: list[TxOut] = []
     for _ in range(n):
         value = int.from_bytes(data[offset:offset + 8], "little")
         offset += 8
@@ -124,7 +130,7 @@ def parse_outputs(data: bytes, offset: int) -> Tuple[List[TxOut], int]:
     return outputs, offset
 
 
-def parse_witness(data: bytes, offset: int) -> Tuple[Witness, int]:
+def parse_witness(data: bytes, offset: int) -> tuple[Witness, int]:
     """Parse a witness stack from a serialised transaction.
 
     The witness is encoded as a varint item count followed by

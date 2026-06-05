@@ -7,14 +7,12 @@ from bitcoin.curve import GENERATOR
 from bitcoin.signature import Record, SignatureCollection, linearize_signatures
 from bitcoin.signature.linearization.coefficients import (
     LinearCoefficientCollection,
-    LinearCoefficientRecord,
     derive_linear_coefficients,
 )
 from bitcoin.transaction.models import (
     OutPoint,
     Tx,
     TxIn,
-    TxOut,
     Witness,
 )
 
@@ -68,7 +66,7 @@ class TestCollectionCoverage:
             sighash_flag=0x01,
             amount=0,
         )
-        coll = SignatureCollection(records=[rec])
+        coll = SignatureCollection(records=(rec,))
         count = 0
         for _ in coll:
             count += 1
@@ -84,7 +82,7 @@ class TestCollectionCoverage:
             sighash_flag=0x01,
             amount=0,
         )
-        coll = SignatureCollection(records=[rec])
+        coll = SignatureCollection(records=(rec,))
         assert coll[0] == rec
 
     def test_linearize_with_collection(self) -> None:
@@ -96,7 +94,7 @@ class TestCollectionCoverage:
                 sighash_flag=0x01, amount=0,
             ),
         ]
-        coll = SignatureCollection(records=recs)
+        coll = SignatureCollection(records=tuple(recs))
         result = linearize_signatures(list(coll))
         assert len(result) == 1
 

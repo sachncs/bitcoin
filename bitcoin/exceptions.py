@@ -1,5 +1,13 @@
 """Exception types for the bitcoin package."""
 
+__all__ = [
+    "BitcoinError",
+    "NotInvertible",
+    "PointError",
+    "ParsingError",
+    "UnsupportedScriptPathError",
+]
+
 
 class BitcoinError(ValueError):
     """Base exception for all bitcoin package errors."""

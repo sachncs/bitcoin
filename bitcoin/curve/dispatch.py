@@ -3,17 +3,59 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 from bitcoin.curve.backend.base import CurveBackend
 from bitcoin.curve.backend.native import NativeBackend
-
-if TYPE_CHECKING:
-    from bitcoin.curve.point import Point
+from bitcoin.curve.params import CURVE_ORDER
+from bitcoin.curve.point import Point
 
 logger = logging.getLogger(__name__)
 
 backend: CurveBackend | None = None
+
+# Pre-computation table for fixed-base multiplication with the generator.
+# _G_TABLE[i] == GENERATOR * i  for i in 0..15, using 4-bit windows.
+_G_TABLE: list[Point] = []
+_G_TABLE_INITIALIZED = False
+
+
+def _build_G_table() -> list[Point]:
+    from bitcoin.curve.operations import add
+    from bitcoin.curve.params import GENERATOR_X, GENERATOR_Y
+
+    G = Point(x=GENERATOR_X, y=GENERATOR_Y)
+    table: list[Point] = [Point(infinity=True), G]
+    for i in range(2, 16):
+        table.append(add(table[i - 1], G))
+    return table
+
+
+def _get_G_table() -> list[Point]:
+    global _G_TABLE, _G_TABLE_INITIALIZED
+    if not _G_TABLE_INITIALIZED:
+        _G_TABLE = _build_G_table()
+        _G_TABLE_INITIALIZED = True
+    return _G_TABLE
+
+
+def _is_generator(point: Point) -> bool:
+    from bitcoin.curve.params import GENERATOR_X, GENERATOR_Y
+    if point.infinity:
+        return False
+    return point.x == GENERATOR_X and point.y == GENERATOR_Y
+
+
+def _multiply_fixed_base(scalar: int) -> Point:
+    table = _get_G_table()
+    result = Point(infinity=True)
+    num_windows = (scalar.bit_length() + 3) // 4
+    for i in range(num_windows - 1, -1, -1):
+        for _ in range(4):
+            result = double(result)
+        window = (scalar >> (i * 4)) & 0xF
+        if window:
+            result = add(result, table[window])
+    return result
 
 
 def get_backend() -> CurveBackend | None:
@@ -115,13 +157,26 @@ def double(point: Point) -> Point:
 def multiply(scalar: int, point: Point) -> Point:
     """Return scalar multiplication ``scalar * point``.
 
+    The scalar is reduced modulo ``CURVE_ORDER`` to ensure consistent
+    results across backends and to reject negative values.
+
     Args:
-        scalar: The scalar multiplier.
+        scalar: The scalar multiplier (must be non-negative).
         point: The point to multiply.
 
     Returns:
         The resulting point.
+
+    Raises:
+        ValueError: If *scalar* is negative.
     """
+    if scalar < 0:
+        raise ValueError("scalar must be non-negative.")
+    scalar = scalar % CURVE_ORDER
+    if scalar == 0:
+        return Point(infinity=True)
+    if _is_generator(point):
+        return _multiply_fixed_base(scalar)
     return resolve_backend().multiply(scalar, point)
 
 
@@ -146,7 +201,6 @@ def sqrt_field(value: int) -> int:
     Returns:
         The square root modulo FIELD_PRIME.
     """
-    from bitcoin.curve.params import FIELD_PRIME
     return resolve_backend().sqrt(value)
 
 

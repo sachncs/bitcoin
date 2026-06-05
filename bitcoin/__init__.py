@@ -72,7 +72,19 @@ from bitcoin.script import (
     get_x_only_pubkey,
     parse_taproot_witness_stack,
 )
-from bitcoin.transaction import Tx, TxIn, TxOut, OutPoint, Witness, parse_tx, make_tx, TransactionBuilder, tx_from_dict, is_opt_in_rbf, has_sequence_lock
+from bitcoin.transaction import (
+    Tx,
+    TxIn,
+    TxOut,
+    OutPoint,
+    Witness,
+    parse_tx,
+    make_tx,
+    TransactionBuilder,
+    tx_from_dict,
+    is_opt_in_rbf,
+    has_sequence_lock,
+)
 from bitcoin.sighash import (
     sighash_legacy,
     sighash_segwit,
@@ -96,8 +108,26 @@ from bitcoin.signature import (
     verify_schnorr_sig,
     verify_all,
 )
-from bitcoin.psbt import Psbt, PsbtInput, PsbtOutput, PsbtEditor, parse_psbt, serialize_psbt, parse_psbt_hex, psbt_extract_signatures, parse_keypath_value
-from bitcoin.services import serialize_tx, serialize_legacy_tx, tx_to_json, BlockstreamProvider, BlockchainInfoProvider, MempoolSpaceProvider, enrich_transaction
+from bitcoin.psbt import (
+    Psbt,
+    PsbtInput,
+    PsbtOutput,
+    PsbtEditor,
+    parse_psbt,
+    serialize_psbt,
+    parse_psbt_hex,
+    psbt_extract_signatures,
+    parse_keypath_value,
+)
+from bitcoin.services import (
+    serialize_tx,
+    serialize_legacy_tx,
+    tx_to_json,
+    BlockstreamProvider,
+    BlockchainInfoProvider,
+    MempoolSpaceProvider,
+    enrich_transaction,
+)
 from bitcoin.exceptions import (
     BitcoinError,
     NotInvertible,

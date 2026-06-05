@@ -67,7 +67,10 @@ class TestTxIn:
 
 class TestTxOut:
     def test_creation(self) -> None:
-        txout = TxOut(value=10000, script_pubkey=b"\x76\xa9\x14" + b"\x00" * 20 + b"\x88\xac")
+        txout = TxOut(
+            value=10000,
+            script_pubkey=b"\x76\xa9\x14" + b"\x00" * 20 + b"\x88\xac",
+        )
         assert txout.value == 10000
 
     def test_negative_value(self) -> None:

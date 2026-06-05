@@ -1,0 +1,83 @@
+"""Library health check and capability introspection."""
+
+from __future__ import annotations
+
+import importlib.metadata
+from typing import Any
+
+
+def check_backend() -> dict[str, Any]:
+    """Return status of curve backends."""
+    from bitcoin.curve.backend.native import NativeBackend
+    from bitcoin.curve.backend.libsec import LibsecpBackend
+
+    status: dict[str, Any] = {}
+    try:
+        native = NativeBackend()
+        status["native"] = {
+            "available": True,
+            "multiply": callable(native.multiply),
+        }
+    except Exception as exc:
+        status["native"] = {"available": False, "error": str(exc)}
+
+    try:
+        libsec = LibsecpBackend()
+        status["libsecp256k1"] = {
+            "available": True,
+            "multiply": callable(libsec.multiply),
+        }
+    except Exception as exc:
+        status["libsecp256k1"] = {"available": False, "error": str(exc)}
+
+    return status
+
+
+def check_imports() -> dict[str, bool]:
+    """Check that all submodules can be imported."""
+    modules = [
+        "bitcoin.curve",
+        "bitcoin.encoding",
+        "bitcoin.field",
+        "bitcoin.script",
+        "bitcoin.sighash",
+        "bitcoin.signature",
+        "bitcoin.transaction",
+        "bitcoin.psbt",
+        "bitcoin.services",
+        "bitcoin.cli",
+    ]
+    import importlib
+
+    result: dict[str, bool] = {}
+    for mod in modules:
+        try:
+            importlib.import_module(mod)
+            result[mod] = True
+        except Exception:
+            result[mod] = False
+    return result
+
+
+def health() -> dict[str, Any]:
+    """Run all health checks and return a comprehensive status dict."""
+    from bitcoin.curve import multiply, GENERATOR
+
+    status: dict[str, Any] = {
+        "version": importlib.metadata.version("bitcoin"),
+        "imports": check_imports(),
+        "backends": check_backend(),
+    }
+
+    try:
+        p = multiply(1, GENERATOR)
+        status["curve_operation"] = {
+            "ok": not p.infinity and p.x is not None,
+        }
+    except Exception as exc:
+        status["curve_operation"] = {"ok": False, "error": str(exc)}
+
+    return status
+
+
+__all__ = ["health", "check_backend", "check_imports"]

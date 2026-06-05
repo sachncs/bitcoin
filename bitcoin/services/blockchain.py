@@ -27,6 +27,7 @@ DEFAULT_HTTP_TIMEOUT = 30
 MAX_RETRIES = 3
 RETRY_BACKOFF = 1.0  # seconds
 RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
+TXID_PATTERN = "0123456789abcdefABCDEF"
 
 
 @runtime_checkable
@@ -112,6 +113,7 @@ class BlockstreamProvider:
             OSError: On network failure or non-200 status.
             ValueError: If the response cannot be decoded.
         """
+        validate_txid(txid)
         url = f"{self.BASE_URL}/tx/{txid}/hex"
         return fetch_text(url)
 
@@ -129,6 +131,7 @@ class BlockstreamProvider:
             OSError: On network failure or non-200 status.
             ValueError: If *vout* is out of range.
         """
+        validate_txid(txid)
         tx_json = self.fetch_tx_json(txid)
         try:
             output = tx_json["vout"][vout]
@@ -152,6 +155,7 @@ class BlockstreamProvider:
             OSError: On network failure or non-200 status.
             ValueError: If *vout* is out of range.
         """
+        validate_txid(txid)
         tx_json = self.fetch_tx_json(txid)
         try:
             return int(tx_json["vout"][vout]["value"])
@@ -173,6 +177,7 @@ class BlockstreamProvider:
             OSError: On network failure or non-200 status.
             ValueError: If the response is not valid JSON.
         """
+        validate_txid(txid)
         url = f"{self.BASE_URL}/tx/{txid}"
         raw = fetch_text(url)
         try:
@@ -208,6 +213,7 @@ class BlockchainInfoProvider:
             OSError: On network failure or non-200 status.
             ValueError: If the response cannot be decoded.
         """
+        validate_txid(txid)
         url = f"{self.BASE_URL}/rawtx/{txid}?format=hex"
         return fetch_text(url)
 
@@ -225,6 +231,7 @@ class BlockchainInfoProvider:
             OSError: On network failure or non-200 status.
             ValueError: If *vout* is out of range.
         """
+        validate_txid(txid)
         tx_json = self.fetch_tx_json(txid)
         try:
             output = tx_json["out"][vout]
@@ -250,6 +257,7 @@ class BlockchainInfoProvider:
             OSError: On network failure or non-200 status.
             ValueError: If *vout* is out of range.
         """
+        validate_txid(txid)
         tx_json = self.fetch_tx_json(txid)
         try:
             return int(tx_json["out"][vout]["value"])
@@ -270,6 +278,7 @@ class BlockchainInfoProvider:
             OSError: On network failure or non-200 status.
             ValueError: If the response is not valid JSON.
         """
+        validate_txid(txid)
         url = f"{self.BASE_URL}/rawtx/{txid}"
         raw = fetch_text(url)
         try:
@@ -278,6 +287,23 @@ class BlockchainInfoProvider:
         except json.JSONDecodeError as exc:
             raise ValueError(
                 f"Invalid JSON response from {url}: {exc}") from exc
+
+
+def validate_txid(txid: str) -> str:
+    """Validate that *txid* is a 64-character hex string.
+
+    Args:
+        txid: The transaction ID to validate.
+
+    Returns:
+        *txid* unchanged on success.
+
+    Raises:
+        ValueError: If *txid* is not a valid 64-character hex string.
+    """
+    if len(txid) != 64 or not all(c in TXID_PATTERN for c in txid):
+        raise ValueError(f"Invalid txid: {txid!r}")
+    return txid
 
 
 # ── Internal helpers ───────────────────────────────────────────────

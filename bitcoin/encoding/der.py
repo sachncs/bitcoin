@@ -1,7 +1,6 @@
 """DER-encoded ECDSA signature parsing and serialization."""
 
 from functools import lru_cache
-from typing import Tuple
 
 
 @lru_cache(maxsize=2048)
@@ -47,7 +46,7 @@ def encode_der(r: int, s: int, s_high_ok: bool = False) -> bytes:
 
 
 @lru_cache(maxsize=2048)
-def decode_der(sig: bytes) -> Tuple[int, int]:
+def decode_der(sig: bytes) -> tuple[int, int]:
     """Decode a DER-encoded ECDSA signature.
 
     Args:
@@ -76,7 +75,7 @@ def decode_der(sig: bytes) -> Tuple[int, int]:
     return r, s
 
 
-def decode_int(data: bytes, offset: int) -> Tuple[int, int]:
+def decode_int(data: bytes, offset: int) -> tuple[int, int]:
     """Decode a DER INTEGER tag at a given offset.
 
     Args:

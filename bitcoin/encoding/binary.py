@@ -1,7 +1,8 @@
 """Binary serialization helpers for byte-level encoding and decoding."""
 from __future__ import annotations
 
-from typing import Iterator, Literal
+from typing import Literal
+from collections.abc import Iterator
 
 
 def bytes_to_int(data: bytes,

@@ -17,7 +17,6 @@ from bitcoin.curve import (
     get_backend,
     NativeBackend,
 )
-from bitcoin.field import inverse
 
 
 class TestPoint:

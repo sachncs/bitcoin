@@ -2,22 +2,26 @@
 
 from __future__ import annotations
 
-from bitcoin.curve import GENERATOR, multiply, add
+from bitcoin.curve import GENERATOR, Point, multiply, add
 from bitcoin.curve.params import CURVE_ORDER
 from bitcoin.encoding.der import decode_der
 from bitcoin.encoding.hex import decode_hex
 from bitcoin.script.builder import build_p2tr
-from bitcoin.script.classifier import P2PK, P2WPKH, P2TR, classify_script_pubkey
+from bitcoin.script.classifier import P2PK, P2WPKH, P2TR
 from bitcoin.script.opcodes import OP_CHECKSIG
 from bitcoin.script.parser import serialize_script
-def _point_to_xonly(p: Point) -> bytes:
-    """Convert a Point to 32-byte x-only representation."""
-    return int.to_bytes(p.x, 32, "big")
 from bitcoin.signature import extract_signatures
 from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness
 from bitcoin.transaction.parser import parse_tx
 from bitcoin.services.serializer import serialize_tx
 from bitcoin.encoding.hasher import tagged_hash
+
+
+def _point_to_xonly(p: Point) -> bytes:
+    """Convert a Point to 32-byte x-only representation."""
+    if p.x is None:
+        return b"\x00" * 32
+    return int.to_bytes(p.x, 32, "big")
 
 
 # ── Helper ───────────────────────────────────────────────────────────────
@@ -85,7 +89,8 @@ def build_taproot_keypath_tx() -> tuple[Tx, bytes]:
     script_pubkey = build_p2tr(xonly)
 
     mock_schnorr_sig = b"\x01" * 64
-    txin = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness((mock_schnorr_sig,)))
+    txin = TxIn(
+        OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness((mock_schnorr_sig,)))
     txout = TxOut(100_000_000, script_pubkey)
     tx = Tx(2, (txin,), (txout,), 0)
     return tx, script_pubkey

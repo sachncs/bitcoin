@@ -8,7 +8,6 @@ utilities for working with multisig redeem scripts.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterator, Tuple, Union
 
 from bitcoin.script.opcodes import (
     OP_0,
@@ -23,7 +22,7 @@ from bitcoin.script.opcodes import (
 
 Push = bytes
 Opcode = int
-ScriptElement = Union[Push, Opcode]
+ScriptElement = Push | Opcode
 
 
 @dataclass

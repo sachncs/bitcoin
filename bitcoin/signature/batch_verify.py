@@ -39,8 +39,8 @@ def verify_all(
             f"{len(der_signatures)} signatures, {len(public_keys)} keys."
         )
 
-    return all(verify_sig(m, s, pk)
-               for m, s, pk in zip(message_hashes, der_signatures, public_keys))
+    zipped = zip(message_hashes, der_signatures, public_keys, strict=True)
+    return all(verify_sig(m, s, pk) for m, s, pk in zipped)
 
 
 batch_verify = verify_all

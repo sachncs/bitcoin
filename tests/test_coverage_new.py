@@ -1,24 +1,17 @@
 """Coverage tests for low-coverage modules and new features."""
 from __future__ import annotations
 
-import os
-import json
 from unittest.mock import patch, MagicMock
 
 import pytest
 
-from bitcoin.curve import GENERATOR, INFINITY, Point, multiply, is_on_curve
-from bitcoin.curve.params import CURVE_ORDER, FIELD_PRIME
-from bitcoin.encoding.der import encode_der, decode_der
+from bitcoin.curve import GENERATOR, multiply
+from bitcoin.curve.params import FIELD_PRIME
+from bitcoin.encoding.der import encode_der
 from bitcoin.encoding.hasher import hash256, sha256
-from bitcoin.encoding.hex import decode_hex, encode_hex
-from bitcoin.field import inverse
 from bitcoin.script import (
     build_p2pkh,
     build_p2wpkh,
-    build_p2wsh,
-    build_p2tr,
-    parse_script,
 )
 from bitcoin.script.classifier import (
     P2PK,
@@ -47,14 +40,12 @@ from bitcoin.script.taproot import (
 )
 from bitcoin.signature import (
     Record,
-    extract_signatures,
     batch_extract,
     batch_extract_from_file,
     correlate_across_transactions,
     merge_records,
     sign,
     sign_tx_input,
-    recover_public_key,
     verify_sig,
 )
 from bitcoin.signature.batch_verify import batch_verify
@@ -66,7 +57,6 @@ from bitcoin.signature.extraction.plugins import (
     list_plugins,
 )
 from bitcoin.signature.pipeline import BatchResult
-from bitcoin.signature.signer import sign as sign_fn, sign_tx_input as sign_tx_input_fn
 from bitcoin.services.blockchain import (
     BlockstreamProvider,
     BlockchainInfoProvider,
@@ -88,7 +78,7 @@ from bitcoin.transaction import (
     has_sequence_lock,
 )
 from bitcoin.transaction.models import EMPTY_WITNESS
-from bitcoin.psbt import Psbt, PsbtInput, PsbtOutput, PsbtEditor, parse_psbt
+from bitcoin.psbt import Psbt, PsbtInput, PsbtOutput, PsbtEditor
 from bitcoin.psbt.editor import MutableInput, MutableOutput
 from bitcoin.services.serializer import serialize_legacy_tx, serialize_tx
 from bitcoin.sighash.flag import SIGHASH_ALL
@@ -168,7 +158,10 @@ class TestTransactionBuilder:
         tx = (
             TransactionBuilder()
             .add_input(txid=b"\x01" * 32, vout=0)
-            .add_output(value=50000, script_pubkey=b"\x76\xa9\x14" + b"\x00" * 20 + b"\x88\xac")
+            .add_output(
+                value=50000,
+                script_pubkey=b"\x76\xa9\x14" + b"\x00" * 20 + b"\x88\xac",
+            )
             .build()
         )
         assert len(tx.inputs) == 1
@@ -212,7 +205,11 @@ class TestTransactionBuilder:
 
     def test_build_no_inputs(self) -> None:
         with pytest.raises(ValueError, match="At least one input"):
-            TransactionBuilder().add_output(value=100, script_pubkey=b"\x00" * 25).build()
+            (
+                TransactionBuilder()
+                .add_output(value=100, script_pubkey=b"\x00" * 25)
+                .build()
+            )
 
     def test_build_no_outputs(self) -> None:
         with pytest.raises(ValueError, match="At least one output"):
@@ -417,7 +414,6 @@ class TestSigner:
 
     def test_sign_tx_input_legacy(self) -> None:
         priv = 42
-        pub = multiply(priv, GENERATOR)
         tx = make_test_tx()
         script_pubkey = build_p2pkh(TEST_PUB_HASH)
         sig = sign_tx_input(tx, 0, priv, script=script_pubkey, value=0)
@@ -441,7 +437,9 @@ class TestSigner:
             ),
             lock_time=0,
         )
-        sig = sign_tx_input(tx, 0, priv, script=build_p2wpkh(TEST_PUB_HASH), value=10000)
+        sig = sign_tx_input(
+            tx, 0, priv, script=build_p2wpkh(TEST_PUB_HASH), value=10000
+        )
         assert sig[-1] == SIGHASH_ALL
 
 
@@ -506,16 +504,16 @@ class TestPipeline:
         assert result.successful == 0
         assert result.failed == 3
 
-    def test_batch_extract_from_file(self, tmp_path) -> None:
+    def test_batch_extract_from_file(self, tmp_path: object) -> None:
         tx = make_test_tx()
         raw = serialize_tx(tx).hex()
-        f = tmp_path / "txs.txt"
-        f.write_text(f"{raw}\n{raw}\n")
-        result = batch_extract_from_file(str(f))
+        f = tmp_path / "txs.txt"  # type: ignore[operator]
+        f.write_text(f"{raw}\n{raw}\n")  # type: ignore[union-attr]
+        result = batch_extract_from_file(str(f))  # type: ignore[arg-type]
         assert result.successful == 0
         assert result.failed == 2
 
-    def test_batch_extract_from_file_with_comments(self, tmp_path) -> None:
+    def test_batch_extract_from_file_with_comments(self, tmp_path: object) -> None:
         from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness
         from bitcoin.services.serializer import serialize_legacy_tx
         from bitcoin.script import build_p2pkh
@@ -530,9 +528,9 @@ class TestPipeline:
         txin2 = TxIn(OutPoint(b"\x01" * 32, 0), scriptsig, 0xFFFFFFFF, Witness(()))
         tx2 = Tx(2, (txin2,), (txout,), 0)
         raw = serialize_legacy_tx(tx2).hex()
-        f = tmp_path / "txs.txt"
-        f.write_text(f"# comment\n{raw}\n\n{raw}\n")
-        result = batch_extract_from_file(str(f))
+        f = tmp_path / "txs.txt"  # type: ignore[operator]
+        f.write_text(f"# comment\n{raw}\n\n{raw}\n")  # type: ignore[union-attr]
+        result = batch_extract_from_file(str(f))  # type: ignore[arg-type]
         assert result.successful == 2
 
     def test_batch_extract_from_file_not_found(self) -> None:
@@ -541,11 +539,13 @@ class TestPipeline:
 
     def test_merge_records(self) -> None:
         r1 = Record(
-            txid=b"\x01" * 32, input_index=0, signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+            txid=b"\x01" * 32, input_index=0,
+            signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
             public_key=GENERATOR, script_type="p2pkh", sighash_flag=1, amount=0,
         )
         r2 = Record(
-            txid=b"\x02" * 32, input_index=0, signature=b"\x30\x06\x02\x01\x02\x02\x01\x02",
+            txid=b"\x02" * 32, input_index=0,
+            signature=b"\x30\x06\x02\x01\x02\x02\x01\x02",
             public_key=GENERATOR, script_type="p2pkh", sighash_flag=1, amount=0,
         )
         result1 = BatchResult(records=[r1], total_transactions=1, successful=1)
@@ -555,7 +555,8 @@ class TestPipeline:
 
     def test_merge_records_dedup(self) -> None:
         rec = Record(
-            txid=b"\x01" * 32, input_index=0, signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+            txid=b"\x01" * 32, input_index=0,
+            signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
             public_key=GENERATOR, script_type="p2pkh", sighash_flag=1, amount=0,
         )
         result = BatchResult(records=[rec, rec], total_transactions=2, successful=2)
@@ -656,8 +657,8 @@ class TestPipeline:
         assert result.successful == 2
         assert result.failed == 0
 
-    def test_batch_extract_from_file(self) -> None:
-        """batch_extract_from_file reads hex txs from a file."""
+    def test_batch_extract_from_file2(self) -> None:
+        """batch_extract_from_file reads hex txs from a file (2)."""
         import tempfile
         from bitcoin.signature.pipeline import batch_extract_from_file
         from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness
@@ -674,7 +675,9 @@ class TestPipeline:
         txin2 = TxIn(OutPoint(b"\x01" * 32, 0), scriptsig, 0xFFFFFFFF, Witness(()))
         tx2 = Tx(2, (txin2,), (txout,), 0)
         raw_hex = serialize_legacy_tx(tx2).hex()
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", delete=False, encoding="utf-8"
+        ) as f:
             f.write(raw_hex + "\n")
             f.write("# comment\n")
             f.write(raw_hex + "\n")
@@ -896,7 +899,7 @@ class TestFetchText:
         from urllib.error import HTTPError
         with patch("bitcoin.services.blockchain.urlopen") as mock:
             mock.side_effect = HTTPError(
-                "http://example.com", 404, "Not Found", {}, None,
+                "http://example.com", 404, "Not Found", {}, None,  # type: ignore[arg-type]
             )
             with pytest.raises(OSError, match="HTTP 404"):
                 fetch_text("http://example.com")
@@ -1146,7 +1149,8 @@ class TestTaproot:
     def test_extract_taproot_scripts(self) -> None:
         records = [
             Record(
-                txid=b"\x01" * 32, input_index=0, signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+                txid=b"\x01" * 32, input_index=0,
+                signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
                 public_key=GENERATOR, script_type="p2tr", sighash_flag=1, amount=0,
             ),
         ]
@@ -1248,7 +1252,10 @@ class TestClassifierRemaining:
         assert not is_op_return(b"")
 
     def test_is_bare_multisig(self) -> None:
-        script = b"\x52" + b"\x21" + b"\x02" + b"\x00" * 32 + b"\x21" + b"\x03" + b"\x01" * 32 + b"\x53\xae"
+        script = (
+            b"\x52" + b"\x21" + b"\x02" + b"\x00" * 32
+            + b"\x21" + b"\x03" + b"\x01" * 32 + b"\x53\xae"
+        )
         assert is_bare_multisig(script)
 
     def test_is_bare_multisig_too_short(self) -> None:
@@ -1258,10 +1265,14 @@ class TestClassifierRemaining:
         assert not is_bare_multisig(b"\x4f" + b"\x00" * 40)
 
     def test_is_bare_multisig_bad_last(self) -> None:
-        assert not is_bare_multisig(b"\x52" + b"\x21" + b"\x02" + b"\x00" * 32 + b"\x53\x00")
+        assert not is_bare_multisig(
+            b"\x52" + b"\x21" + b"\x02" + b"\x00" * 32 + b"\x53\x00"
+        )
 
     def test_is_bare_multisig_bad_second_last(self) -> None:
-        assert not is_bare_multisig(b"\x52" + b"\x21" + b"\x02" + b"\x00" * 32 + b"\x4f\xae")
+        assert not is_bare_multisig(
+            b"\x52" + b"\x21" + b"\x02" + b"\x00" * 32 + b"\x4f\xae"
+        )
 
     def test_has_timelocks(self) -> None:
         assert has_timelocks(b"\xb1\x00")
@@ -1275,7 +1286,10 @@ class TestClassifierRemaining:
         assert classify_detailed(b"\x6a\x00") == "op_return"
 
     def test_classify_detailed_multisig(self) -> None:
-        script = b"\x52" + b"\x21" + b"\x02" + b"\x00" * 32 + b"\x21" + b"\x03" + b"\x01" * 32 + b"\x53\xae"
+        script = (
+            b"\x52" + b"\x21" + b"\x02" + b"\x00" * 32
+            + b"\x21" + b"\x03" + b"\x01" * 32 + b"\x53\xae"
+        )
         assert classify_detailed(script) == MULTISIG
 
     def test_classify_detailed_p2pkh(self) -> None:

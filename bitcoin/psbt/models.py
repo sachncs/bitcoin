@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Tuple
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,17 +23,17 @@ class PsbtInput:
         unknown: Unknown key-value pairs.
     """
 
-    non_witness_utxo: Optional[bytes] = None
-    witness_utxo: Optional[bytes] = None
-    partial_sigs: Dict[bytes, bytes] = field(default_factory=dict)
-    sighash_type: Optional[int] = None
-    redeem_script: Optional[bytes] = None
-    witness_script: Optional[bytes] = None
-    bip32_derivations: Dict[bytes, bytes] = field(default_factory=dict)
-    final_script_sig: Optional[bytes] = None
-    final_script_witness: Optional[Tuple[bytes, ...]] = None
-    proprietary: Dict[bytes, bytes] = field(default_factory=dict)
-    unknown: Dict[bytes, bytes] = field(default_factory=dict)
+    non_witness_utxo: bytes | None = None
+    witness_utxo: bytes | None = None
+    partial_sigs: dict[bytes, bytes] = field(default_factory=dict)
+    sighash_type: int | None = None
+    redeem_script: bytes | None = None
+    witness_script: bytes | None = None
+    bip32_derivations: dict[bytes, bytes] = field(default_factory=dict)
+    final_script_sig: bytes | None = None
+    final_script_witness: tuple[bytes, ...] | None = None
+    proprietary: dict[bytes, bytes] = field(default_factory=dict)
+    unknown: dict[bytes, bytes] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,11 +48,11 @@ class PsbtOutput:
         unknown: Unknown key-value pairs.
     """
 
-    redeem_script: Optional[bytes] = None
-    witness_script: Optional[bytes] = None
-    bip32_derivations: Dict[bytes, bytes] = field(default_factory=dict)
-    proprietary: Dict[bytes, bytes] = field(default_factory=dict)
-    unknown: Dict[bytes, bytes] = field(default_factory=dict)
+    redeem_script: bytes | None = None
+    witness_script: bytes | None = None
+    bip32_derivations: dict[bytes, bytes] = field(default_factory=dict)
+    proprietary: dict[bytes, bytes] = field(default_factory=dict)
+    unknown: dict[bytes, bytes] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,9 +67,9 @@ class Psbt:
     """
 
     tx: bytes
-    inputs: Tuple[PsbtInput, ...]
-    outputs: Tuple[PsbtOutput, ...]
-    unknown: Dict[bytes, bytes] = field(default_factory=dict)
+    inputs: tuple[PsbtInput, ...]
+    outputs: tuple[PsbtOutput, ...]
+    unknown: dict[bytes, bytes] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Validate that input and output counts match.

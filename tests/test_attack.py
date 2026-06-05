@@ -7,7 +7,6 @@ from bitcoin.curve import GENERATOR, multiply
 from bitcoin.curve.params import CURVE_ORDER
 from bitcoin.field import inverse as field_inverse
 from bitcoin.signature.attack import (
-    NoNonceReuseError,
     NonceReuseGroup,
     RecoveredKey,
     SameNonceError,
@@ -17,7 +16,6 @@ from bitcoin.signature.attack import (
 )
 from bitcoin.signature.linearization.coefficients import (
     LinearCoefficientCollection,
-    LinearCoefficientRecord,
     derive_linear_coefficients,
 )
 

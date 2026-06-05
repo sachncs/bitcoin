@@ -4,7 +4,6 @@ from __future__ import annotations
 import pytest
 
 from bitcoin import parse_tx, Tx, TxIn, TxOut, OutPoint, Witness, make_tx, ParsingError
-from bitcoin.encoding import decode_hex
 from bitcoin.services.serializer import serialize_tx, serialize_legacy_tx
 
 
@@ -46,7 +45,10 @@ class TestParseTx:
             sequence=0xFFFFFFFF,
             witness=Witness(()),
         )
-        tx_out = TxOut(value=50000, script_pubkey=b"\x76\xa9\x14" + b"\x00" * 20 + b"\x88\xac")
+        tx_out = TxOut(
+            value=50000,
+            script_pubkey=b"\x76\xa9\x14" + b"\x00" * 20 + b"\x88\xac",
+        )
         original = Tx(version=2, inputs=(tx_in,), outputs=(tx_out,), lock_time=0)
         raw = serialize_tx(original)
         parsed, consumed = parse_tx(raw)

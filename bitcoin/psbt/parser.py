@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Dict, Sequence, Tuple
+from typing import TYPE_CHECKING
+from collections.abc import Sequence
 
 if TYPE_CHECKING:
     from bitcoin.signature.collection import SignatureCollection
@@ -16,6 +17,10 @@ from bitcoin.transaction.parser import parse_tx
 logger = logging.getLogger(__name__)
 
 MAX_KEY_VALUE_MAP_ENTRIES = 10000
+MAX_KEY_SIZE = 102400
+MAX_VALUE_SIZE = 10_000_000
+MAX_PSBT_WITNESS_ITEMS = 10000
+MAX_PSBT_WITNESS_ITEM_SIZE = 10_000_000
 
 # Key type constants (BIP-174)
 PSBT_GLOBAL_UNSIGNED_TX = 0x00  #: Global: unsigned transaction.
@@ -111,7 +116,7 @@ def serialize_psbt(psbt: Psbt) -> bytes:
 
 
 def parse_key_value_map(data: bytes,
-                          offset: int) -> Tuple[Dict[int, bytes], int]:
+                          offset: int) -> tuple[dict[int, bytes], int]:
     """Parse a PSBT key-value map (global, input, or output).
 
     Args:
@@ -120,8 +125,12 @@ def parse_key_value_map(data: bytes,
 
     Returns:
         A tuple of ``(map_dict, new_offset)``.
+
+    Raises:
+        ValueError: If a key or value exceeds size limits or the map
+            has too many entries.
     """
-    result: Dict[int, bytes] = {}
+    result: dict[int, bytes] = {}
     count = 0
     while offset < len(data):
         if data[offset:offset + 1] == b"\x00":
@@ -133,10 +142,15 @@ def parse_key_value_map(data: bytes,
                 f"Key-value map entry count {count} exceeds maximum "
                 f"{MAX_KEY_VALUE_MAP_ENTRIES}")
         key_len, offset = decode_varint(data, offset)
+        if key_len > MAX_KEY_SIZE:
+            raise ValueError(
+                f"Key length {key_len} exceeds maximum {MAX_KEY_SIZE}")
         key_type = data[offset]
-        key_data = data[offset:offset + key_len]
         offset += key_len
         value_len, offset = decode_varint(data, offset)
+        if value_len > MAX_VALUE_SIZE:
+            raise ValueError(
+                f"Value length {value_len} exceeds maximum {MAX_VALUE_SIZE}")
         value = data[offset:offset + value_len]
         offset += value_len
         result[key_type] = value
@@ -166,7 +180,7 @@ def serialize_key_value(key_type: int, value: bytes,
     return bytes(result)
 
 
-def parse_input_map(data: bytes, offset: int) -> Tuple[PsbtInput, int]:
+def parse_input_map(data: bytes, offset: int) -> tuple[PsbtInput, int]:
     """Parse a single PSBT input map from *data* at *offset*.
 
     Args:
@@ -176,7 +190,13 @@ def parse_input_map(data: bytes, offset: int) -> Tuple[PsbtInput, int]:
     Returns:
         A tuple of ``(PsbtInput, new_offset)``.
     """
-    attrs: dict[str, object] = {}
+    non_witness_utxo: bytes | None = None
+    witness_utxo: bytes | None = None
+    sighash_type: int | None = None
+    redeem_script: bytes | None = None
+    witness_script: bytes | None = None
+    final_script_sig: bytes | None = None
+    final_script_witness: tuple[bytes, ...] | None = None
     partial_sigs: dict[bytes, bytes] = {}
     bip32_derivations: dict[bytes, bytes] = {}
     unknown: dict[bytes, bytes] = {}
@@ -193,19 +213,19 @@ def parse_input_map(data: bytes, offset: int) -> Tuple[PsbtInput, int]:
         value = data[offset:offset + value_len]
         offset += value_len
         if key_type == PSBT_IN_NON_WITNESS_UTXO:
-            attrs["non_witness_utxo"] = value
+            non_witness_utxo = value
         elif key_type == PSBT_IN_WITNESS_UTXO:
-            attrs["witness_utxo"] = value
+            witness_utxo = value
         elif key_type == PSBT_IN_SIGHASH_TYPE:
-            attrs["sighash_type"] = int.from_bytes(value, "little")
+            sighash_type = int.from_bytes(value, "little")
         elif key_type == PSBT_IN_REDEEM_SCRIPT:
-            attrs["redeem_script"] = value
+            redeem_script = value
         elif key_type == PSBT_IN_WITNESS_SCRIPT:
-            attrs["witness_script"] = value
+            witness_script = value
         elif key_type == PSBT_IN_FINAL_SCRIPTSIG:
-            attrs["final_script_sig"] = value
+            final_script_sig = value
         elif key_type == PSBT_IN_FINAL_SCRIPTWITNESS:
-            attrs["final_script_witness"] = parse_witness_stack(value)
+            final_script_witness = parse_witness_stack(value)
         elif key_type == PSBT_IN_PARTIAL_SIG:
             partial_sigs[key_data] = value
         elif key_type == PSBT_IN_BIP32_DERIVATION:
@@ -214,13 +234,13 @@ def parse_input_map(data: bytes, offset: int) -> Tuple[PsbtInput, int]:
             unknown[bytes([key_type]) + key_data] = value
 
     inp = PsbtInput(
-        non_witness_utxo=attrs.get("non_witness_utxo"),
-        witness_utxo=attrs.get("witness_utxo"),
-        sighash_type=attrs.get("sighash_type"),
-        redeem_script=attrs.get("redeem_script"),
-        witness_script=attrs.get("witness_script"),
-        final_script_sig=attrs.get("final_script_sig"),
-        final_script_witness=attrs.get("final_script_witness"),
+        non_witness_utxo=non_witness_utxo,
+        witness_utxo=witness_utxo,
+        sighash_type=sighash_type,
+        redeem_script=redeem_script,
+        witness_script=witness_script,
+        final_script_sig=final_script_sig,
+        final_script_witness=final_script_witness,
         partial_sigs=partial_sigs,
         bip32_derivations=bip32_derivations,
         unknown=unknown,
@@ -261,7 +281,9 @@ def serialize_input_map(inp: PsbtInput) -> bytes:
     if inp.final_script_witness is not None:
         key = PSBT_IN_FINAL_SCRIPTWITNESS
         result.extend(
-            serialize_key_value(key, serialize_witness_stack(inp.final_script_witness), [b""]))
+            serialize_key_value(
+                key, serialize_witness_stack(inp.final_script_witness), [b""],
+            ))
     for pubkey, sig in inp.partial_sigs.items():
         key = PSBT_IN_PARTIAL_SIG
         result.extend(serialize_key_value(key, sig, [pubkey]))
@@ -275,7 +297,7 @@ def serialize_input_map(inp: PsbtInput) -> bytes:
     return bytes(result)
 
 
-def parse_output_map(data: bytes, offset: int) -> Tuple[PsbtOutput, int]:
+def parse_output_map(data: bytes, offset: int) -> tuple[PsbtOutput, int]:
     """Parse a single PSBT output map from *data* at *offset*.
 
     Args:
@@ -285,9 +307,10 @@ def parse_output_map(data: bytes, offset: int) -> Tuple[PsbtOutput, int]:
     Returns:
         A tuple of ``(PsbtOutput, new_offset)``.
     """
-    attrs: dict[str, object] = {}
     bip32_derivations: dict[bytes, bytes] = {}
     unknown: dict[bytes, bytes] = {}
+    redeem_script: bytes | None = None
+    witness_script: bytes | None = None
 
     while offset < len(data):
         if data[offset:offset + 1] == b"\x00":
@@ -301,17 +324,17 @@ def parse_output_map(data: bytes, offset: int) -> Tuple[PsbtOutput, int]:
         value = data[offset:offset + value_len]
         offset += value_len
         if key_type == PSBT_OUT_REDEEM_SCRIPT:
-            attrs["redeem_script"] = value
+            redeem_script = value
         elif key_type == PSBT_OUT_WITNESS_SCRIPT:
-            attrs["witness_script"] = value
+            witness_script = value
         elif key_type == PSBT_OUT_BIP32_DERIVATION:
             bip32_derivations[key_data] = value
         else:
             unknown[bytes([key_type]) + key_data] = value
 
     out = PsbtOutput(
-        redeem_script=attrs.get("redeem_script"),
-        witness_script=attrs.get("witness_script"),
+        redeem_script=redeem_script,
+        witness_script=witness_script,
         bip32_derivations=bip32_derivations,
         unknown=unknown,
     )
@@ -500,7 +523,7 @@ def extract_pubkey_from_elements(
     return None
 
 
-def parse_witness_stack(data: bytes) -> Tuple[bytes, ...]:
+def parse_witness_stack(data: bytes) -> tuple[bytes, ...]:
     """Parse a serialised witness stack from raw bytes.
 
     Args:
@@ -508,17 +531,28 @@ def parse_witness_stack(data: bytes) -> Tuple[bytes, ...]:
 
     Returns:
         A tuple of witness item bytes.
+
+    Raises:
+        ValueError: If the number of items or an item size exceeds limits.
     """
     offset = 0
     items: list[bytes] = []
     while offset < len(data):
         n, offset = decode_varint(data, offset)
+        if n > MAX_PSBT_WITNESS_ITEM_SIZE:
+            raise ValueError(
+                f"Witness item size {n} exceeds maximum {MAX_PSBT_WITNESS_ITEM_SIZE}")
         items.append(data[offset:offset + n])
         offset += n
+        if len(items) > MAX_PSBT_WITNESS_ITEMS:
+            raise ValueError(
+                f"Witness item count {len(items)} exceeds maximum "
+                f"{MAX_PSBT_WITNESS_ITEMS}",
+            )
     return tuple(items)
 
 
-def serialize_witness_stack(items: Tuple[bytes, ...]) -> bytes:
+def serialize_witness_stack(items: tuple[bytes, ...]) -> bytes:
     """Serialize a witness stack to wire format (varint-prefixed items).
 
     Args:

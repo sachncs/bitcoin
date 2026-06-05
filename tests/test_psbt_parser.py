@@ -23,7 +23,7 @@ from bitcoin.psbt.parser import (
 from bitcoin.psbt.models import Psbt, PsbtInput, PsbtOutput
 from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness
 from bitcoin.services.serializer import serialize_legacy_tx
-from bitcoin.curve import INFINITY, parse_public_key
+from bitcoin.curve import parse_public_key
 from bitcoin.signature.collection import SignatureCollection
 
 # ── Helper helpers ─────────────────────────────────────────────────────────
@@ -116,7 +116,10 @@ class TestParsePsbt:
         ikv = input_kv(PSBT_IN_NON_WITNESS_UTXO, tx_bytes)
         okv = output_kv(PSBT_OUT_REDEEM_SCRIPT, b"\xab")
         # Format: magic + global_kv + 00 + [input_kv + 00] + 00 + [output_kv + 00]
-        data = PSBT_MAGIC + global_kv(tx_bytes) + b"\x00" + ikv + b"\x00" + okv + b"\x00"
+        data = (
+            PSBT_MAGIC + global_kv(tx_bytes) + b"\x00" + ikv
+            + b"\x00" + okv + b"\x00"
+        )
         psbt = parse_psbt(data)
         assert len(psbt.inputs) == 1
         assert len(psbt.outputs) == 1
@@ -669,7 +672,8 @@ def test_serialize_input_map_partial_sigs():
     sig = b"\x05"
     inp = PsbtInput(partial_sigs={pubkey: sig})
     result = serialize_input_map(inp)
-    assert len(result) == 37  # varint key_len(1) + type(1) + 33B pubkey + varint val_len(1) + 1B sig
+    # varint key_len(1) + type(1) + 33B pubkey + varint val_len(1) + 1B sig
+    assert len(result) == 37
     inp2, _ = parse_input_map(result + b"\x00", 0)
     assert inp2.partial_sigs == {pubkey: sig}
 

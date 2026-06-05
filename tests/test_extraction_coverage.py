@@ -1,10 +1,10 @@
-"""Comprehensive coverage tests for extraction engine, classifier, builder, and signature check."""
+"""Comprehensive coverage tests for extraction engine, classifier, builder,
+and signature check."""
 from __future__ import annotations
 
 import pytest
 
 from bitcoin.curve import GENERATOR, INFINITY, Point, is_on_curve, multiply
-from bitcoin.curve.dispatch import parse_public_key
 from bitcoin.curve.params import CURVE_ORDER, FIELD_PRIME
 from bitcoin.encoding.der import encode_der
 from bitcoin.encoding.hasher import hash160, hash256, sha256
@@ -31,7 +31,6 @@ from bitcoin.script.builder import (
 )
 from bitcoin.signature.check import recover_public_key, verify_sig
 from bitcoin.signature.extraction.engine import extract_signatures
-from bitcoin.signature.record import Record
 from bitcoin.transaction.models import EMPTY_WITNESS, OutPoint, Tx, TxIn, TxOut, Witness
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -456,7 +455,10 @@ class TestExtractP2PK:
 
 class TestExtractMultisig:
     def test_p2ms_extraction(self) -> None:
-        sc = bytes([0x51]) + bytes([len(TEST_PUB_SEC)]) + TEST_PUB_SEC + bytes([0x51]) + bytes([0xae])
+        sc = (
+            bytes([0x51]) + bytes([len(TEST_PUB_SEC)]) + TEST_PUB_SEC
+            + bytes([0x51]) + bytes([0xae])
+        )
         sig_push = bytes([len(SIG_R1S1_ALL)])
         tx = base_tx(
             script_sig=sig_push + SIG_R1S1_ALL + bytes([0x00]),
@@ -467,7 +469,10 @@ class TestExtractMultisig:
         assert records[0].script_type == classify_script_pubkey(sc)
 
     def test_p2ms_empty_script_sig(self) -> None:
-        sc = bytes([0x51]) + bytes([len(TEST_PUB_SEC)]) + TEST_PUB_SEC + bytes([0x51]) + bytes([0xae])
+        sc = (
+            bytes([0x51]) + bytes([len(TEST_PUB_SEC)]) + TEST_PUB_SEC
+            + bytes([0x51]) + bytes([0xae])
+        )
         tx = base_tx(script_pubkey=sc)
         records = extract_signatures(tx, utxo_script_pubkeys=[sc])
         assert records == []
@@ -622,7 +627,8 @@ class TestExtractP2SHSegWit:
         assert records == []
 
     def test_p2sh_unknown_redeem_type(self) -> None:
-        """P2SH redeem script that doesn't classify → default script code (else branch)."""
+        """P2SH redeem script that doesn't classify
+        → default script code (else branch)."""
         redeem_script = b"\x6a"  # OP_RETURN → NON_STANDARD
         sc = p2sh_script(hash160(redeem_script))
         dummy_push = bytes([1]) + b"\x00"
@@ -854,6 +860,7 @@ class TestExtractGuessP2PKH:
 
         parsed = list(parse_script(make_p2pkh_scriptsig()))
         result = guess_p2pkh_script(parsed)
+        assert result is not None
         assert len(result) == 25
         assert result[:2] == b"\x76\xa9"
 

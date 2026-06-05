@@ -7,8 +7,6 @@ import pytest
 from bitcoin.sighash.flag import (
     SIGHASH_ALL,
     SIGHASH_ALL_ANYONECANPAY,
-    SIGHASH_ANYONECANPAY,
-    SIGHASH_MASK,
     SIGHASH_NONE,
     SIGHASH_NONE_ANYONECANPAY,
     SIGHASH_SINGLE,
@@ -122,7 +120,9 @@ class TestSighashFlag:
         assert sighash_name(SIGHASH_NONE_ANYONECANPAY) == "SIGHASH_NONE|ANYONECANPAY"
 
     def test_sighash_name_single_anyonecanpay(self) -> None:
-        assert sighash_name(SIGHASH_SINGLE_ANYONECANPAY) == "SIGHASH_SINGLE|ANYONECANPAY"
+        assert sighash_name(SIGHASH_SINGLE_ANYONECANPAY) == (
+            "SIGHASH_SINGLE|ANYONECANPAY"
+        )
 
     def test_sighash_name_unknown(self) -> None:
         assert sighash_name(0x04) == "SIGHASH_UNKNOWN(4)"
@@ -362,7 +362,8 @@ class TestSighashTaproot:
         assert len(h) == 32
 
     def test_script_path_tapleaf_hash_none_with_flag(self) -> None:
-        """Also test with sighash_flag=0x83 and script path — different code path combos."""
+        """Also test with sighash_flag=0x83 and script path — different code
+        path combos."""
         h = sighash_taproot(
             TX_TAPROOT, 0, script=SCRIPT, sighash_flag=0x83,
             tapleaf_hash=TAPLEAF_HASH,

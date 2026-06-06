@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-06-05
+
+### Added
+- `health()` / `check_backend()` / `check_imports()` library health introspection.
+- `recover_from_related_nonces()` for exploiting nonces with known offset (`k2 = k1 + delta`).
+- `batch_extract_from_file()` for reading tx hexes from a file.
+- `lift_x()` for BIP-340 x-only public key lifting.
+- `MempoolSpaceProvider()` blockchain data provider.
+- `classify_script_sig()` and `P2PK` / `MULTISIG` script type constants.
+- `build_p2pkh()`, `build_p2sh()`, `build_p2wpkh()`, `build_p2wsh()`, `build_p2tr()` script builders.
+- `is_opt_in_rbf()` and `has_sequence_lock()` transaction utilities.
+- Dependabot configuration for automated dependency updates.
+- Mainnet signature extraction test vectors (`test_mainnet_vectors.py`).
+- Concurrency tests (`test_concurrency.py`).
+- Shared test fixtures in `conftest.py`.
+
+### Changed
+- `Settings` is now thread-safe with `threading.Lock`.
+- Fixed-base multiplication optimization for generator point (4-bit window table).
+- TXID validation added to `BlockstreamProvider` and `BlockchainInfoProvider`.
+- Sighash modules refactored for cleaner implementation.
+- `sign()` and `sign_tx_input()` wipe sensitive values from stack frames after signing.
+- HMAC-DRBG bounded retry limit (raises after 1000 attempts instead of infinite loop).
+- Type annotations modernized (PEP 604: `str | None` instead of `Optional[str]`).
+- Extraction engine logging improved (warning instead of debug on skipped signatures).
+- `Record` dataclass enhancements.
+- Backend dispatch validates scalar non-negativity and reduces modulo `CURVE_ORDER`.
+- Taproot sighash computation edge cases hardened.
+
+### Removed
+- `.pre-commit-config.yaml` (pre-commit checks moved to CI).
+- `tests/helpers.py` (replaced by `conftest.py`).
+- Dead exception classes from `exceptions.py`.
+- Various dead imports and unused constants.
+
+### Fixed
+- Sighash legacy calculation for edge cases.
+- Various minor bug fixes across extraction, PSBT parsing, and signing.
+
 ## [0.4.0] - 2026-05-31
 
 ### Added

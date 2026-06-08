@@ -54,8 +54,8 @@ def classify_script_pubkey(script: bytes) -> str:
         return P2PKH
 
     # P2SH: OP_HASH160 <20 bytes> OP_EQUAL
-    if (len(script) == 23 and script[0] == OP_HASH160 and
-            script[1] == 0x14 and script[-1] == OP_EQUAL):
+    if (len(script) == 23 and script[0] == OP_HASH160 and script[1] == 0x14 and
+            script[-1] == OP_EQUAL):
         return P2SH
 
     # P2WPKH: OP_0 <20 bytes>

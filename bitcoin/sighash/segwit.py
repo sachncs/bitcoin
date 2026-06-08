@@ -11,7 +11,10 @@ from typing import TYPE_CHECKING
 from bitcoin.encoding.hasher import hash256
 from bitcoin.encoding.varint import encode_varint
 from bitcoin.sighash.flag import (
-    SIGHASH_ANYONECANPAY, SIGHASH_MASK, SIGHASH_NONE, SIGHASH_SINGLE,
+    SIGHASH_ANYONECANPAY,
+    SIGHASH_MASK,
+    SIGHASH_NONE,
+    SIGHASH_SINGLE,
 )
 
 if TYPE_CHECKING:
@@ -20,8 +23,8 @@ if TYPE_CHECKING:
 ZERO_HASH_32 = b"\x00" * 32
 
 
-def sighash_segwit(transaction: Tx, input_index: int, script: bytes,
-                   value: int, sighash_flag: int) -> bytes:
+def sighash_segwit(transaction: Tx, input_index: int, script: bytes, value: int,
+                   sighash_flag: int) -> bytes:
     """Compute the BIP-143 SegWit v0 sighash for a transaction input.
 
     Unlike the legacy algorithm, the amount being spent is committed to
@@ -58,12 +61,11 @@ def sighash_segwit(transaction: Tx, input_index: int, script: bytes,
 
     # Hash sequences
     if (sighash_flag & SIGHASH_ANYONECANPAY or
-            (sighash_flag & SIGHASH_MASK) in (SIGHASH_NONE, SIGHASH_SINGLE)):
+        (sighash_flag & SIGHASH_MASK) in (SIGHASH_NONE, SIGHASH_SINGLE)):
         data.extend(ZERO_HASH_32)
     else:
         hash_sequence = hash256(b"".join(
-            txin.sequence.to_bytes(4, "little")
-            for txin in transaction.inputs))
+            txin.sequence.to_bytes(4, "little") for txin in transaction.inputs))
         data.extend(hash_sequence)
 
     # Outpoint being spent

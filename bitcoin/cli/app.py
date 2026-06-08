@@ -95,9 +95,9 @@ def output_records(records: list[Record], fmt: str) -> None:
     elif fmt == "csv":
         buf = io.StringIO()
         writer = csv.writer(buf)
-        writer.writerow(
-            ["txid", "input_index", "signature", "type", "sighash_flag",
-             "value"])
+        writer.writerow([
+            "txid", "input_index", "signature", "type", "sighash_flag", "value"
+        ])
         for r in records:
             writer.writerow([
                 encode_hex(r.txid),
@@ -137,23 +137,23 @@ def output_sorted_records(records: list[Record], fmt: str) -> None:
         writer = csv.writer(buf)
         writer.writerow(["txid", "input_index", "signature"])
         for r in records:
-            writer.writerow([
-                encode_hex(r.txid), r.input_index,
-                encode_hex(r.signature)
-            ])
+            writer.writerow(
+                [encode_hex(r.txid), r.input_index,
+                 encode_hex(r.signature)])
         typer.echo(buf.getvalue().rstrip())
     else:
         for rec in records:
             typer.echo(
-                f"{encode_hex(rec.txid)}:{rec.input_index} {encode_hex(rec.signature)}")
+                f"{encode_hex(rec.txid)}:{rec.input_index} {encode_hex(rec.signature)}"
+            )
 
 
 @app.command()
 def decode(
     tx_hex: str | None = typer.Argument(None, help="Transaction hex"),
     input_file: Path | None = typer.Option(None,
-                                              "--input-file",
-                                              help="Read tx hex from file"),
+                                           "--input-file",
+                                           help="Read tx hex from file"),
 ) -> None:
     """Decode a raw transaction and output as JSON."""
     tx_hex_resolved = read_tx_hex(tx_hex, input_file)
@@ -173,9 +173,11 @@ def extract(
     csv_output: bool = typer.Option(False, "--csv", help="Output as CSV"),
     output_format: str = typer.Option("text", "--format", help="Output format"),
     input_file: Path | None = typer.Option(None,
-                                              "--input-file",
-                                              help="Read tx hex from file"),
-    progress: bool = typer.Option(False, "--progress", "-p",
+                                           "--input-file",
+                                           help="Read tx hex from file"),
+    progress: bool = typer.Option(False,
+                                  "--progress",
+                                  "-p",
                                   help="Show progress dots"),
 ) -> None:
     """Extract ECDSA signatures from a raw transaction hex."""
@@ -193,8 +195,10 @@ def extract(
                       if utxo_scripts else None)
 
     if progress:
-        typer.echo(f"Parsed tx with {len(tx.inputs)} inputs, "
-                   f"{len(tx.outputs)} outputs.", err=True)
+        typer.echo(
+            f"Parsed tx with {len(tx.inputs)} inputs, "
+            f"{len(tx.outputs)} outputs.",
+            err=True)
 
     records = extract_signatures(tx, script_pubkeys, utxo_values)
 
@@ -211,9 +215,11 @@ def linearize(
     csv_output: bool = typer.Option(False, "--csv", help="Output as CSV"),
     output_format: str = typer.Option("text", "--format", help="Output format"),
     input_file: Path | None = typer.Option(None,
-                                              "--input-file",
-                                              help="Read tx hex from file"),
-    progress: bool = typer.Option(False, "--progress", "-p",
+                                           "--input-file",
+                                           help="Read tx hex from file"),
+    progress: bool = typer.Option(False,
+                                  "--progress",
+                                  "-p",
                                   help="Show progress dots"),
 ) -> None:
     """Extract and linearize (sort) signatures from a raw transaction hex."""
@@ -228,8 +234,10 @@ def linearize(
     tx, _ = parse_tx(tx_bytes)
 
     if progress:
-        typer.echo(f"Parsed tx with {len(tx.inputs)} inputs, "
-                   f"{len(tx.outputs)} outputs.", err=True)
+        typer.echo(
+            f"Parsed tx with {len(tx.inputs)} inputs, "
+            f"{len(tx.outputs)} outputs.",
+            err=True)
 
     records = extract_signatures(tx)
     sorted_records = linearize_signatures(records)

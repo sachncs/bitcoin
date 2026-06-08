@@ -21,6 +21,7 @@ def load_pizza_tx() -> bytes:
 
 
 class TestPizzaTransaction:
+
     def test_parse_and_txid(self) -> None:
         raw = load_pizza_tx()
         tx, _ = parse_tx(raw)
@@ -37,16 +38,18 @@ class TestPizzaTransaction:
 
         script_sig = tx.inputs[0].script_sig
         sig_push_len = script_sig[0]
-        sig_plus_flag = script_sig[1 : 1 + sig_push_len]
+        sig_plus_flag = script_sig[1:1 + sig_push_len]
         der_sig = sig_plus_flag[:-1]
         sig_flag = sig_plus_flag[-1]
         pubkey_push_len = script_sig[1 + sig_push_len]
-        pubkey_bytes = script_sig[2 + sig_push_len : 2 + sig_push_len + pubkey_push_len]
+        pubkey_bytes = script_sig[2 + sig_push_len:2 + sig_push_len +
+                                  pubkey_push_len]
 
         assert sig_flag == SIGHASH_ALL
 
         pubkey_hash = hash160(pubkey_bytes)
-        script_pubkey = bytes([0x76, 0xa9, 0x14]) + pubkey_hash + bytes([0x88, 0xac])
+        script_pubkey = bytes([0x76, 0xa9, 0x14]) + pubkey_hash + bytes(
+            [0x88, 0xac])
 
         z = sighash_legacy(tx, 0, script_pubkey, sig_flag)
         assert len(z) == 32
@@ -61,7 +64,8 @@ class TestPizzaTransaction:
         script_sig = tx.inputs[0].script_sig
         sig_push_len = script_sig[0]
         pubkey_push_len = script_sig[1 + sig_push_len]
-        pubkey_bytes = script_sig[2 + sig_push_len : 2 + sig_push_len + pubkey_push_len]
+        pubkey_bytes = script_sig[2 + sig_push_len:2 + sig_push_len +
+                                  pubkey_push_len]
 
         pubkey_point = parse_sec(pubkey_bytes)
         assert serialize_sec(pubkey_point, compressed=False) == pubkey_bytes

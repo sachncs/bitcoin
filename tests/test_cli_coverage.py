@@ -12,8 +12,8 @@ from bitcoin.signature.record import Record
 
 runner = CliRunner()
 
-
 # --- parse_input_values ---
+
 
 def test_parse_input_values_empty() -> None:
     assert parse_input_values("") == []
@@ -38,6 +38,7 @@ def test_parse_input_values_invalid() -> None:
 
 # --- main() entry-point wrapper ---
 
+
 def test_main_with_version() -> None:
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
@@ -56,6 +57,7 @@ def test_main_returns_zero() -> None:
 
 
 # --- --help for every command ---
+
 
 def test_app_help() -> None:
     result = runner.invoke(app, ["--help"])
@@ -80,6 +82,7 @@ def test_version_help() -> None:
 
 # --- error paths: extract ---
 
+
 def test_extract_invalid_hex() -> None:
     result = runner.invoke(app, ["extract", "not-hex"])
     assert result.exit_code != 0
@@ -97,6 +100,7 @@ def test_extract_missing_argument() -> None:
 
 # --- error paths: linearize ---
 
+
 def test_linearize_invalid_hex() -> None:
     result = runner.invoke(app, ["linearize", "not-hex"])
     assert result.exit_code != 0
@@ -108,6 +112,7 @@ def test_linearize_missing_argument() -> None:
 
 
 # --- extract with --utxo-script / --utxo-value ---
+
 
 def test_extract_with_utxo_script() -> None:
     result = runner.invoke(
@@ -127,20 +132,20 @@ def test_extract_with_utxo_value() -> None:
 
 # --- extract with found records (mocked) ---
 
+
 def test_extract_with_records() -> None:
     mock_record = Record(
         txid=b"\x00" * 32,
         input_index=0,
-        signature=(
-            b"\x30\x45\x02\x21\x00" + b"\xaa" * 28
-            + b"\x02\x20" + b"\xbb" * 32 + b"\x01"
-        ),
+        signature=(b"\x30\x45\x02\x21\x00" + b"\xaa" * 28 + b"\x02\x20" +
+                   b"\xbb" * 32 + b"\x01"),
         public_key=INFINITY,
         script_type="p2pkh",
         sighash_flag=1,
         amount=100000,
     )
-    with patch("bitcoin.cli.app.extract_signatures", return_value=[mock_record]):
+    with patch("bitcoin.cli.app.extract_signatures",
+               return_value=[mock_record]):
         result = runner.invoke(app, ["extract", "010000000000000000"])
     assert result.exit_code == 0
     assert "txid:" in result.stdout
@@ -154,25 +159,26 @@ def test_extract_with_records() -> None:
 
 # --- linearize with found records (mocked) ---
 
+
 def test_linearize_with_records() -> None:
     mock_record = Record(
         txid=b"\x00" * 32,
         input_index=0,
-        signature=(
-            b"\x30\x45\x02\x21\x00" + b"\xaa" * 28
-            + b"\x02\x20" + b"\xbb" * 32 + b"\x01"
-        ),
+        signature=(b"\x30\x45\x02\x21\x00" + b"\xaa" * 28 + b"\x02\x20" +
+                   b"\xbb" * 32 + b"\x01"),
         public_key=INFINITY,
         script_type="p2pkh",
         sighash_flag=1,
         amount=100000,
     )
-    with patch("bitcoin.cli.app.extract_signatures", return_value=[mock_record]):
+    with patch("bitcoin.cli.app.extract_signatures",
+               return_value=[mock_record]):
         result = runner.invoke(app, ["linearize", "010000000000000000"])
     assert result.exit_code == 0
 
 
 # --- output format coverage ---
+
 
 def test_extract_no_signatures_found() -> None:
     with patch("bitcoin.cli.app.extract_signatures", return_value=[]):
@@ -192,13 +198,15 @@ def test_extract_json_output() -> None:
     mock_record = Record(
         txid=b"\x00" * 32,
         input_index=0,
-        signature=b"\x30\x45\x02\x21\x00" + b"\xaa" * 28 + b"\x02\x20" + b"\xbb" * 32 + b"\x01",
+        signature=b"\x30\x45\x02\x21\x00" + b"\xaa" * 28 + b"\x02\x20" +
+        b"\xbb" * 32 + b"\x01",
         public_key=INFINITY,
         script_type="p2pkh",
         sighash_flag=1,
         amount=100000,
     )
-    with patch("bitcoin.cli.app.extract_signatures", return_value=[mock_record]):
+    with patch("bitcoin.cli.app.extract_signatures",
+               return_value=[mock_record]):
         result = runner.invoke(app, ["extract", "010000000000000000", "--json"])
     assert result.exit_code == 0
     import json
@@ -211,13 +219,15 @@ def test_extract_csv_output() -> None:
     mock_record = Record(
         txid=b"\x00" * 32,
         input_index=0,
-        signature=b"\x30\x45\x02\x21\x00" + b"\xaa" * 28 + b"\x02\x20" + b"\xbb" * 32 + b"\x01",
+        signature=b"\x30\x45\x02\x21\x00" + b"\xaa" * 28 + b"\x02\x20" +
+        b"\xbb" * 32 + b"\x01",
         public_key=INFINITY,
         script_type="p2pkh",
         sighash_flag=1,
         amount=100000,
     )
-    with patch("bitcoin.cli.app.extract_signatures", return_value=[mock_record]):
+    with patch("bitcoin.cli.app.extract_signatures",
+               return_value=[mock_record]):
         result = runner.invoke(app, ["extract", "010000000000000000", "--csv"])
     assert result.exit_code == 0
     assert "txid" in result.stdout
@@ -228,14 +238,17 @@ def test_extract_format_option() -> None:
     mock_record = Record(
         txid=b"\x00" * 32,
         input_index=0,
-        signature=b"\x30\x45\x02\x21\x00" + b"\xaa" * 28 + b"\x02\x20" + b"\xbb" * 32 + b"\x01",
+        signature=b"\x30\x45\x02\x21\x00" + b"\xaa" * 28 + b"\x02\x20" +
+        b"\xbb" * 32 + b"\x01",
         public_key=INFINITY,
         script_type="p2pkh",
         sighash_flag=1,
         amount=100000,
     )
-    with patch("bitcoin.cli.app.extract_signatures", return_value=[mock_record]):
-        result = runner.invoke(app, ["extract", "010000000000000000", "--format", "json"])
+    with patch("bitcoin.cli.app.extract_signatures",
+               return_value=[mock_record]):
+        result = runner.invoke(
+            app, ["extract", "010000000000000000", "--format", "json"])
     assert result.exit_code == 0
     import json
     data = json.loads(result.stdout)
@@ -243,8 +256,8 @@ def test_extract_format_option() -> None:
 
 
 def test_extract_json_csv_conflict() -> None:
-    result = runner.invoke(
-        app, ["extract", "010000000000000000", "--json", "--csv"])
+    result = runner.invoke(app,
+                           ["extract", "010000000000000000", "--json", "--csv"])
     assert result.exit_code != 0
 
 
@@ -252,14 +265,17 @@ def test_linearize_json_output() -> None:
     mock_record = Record(
         txid=b"\x00" * 32,
         input_index=0,
-        signature=b"\x30\x45\x02\x21\x00" + b"\xaa" * 28 + b"\x02\x20" + b"\xbb" * 32 + b"\x01",
+        signature=b"\x30\x45\x02\x21\x00" + b"\xaa" * 28 + b"\x02\x20" +
+        b"\xbb" * 32 + b"\x01",
         public_key=INFINITY,
         script_type="p2pkh",
         sighash_flag=1,
         amount=100000,
     )
-    with patch("bitcoin.cli.app.extract_signatures", return_value=[mock_record]):
-        result = runner.invoke(app, ["linearize", "010000000000000000", "--json"])
+    with patch("bitcoin.cli.app.extract_signatures",
+               return_value=[mock_record]):
+        result = runner.invoke(app,
+                               ["linearize", "010000000000000000", "--json"])
     assert result.exit_code == 0
     import json
     data = json.loads(result.stdout)
@@ -270,19 +286,23 @@ def test_linearize_csv_output() -> None:
     mock_record = Record(
         txid=b"\x00" * 32,
         input_index=0,
-        signature=b"\x30\x45\x02\x21\x00" + b"\xaa" * 28 + b"\x02\x20" + b"\xbb" * 32 + b"\x01",
+        signature=b"\x30\x45\x02\x21\x00" + b"\xaa" * 28 + b"\x02\x20" +
+        b"\xbb" * 32 + b"\x01",
         public_key=INFINITY,
         script_type="p2pkh",
         sighash_flag=1,
         amount=100000,
     )
-    with patch("bitcoin.cli.app.extract_signatures", return_value=[mock_record]):
-        result = runner.invoke(app, ["linearize", "010000000000000000", "--csv"])
+    with patch("bitcoin.cli.app.extract_signatures",
+               return_value=[mock_record]):
+        result = runner.invoke(app,
+                               ["linearize", "010000000000000000", "--csv"])
     assert result.exit_code == 0
     assert "txid" in result.stdout
 
 
 # --- main() entry point coverage ---
+
 
 def test_main_without_args() -> None:
     with patch("bitcoin.cli.app.app") as mock_app:

@@ -5,7 +5,6 @@ from __future__ import annotations
 import threading
 
 
-
 class Settings:
     """Mutable singleton holding package-level configuration.
 

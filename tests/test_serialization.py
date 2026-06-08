@@ -3,13 +3,13 @@ from __future__ import annotations
 
 import json
 
-
 from bitcoin import Tx, TxIn, TxOut, OutPoint, Witness, parse_tx
 from bitcoin.services.serializer import serialize_tx, serialize_legacy_tx, tx_to_json
 from bitcoin.encoding import encode_varint
 
 
 class TestSerializeTx:
+
     def test_serialize_legacy_empty(self) -> None:
         """Empty legacy transaction serializes correctly."""
         tx = Tx(version=1, inputs=(), outputs=(), lock_time=0)

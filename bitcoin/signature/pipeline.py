@@ -75,8 +75,7 @@ def process_single(
         utxo_values=list(utxo_values) if utxo_values is not None else None,
     )
     if not records and any(
-        txin.previous_output.txid != b"\x00" * 32 for txin in tx.inputs
-    ):
+            txin.previous_output.txid != b"\x00" * 32 for txin in tx.inputs):
         raise ValueError("No signatures found in transaction")
     return records
 
@@ -132,7 +131,9 @@ def batch_extract(
                 all_records.extend(records)
                 successful += 1
             except (ValueError, IndexError, OSError) as exc:
-                logger.warning("Failed to process %s: %s", label, exc,
+                logger.warning("Failed to process %s: %s",
+                               label,
+                               exc,
                                exc_info=True)
                 errors.append((label, str(exc)))
     else:
@@ -156,7 +157,9 @@ def batch_extract(
                         all_records.extend(records)
                         successful += 1
                 except (ValueError, IndexError, OSError) as exc:
-                    logger.warning("Failed to process %s: %s", label, exc,
+                    logger.warning("Failed to process %s: %s",
+                                   label,
+                                   exc,
                                    exc_info=True)
                     with _lock:
                         errors.append((label, str(exc)))

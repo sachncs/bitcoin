@@ -1,7 +1,6 @@
 """Bitcoin variable-length integer (``varint``) encoding."""
 
 
-
 def encode_varint(value: int) -> bytes:
     """Encode an integer as a Bitcoin variable-length integer.
 

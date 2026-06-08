@@ -29,6 +29,7 @@ except ImportError:
 
 @pytest.mark.skipif(not HAS_LIBSEC, reason="coincurve not installed")
 class TestLibsecBackend:
+
     def setup_method(self) -> None:
         self.backend = LibsecpBackend()
         self.pt = GENERATOR
@@ -84,7 +85,9 @@ class TestLibsecBackend:
 
 # ── binary.py ────────────────────────────────────────────────────────
 
+
 class TestBinary:
+
     def test_bytes_to_int(self) -> None:
         assert bytes_to_int(b"\x01\x00", "big") == 256
         assert bytes_to_int(b"\x01\x00", "little") == 1
@@ -119,7 +122,9 @@ class TestBinary:
 
 # ── script/parser.py ─────────────────────────────────────────────────
 
+
 class TestScriptParser:
+
     def test_parse_script_empty(self) -> None:
         assert parse_script(b"") == []
 
@@ -165,6 +170,7 @@ class TestScriptParser:
 
 
 class TestParseScriptChunks:
+
     def test_empty(self) -> None:
         assert parse_script_chunks(b"") == []
 
@@ -212,6 +218,7 @@ class TestParseScriptChunks:
 
 
 class TestChunksToPushes:
+
     def test_basic(self) -> None:
         chunks = [
             ScriptChunk(opcode=0x00, data=b""),
@@ -223,15 +230,18 @@ class TestChunksToPushes:
 
 
 class TestRejectCodeSeparators:
+
     def test_no_separator(self) -> None:
         assert reject_code_separators(b"\x51\x52") == b"\x51\x52"
 
     def test_separator_raises(self) -> None:
-        with pytest.raises(UnsupportedScriptPathError, match="OP_CODESEPARATOR"):
+        with pytest.raises(UnsupportedScriptPathError,
+                           match="OP_CODESEPARATOR"):
             reject_code_separators(b"\xab")
 
 
 class TestSerializeScript:
+
     def test_empty(self) -> None:
         assert serialize_script([]) == b""
 
@@ -286,6 +296,7 @@ class TestSerializeScript:
 
 
 class TestScriptToString:
+
     def test_bytes_element(self) -> None:
         assert script_to_string([b"\x00\x01"]) == "0001"
 
@@ -301,17 +312,16 @@ class TestScriptToString:
 
 
 class TestParseMultisigRedeemScript:
+
     def test_valid_2_of_3(self) -> None:
         pk1 = b"\x02" + b"\x01" * 32
         pk2 = b"\x03" + b"\x02" * 32
         pk3 = b"\x02" + b"\x03" * 32
         script = (
-            bytes([0x52])   # OP_2
-            + bytes([len(pk1)]) + pk1
-            + bytes([len(pk2)]) + pk2
-            + bytes([len(pk3)]) + pk3
-            + bytes([0x53])   # OP_3
-            + bytes([0xac])   # OP_CHECKSIG
+            bytes([0x52])  # OP_2
+            + bytes([len(pk1)]) + pk1 + bytes([len(pk2)]) + pk2 +
+            bytes([len(pk3)]) + pk3 + bytes([0x53])  # OP_3
+            + bytes([0xac])  # OP_CHECKSIG
         )
         m, pubkeys = parse_multisig_redeem_script(script)
         assert m == 2
@@ -328,7 +338,8 @@ class TestParseMultisigRedeemScript:
     def test_bad_pubkey_type(self) -> None:
         """First element is a push (data not None) → invalid structure."""
         script = b"\x02ab\x51\x51\xac"
-        with pytest.raises(UnsupportedScriptPathError, match="invalid structure"):
+        with pytest.raises(UnsupportedScriptPathError,
+                           match="invalid structure"):
             parse_multisig_redeem_script(script)
 
     def test_invalid_m_value(self) -> None:
@@ -349,18 +360,18 @@ class TestParseMultisigRedeemScript:
     def test_bad_pubkey_length(self) -> None:
         pk = b"\x01" * 10
         script = b"\x51" + bytes([len(pk)]) + pk + b"\x51\xac"
-        with pytest.raises(UnsupportedScriptPathError, match="public key length"):
+        with pytest.raises(UnsupportedScriptPathError,
+                           match="public key length"):
             parse_multisig_redeem_script(script)
 
     def test_invalid_threshold(self) -> None:
         pk1 = b"\x02" + b"\x01" * 32
         pk2 = b"\x03" + b"\x02" * 32
         script = (
-            bytes([0x53])           # OP_3 (m=3)
-            + bytes([len(pk1)]) + pk1
-            + bytes([len(pk2)]) + pk2
-            + bytes([0x52])         # OP_2 (n=2)
-            + bytes([0xac])         # OP_CHECKSIG
+            bytes([0x53])  # OP_3 (m=3)
+            + bytes([len(pk1)]) + pk1 + bytes([len(pk2)]) + pk2 +
+            bytes([0x52])  # OP_2 (n=2)
+            + bytes([0xac])  # OP_CHECKSIG
         )
         with pytest.raises(UnsupportedScriptPathError, match="threshold"):
             parse_multisig_redeem_script(script)
@@ -370,6 +381,7 @@ class TestParseMultisigRedeemScript:
 
 
 class TestOperationsEdgeCases:
+
     def test_negate_non_infinity_with_y(self) -> None:
         from bitcoin.curve.operations import negate
         from bitcoin.curve import GENERATOR
@@ -443,6 +455,7 @@ class TestOperationsEdgeCases:
 
 
 class TestPointEdgeCases:
+
     def test_point_missing_coordinates(self) -> None:
         with pytest.raises(ValueError, match="requires both x and y"):
             Point(x=5, y=None)  # type: ignore[arg-type]
@@ -483,6 +496,7 @@ class TestPointEdgeCases:
 
 
 class TestDispatchCoverage:
+
     def test_is_generator_infinity(self) -> None:
         from bitcoin.curve.dispatch import _is_generator
         assert not _is_generator(INFINITY)
@@ -501,7 +515,8 @@ class TestDispatchCoverage:
         from bitcoin.curve.dispatch import normalize_non_negative
         from bitcoin.field import validate_non_negative
         import re
-        with pytest.raises(ValueError, match=re.escape("test must be non-negative")):
+        with pytest.raises(ValueError,
+                           match=re.escape("test must be non-negative")):
             normalize_non_negative(-1, "test")
 
     def test_sqrt_field(self) -> None:
@@ -524,6 +539,7 @@ class TestDispatchCoverage:
 
 
 class TestNativeBackendCoverage:
+
     def test_sqrt(self) -> None:
         from bitcoin.curve.backend.native import NativeBackend
         from bitcoin.curve.params import FIELD_PRIME
@@ -537,6 +553,7 @@ class TestNativeBackendCoverage:
 
 
 class TestVarintCoverage:
+
     def test_encode_decode_roundtrip_large(self) -> None:
         from bitcoin.encoding.varint import encode_varint, decode_varint
         for val in [0, 1, 252, 253, 65535, 65536, 2**32 - 1, 2**32]:
@@ -549,6 +566,7 @@ class TestVarintCoverage:
 
 
 class TestBinaryCoverage:
+
     def test_read_exactly_short(self) -> None:
         from bitcoin.encoding.binary import read_exactly
         with pytest.raises(ValueError, match="only has"):

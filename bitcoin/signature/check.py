@@ -13,7 +13,6 @@ from bitcoin.encoding.der import decode_der
 if TYPE_CHECKING:
     from bitcoin.curve.point import Point
 
-
 PUBKEY_RECOVERY_OFFSET = 27
 HASH_BYTE_LENGTH = 32
 

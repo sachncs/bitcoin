@@ -99,7 +99,8 @@ def test_extract_with_progress() -> None:
 
 
 def test_linearize_with_progress() -> None:
-    result = runner.invoke(app, ["linearize", "--progress", "010000000000000000"])
+    result = runner.invoke(app,
+                           ["linearize", "--progress", "010000000000000000"])
     assert result.exit_code == 0
     assert "inputs" in result.stdout or "No signatures" in result.stdout
 

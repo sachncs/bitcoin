@@ -116,7 +116,7 @@ def serialize_psbt(psbt: Psbt) -> bytes:
 
 
 def parse_key_value_map(data: bytes,
-                          offset: int) -> tuple[dict[int, bytes], int]:
+                        offset: int) -> tuple[dict[int, bytes], int]:
     """Parse a PSBT key-value map (global, input, or output).
 
     Args:
@@ -158,7 +158,7 @@ def parse_key_value_map(data: bytes,
 
 
 def serialize_key_value(key_type: int, value: bytes,
-                          key_data: list[bytes]) -> bytes:
+                        key_data: list[bytes]) -> bytes:
     """Serialize a single PSBT key-value pair.
 
     Args:
@@ -268,7 +268,7 @@ def serialize_input_map(inp: PsbtInput) -> bytes:
         key = PSBT_IN_SIGHASH_TYPE
         result.extend(
             serialize_key_value(key, inp.sighash_type.to_bytes(4, "little"),
-                                  [b""]))
+                                [b""]))
     if inp.redeem_script is not None:
         key = PSBT_IN_REDEEM_SCRIPT
         result.extend(serialize_key_value(key, inp.redeem_script, [b""]))
@@ -282,7 +282,9 @@ def serialize_input_map(inp: PsbtInput) -> bytes:
         key = PSBT_IN_FINAL_SCRIPTWITNESS
         result.extend(
             serialize_key_value(
-                key, serialize_witness_stack(inp.final_script_witness), [b""],
+                key,
+                serialize_witness_stack(inp.final_script_witness),
+                [b""],
             ))
     for pubkey, sig in inp.partial_sigs.items():
         key = PSBT_IN_PARTIAL_SIG
@@ -354,11 +356,11 @@ def serialize_output_map(out: PsbtOutput) -> bytes:
     if out.redeem_script is not None:
         result.extend(
             serialize_key_value(PSBT_OUT_REDEEM_SCRIPT, out.redeem_script,
-                                  [b""]))
+                                [b""]))
     if out.witness_script is not None:
         result.extend(
             serialize_key_value(PSBT_OUT_WITNESS_SCRIPT, out.witness_script,
-                                  [b""]))
+                                [b""]))
     for pubkey, path in out.bip32_derivations.items():
         result.extend(
             serialize_key_value(PSBT_OUT_BIP32_DERIVATION, path, [pubkey]))
@@ -400,9 +402,8 @@ def parse_keypath_value(value: bytes) -> tuple[str, tuple[str, ...]]:
     count = value[offset]
     offset += 1
     if len(value) < 5 + count * 4:
-        raise ValueError(
-            f"Keypath value too short: {len(value)} bytes "
-            f"for {count} derivations (need {5 + count * 4})")
+        raise ValueError(f"Keypath value too short: {len(value)} bytes "
+                         f"for {count} derivations (need {5 + count * 4})")
     path: list[str] = []
     for _ in range(count):
         idx = int.from_bytes(value[offset:offset + 4], "little")
@@ -493,13 +494,13 @@ def psbt_extract_signatures(
                                 amount=value,
                             ))
             except (ValueError, IndexError):
-                logger.debug("Failed to parse finalized scriptSig for input %d", vin)
+                logger.debug("Failed to parse finalized scriptSig for input %d",
+                             vin)
 
     return SignatureCollection(records=tuple(records))
 
 
-def extract_pubkey_from_elements(
-        elements: Sequence[object]) -> Point | None:
+def extract_pubkey_from_elements(elements: Sequence[object]) -> Point | None:
     """Extract the public key from a list of parsed script elements.
 
     Searches for a 33- or 65-byte element that is a valid SEC-encoded
@@ -541,14 +542,14 @@ def parse_witness_stack(data: bytes) -> tuple[bytes, ...]:
         n, offset = decode_varint(data, offset)
         if n > MAX_PSBT_WITNESS_ITEM_SIZE:
             raise ValueError(
-                f"Witness item size {n} exceeds maximum {MAX_PSBT_WITNESS_ITEM_SIZE}")
+                f"Witness item size {n} exceeds maximum {MAX_PSBT_WITNESS_ITEM_SIZE}"
+            )
         items.append(data[offset:offset + n])
         offset += n
         if len(items) > MAX_PSBT_WITNESS_ITEMS:
             raise ValueError(
                 f"Witness item count {len(items)} exceeds maximum "
-                f"{MAX_PSBT_WITNESS_ITEMS}",
-            )
+                f"{MAX_PSBT_WITNESS_ITEMS}",)
     return tuple(items)
 
 

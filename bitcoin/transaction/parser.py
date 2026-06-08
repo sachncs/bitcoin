@@ -5,7 +5,6 @@ Supports both legacy and SegWit (BIP-144) encoded transactions.
 
 from __future__ import annotations
 
-
 from bitcoin.encoding.varint import decode_varint
 from bitcoin.exceptions import ParsingError
 from bitcoin.transaction.models import OutPoint, TxIn, TxOut, Tx, Witness

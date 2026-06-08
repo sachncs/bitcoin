@@ -58,7 +58,8 @@ def test_removed_exceptions_gone() -> None:
     for name in ("InvalidSignature", "InvalidDerSignature",
                  "NotInvertibleError", "InvalidLinearCoefficientError",
                  "NonInvertibleLinearCoefficientError"):
-        assert not hasattr(bitcoin.exceptions, name), f"{name} should have been removed"
+        assert not hasattr(bitcoin.exceptions,
+                           name), f"{name} should have been removed"
 
 
 def test_derive_linear_coefficients_import_path() -> None:

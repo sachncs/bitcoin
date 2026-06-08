@@ -9,6 +9,7 @@ from bitcoin.encoding.hasher import hash256
 
 
 class TestRecord:
+
     def test_creation(self) -> None:
         rec = Record(
             txid=b"\x00" * 32,
@@ -35,7 +36,8 @@ class TestRecord:
             )
 
     def test_negative_vin(self) -> None:
-        with pytest.raises(ValueError, match="input_index must be non-negative"):
+        with pytest.raises(ValueError,
+                           match="input_index must be non-negative"):
             Record(
                 txid=b"\x00" * 32,
                 input_index=-1,
@@ -61,6 +63,7 @@ class TestRecord:
 
 
 class TestVerifySig:
+
     def test_verify_valid(self) -> None:
         msg = hash256(b"test message")
         from bitcoin.signature.signer import sign
@@ -74,13 +77,13 @@ class TestVerifySig:
         assert not result
 
     def test_verify_bad_r_s_range(self) -> None:
-        result = verify_sig(
-            b"\x00" * 32, b"\x30\x06\x02\x01\x00\x02\x01\x01", GENERATOR
-        )
+        result = verify_sig(b"\x00" * 32, b"\x30\x06\x02\x01\x00\x02\x01\x01",
+                            GENERATOR)
         assert not result
 
 
 class TestLinearization:
+
     def test_linearize_empty(self) -> None:
         result = linearize_signatures([])
         assert result == []
@@ -88,16 +91,22 @@ class TestLinearization:
     def test_linearize_orders_by_txid_then_vin(self) -> None:
         records = [
             Record(
-                txid=b"\x01" * 32, input_index=1,
+                txid=b"\x01" * 32,
+                input_index=1,
                 signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
-                public_key=GENERATOR, script_type="p2pkh",
-                sighash_flag=0x01, amount=0,
+                public_key=GENERATOR,
+                script_type="p2pkh",
+                sighash_flag=0x01,
+                amount=0,
             ),
             Record(
-                txid=b"\x00" * 32, input_index=0,
+                txid=b"\x00" * 32,
+                input_index=0,
                 signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
-                public_key=GENERATOR, script_type="p2pkh",
-                sighash_flag=0x01, amount=0,
+                public_key=GENERATOR,
+                script_type="p2pkh",
+                sighash_flag=0x01,
+                amount=0,
             ),
         ]
         sorted_recs = linearize_signatures(records)

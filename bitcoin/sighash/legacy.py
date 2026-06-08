@@ -37,6 +37,6 @@ def sighash_legacy(transaction: Tx, input_index: int, script: bytes,
     """
     from bitcoin.services.serializer import serialize_legacy_tx_for_sighash
 
-    preimage = serialize_legacy_tx_for_sighash(transaction, input_index,
-                                                script, sighash_flag)
+    preimage = serialize_legacy_tx_for_sighash(transaction, input_index, script,
+                                               sighash_flag)
     return hash256(preimage)

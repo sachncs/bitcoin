@@ -10,6 +10,7 @@ from bitcoin.services.serializer import serialize_legacy_tx
 
 
 class TestPsbt:
+
     def test_minimal_psbt(self) -> None:
         """Create and serialize a minimal PSBT, then parse it back."""
         tx = Tx(version=1, inputs=(), outputs=(), lock_time=0)

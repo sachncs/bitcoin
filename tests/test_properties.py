@@ -10,16 +10,14 @@ from __future__ import annotations
 
 from hypothesis import assume, given, strategies as st
 
-from bitcoin.curve import (
-    GENERATOR, INFINITY, add, double, multiply, negate, is_on_curve
-)
+from bitcoin.curve import (GENERATOR, INFINITY, add, double, multiply, negate,
+                           is_on_curve)
 from bitcoin.curve.params import CURVE_ORDER, FIELD_PRIME
 from bitcoin.encoding.der import encode_der, decode_der
 from bitcoin.encoding.sec import serialize_sec, parse_sec
 from bitcoin.field import inverse
 from bitcoin.transaction import Tx, TxIn, TxOut, OutPoint, Witness, parse_tx
 from bitcoin.services.serializer import serialize_tx, serialize_legacy_tx
-
 
 # ── Strategies ────────────────────────────────────────────────────
 
@@ -38,7 +36,8 @@ sequence = st.integers(min_value=0, max_value=0xFFFFFFFF)
 value = st.integers(min_value=0, max_value=21000000 * 10**8)
 script_pubkey = st.binary(min_size=0, max_size=32)
 witness_items = st.lists(st.binary(min_size=0, max_size=32),
-                         min_size=0, max_size=10)
+                         min_size=0,
+                         max_size=10)
 
 
 @st.composite

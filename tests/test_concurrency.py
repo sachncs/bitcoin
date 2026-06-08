@@ -19,6 +19,7 @@ from bitcoin.settings import Settings
 
 
 class TestSettingsThreadSafety:
+
     def test_concurrent_read_write(self) -> None:
         local_settings = Settings()
         errors: list[Exception] = []
@@ -66,6 +67,7 @@ class TestSettingsThreadSafety:
 
 
 class TestBackendDispatchRaceCondition:
+
     def setup_method(self) -> None:
         import bitcoin.curve.dispatch as d
         d.backend = None
@@ -90,10 +92,8 @@ class TestBackendDispatchRaceCondition:
             except Exception as exc:
                 errors.append(exc)
 
-        threads = (
-            [threading.Thread(target=setter) for _ in range(2)]
-            + [threading.Thread(target=getter) for _ in range(2)]
-        )
+        threads = ([threading.Thread(target=setter) for _ in range(2)] +
+                   [threading.Thread(target=getter) for _ in range(2)])
         for t in threads:
             t.start()
         for t in threads:
@@ -143,6 +143,7 @@ class TestBackendDispatchRaceCondition:
 
 
 class TestMultiplyScalarNormalization:
+
     def setup_method(self) -> None:
         import bitcoin.curve.dispatch as d
         d.backend = None
@@ -173,6 +174,7 @@ class TestMultiplyScalarNormalization:
 
 
 class TestPsbtMaxSizeLimits:
+
     def test_key_exceeds_max_size(self) -> None:
         from bitcoin.encoding.varint import encode_varint
         from bitcoin.psbt import parse_psbt
@@ -192,9 +194,8 @@ class TestPsbtMaxSizeLimits:
 
         magic = b"psbt\xff"
         data = (
-            magic
-            + encode_varint(1)        # key_len = 1
-            + b"\x00"                 # key_type = 0 (unsigned tx)
+            magic + encode_varint(1)  # key_len = 1
+            + b"\x00"  # key_type = 0 (unsigned tx)
             + encode_varint(MAX_VALUE_SIZE + 1)  # value_len too large
         )
 
@@ -208,10 +209,10 @@ class TestPsbtMaxSizeLimits:
 
         magic = b"psbt\xff"
         entry = (
-            encode_varint(1)    # key_len = 1
-            + b"\x01"           # key_type
+            encode_varint(1)  # key_len = 1
+            + b"\x01"  # key_type
             + encode_varint(1)  # value_len = 1
-            + b"\x01"           # value
+            + b"\x01"  # value
         )
         data = magic + entry * (MAX_KEY_VALUE_MAP_ENTRIES + 1)
 

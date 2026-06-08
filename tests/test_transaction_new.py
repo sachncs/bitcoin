@@ -14,6 +14,7 @@ from bitcoin.transaction import make_tx
 
 
 class TestOutPoint:
+
     def test_creation(self) -> None:
         op = OutPoint(txid=b"\x00" * 32, vout=0)
         assert len(op.txid) == 32
@@ -29,6 +30,7 @@ class TestOutPoint:
 
 
 class TestWitness:
+
     def test_empty(self) -> None:
         w = EMPTY_WITNESS
         assert len(w) == 0
@@ -46,6 +48,7 @@ class TestWitness:
 
 
 class TestTxIn:
+
     def test_creation(self) -> None:
         txin = TxIn(
             previous_output=OutPoint(txid=b"\x00" * 32, vout=0),
@@ -66,6 +69,7 @@ class TestTxIn:
 
 
 class TestTxOut:
+
     def test_creation(self) -> None:
         txout = TxOut(
             value=10000,
@@ -83,6 +87,7 @@ class TestTxOut:
 
 
 class TestTx:
+
     def test_creation(self) -> None:
         tx = Tx(
             version=2,
@@ -106,8 +111,14 @@ class TestTx:
     def test_make_tx(self) -> None:
         tx = make_tx(
             version=2,
-            inputs=[{"txid": b"\x00" * 32, "vout": 0}],
-            outputs=[{"value": 1000, "script_pubkey": b"\x6a"}],
+            inputs=[{
+                "txid": b"\x00" * 32,
+                "vout": 0
+            }],
+            outputs=[{
+                "value": 1000,
+                "script_pubkey": b"\x6a"
+            }],
         )
         assert len(tx.inputs) == 1
         assert len(tx.outputs) == 1

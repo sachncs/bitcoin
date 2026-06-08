@@ -7,6 +7,7 @@ from bitcoin.health import health, check_backend, check_imports
 
 
 class TestHealth:
+
     def test_health_returns_dict(self) -> None:
         result = health()
         assert isinstance(result, dict)
@@ -41,6 +42,7 @@ class TestHealth:
 
 
 class TestCheckBackend:
+
     def test_returns_dict(self) -> None:
         result = check_backend()
         assert isinstance(result, dict)
@@ -73,6 +75,7 @@ class TestCheckBackend:
 
 
 class TestCheckImports:
+
     def test_returns_dict_of_bools(self) -> None:
         result = check_imports()
         assert isinstance(result, dict)

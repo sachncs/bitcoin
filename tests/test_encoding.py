@@ -23,6 +23,7 @@ from bitcoin.curve import GENERATOR, INFINITY
 
 
 class TestHex:
+
     def test_roundtrip(self) -> None:
         data = b"hello world"
         assert decode_hex(encode_hex(data)) == data
@@ -38,6 +39,7 @@ class TestHex:
 
 
 class TestVarint:
+
     def test_encode_decode(self) -> None:
         for val in [0, 1, 0xFC, 0xFD, 0xFFFF, 0x10000, 0xFFFFFFFF, 0x100000000]:
             encoded = encode_varint(val)
@@ -60,6 +62,7 @@ class TestVarint:
 
 
 class TestDer:
+
     def test_roundtrip(self) -> None:
         r = 0x1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF
         s = 0xFEDCBA0987654321FEDCBA0987654321FEDCBA0987654321FEDCBA0987654321
@@ -102,6 +105,7 @@ CURVE_ORDER = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 
 
 class TestSec:
+
     def test_roundtrip_compressed(self) -> None:
         ser = serialize_sec(GENERATOR, compressed=True)
         assert len(ser) == 33
@@ -129,6 +133,7 @@ class TestSec:
 
 
 class TestHasher:
+
     def test_sha256(self) -> None:
         result = sha256(b"hello")
         assert len(result) == 32
@@ -151,6 +156,7 @@ class TestHasher:
 
 
 class TestBinary:
+
     def test_int_roundtrip(self) -> None:
         assert bytes_to_int(int_to_bytes(42, 4)) == 42
 

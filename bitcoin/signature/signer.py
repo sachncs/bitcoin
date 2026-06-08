@@ -31,12 +31,13 @@ def bits2int(data: bytes) -> int:
     Returns:
         The integer value right-shifted by ``(8 * len(data) - qlen)`` bits.
     """
-    return int.from_bytes(data, "big") >> (len(data) * 8 - CURVE_ORDER.bit_length())
+    return int.from_bytes(data,
+                          "big") >> (len(data) * 8 - CURVE_ORDER.bit_length())
 
 
-def hmac_drbg_generate_k(
-    private_key_bytes: bytes, message_hash: bytes, q: int = CURVE_ORDER
-) -> int:
+def hmac_drbg_generate_k(private_key_bytes: bytes,
+                         message_hash: bytes,
+                         q: int = CURVE_ORDER) -> int:
     """Generate a deterministic nonce *k* via RFC 6979 HMAC-DRBG.
 
     Args:
@@ -53,10 +54,12 @@ def hmac_drbg_generate_k(
     K = b"\x00" * HASH_BYTE_LENGTH
     V = b"\x01" * HASH_BYTE_LENGTH
 
-    K = hmac.new(K, V + b"\x00" + private_key_bytes + message_hash, "sha256").digest()
+    K = hmac.new(K, V + b"\x00" + private_key_bytes + message_hash,
+                 "sha256").digest()
     V = hmac.new(K, V, "sha256").digest()
 
-    K = hmac.new(K, V + b"\x01" + private_key_bytes + message_hash, "sha256").digest()
+    K = hmac.new(K, V + b"\x01" + private_key_bytes + message_hash,
+                 "sha256").digest()
     V = hmac.new(K, V, "sha256").digest()
 
     for _ in range(_HMAC_DRBG_MAX_RETRIES):
@@ -72,9 +75,8 @@ def hmac_drbg_generate_k(
         K = hmac.new(K, V + b"\x00", "sha256").digest()
         V = hmac.new(K, V, "sha256").digest()
 
-    raise RuntimeError(
-        f"HMAC-DRBG failed to generate a valid k after "
-        f"{_HMAC_DRBG_MAX_RETRIES} attempts.")
+    raise RuntimeError(f"HMAC-DRBG failed to generate a valid k after "
+                       f"{_HMAC_DRBG_MAX_RETRIES} attempts.")
 
 
 def sign(message_hash: bytes, private_key: int) -> bytes:
@@ -95,9 +97,8 @@ def sign(message_hash: bytes, private_key: int) -> bytes:
             computation fails.
     """
     if len(message_hash) != HASH_BYTE_LENGTH:
-        raise ValueError(
-            f"Message hash must be {HASH_BYTE_LENGTH} bytes, "
-            f"got {len(message_hash)}.")
+        raise ValueError(f"Message hash must be {HASH_BYTE_LENGTH} bytes, "
+                         f"got {len(message_hash)}.")
 
     z = int.from_bytes(message_hash, "big") % CURVE_ORDER
     d = private_key

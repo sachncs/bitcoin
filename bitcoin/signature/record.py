@@ -57,5 +57,4 @@ class Record:
         if not isinstance(self.signature, bytes) or len(self.signature) == 0:
             raise ValueError("signature must be non-empty bytes.")
         if self.amount < 0:
-            raise ValueError(
-                f"amount must be non-negative, got {self.amount}.")
+            raise ValueError(f"amount must be non-negative, got {self.amount}.")

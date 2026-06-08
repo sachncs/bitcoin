@@ -80,28 +80,27 @@ def extract_signatures(
             if script_type == P2WPKH:
                 records.extend(
                     extract_p2wpkh(tx, vin, script_pubkey, value,
-                                     txin.witness.items))
+                                   txin.witness.items))
             elif script_type == P2WSH:
                 records.extend(
                     extract_p2wsh(tx, vin, script_pubkey, value,
-                                    txin.witness.items))
+                                  txin.witness.items))
             elif script_type == P2SH:
                 records.extend(
                     extract_p2sh_segwit(tx, vin, script_pubkey, value, txin))
             elif script_type == P2TR:
                 records.extend(
                     extract_taproot(tx, vin, script_pubkey, value,
-                                      txin.witness.items))
+                                    txin.witness.items))
             else:
                 failed_inputs += 1
         else:
-                records.extend(extract_legacy(tx, vin, script_pubkey, parsed_sig))
+            records.extend(extract_legacy(tx, vin, script_pubkey, parsed_sig))
 
     type_summary = ", ".join(
         f"{n} {t}" for t, n in sorted(script_type_counts.items()))
-    logger.info(
-        "Extracted %d signatures from %d inputs (%s). failed=%d",
-        len(records), len(tx.inputs), type_summary, failed_inputs)
+    logger.info("Extracted %d signatures from %d inputs (%s). failed=%d",
+                len(records), len(tx.inputs), type_summary, failed_inputs)
     return records
 
 
@@ -260,8 +259,8 @@ def extract_p2wpkh(
                     ))
                 logger.debug("P2WPKH signature extracted for input %d", vin)
             except (ValueError, TypeError, IndexError) as exc:
-                logger.warning("P2WPKH signature skipped for input %d: %s",
-                               vin, exc)
+                logger.warning("P2WPKH signature skipped for input %d: %s", vin,
+                               exc)
                 continue
     return records
 
@@ -324,8 +323,8 @@ def extract_p2wsh(
                     ))
                 logger.debug("P2WSH signature extracted for input %d", vin)
             except (ValueError, TypeError, IndexError) as exc:
-                logger.warning("P2WSH signature skipped for input %d: %s",
-                               vin, exc)
+                logger.warning("P2WSH signature skipped for input %d: %s", vin,
+                               exc)
                 continue
     return records
 
@@ -470,11 +469,9 @@ def extract_taproot(
                     amount=value,
                 ))
         except ValueError:
-            logger.debug("Taproot key-path spend extraction failed for input %d", vin)
+            logger.debug(
+                "Taproot key-path spend extraction failed for input %d", vin)
         return records
-
-
-
 
     # Script-path spend: stack is [sig, ..., script, control_block]
     last_idx = len(witness_items) - 1
@@ -633,8 +630,8 @@ def compute_sighash(tx: Tx, vin: int, script: bytes, flag: int,
     from bitcoin.sighash.segwit import sighash_segwit
 
     # A witness program is OP_0 followed by a 20- or 32-byte push.
-    is_witness = (len(script) >= 2 and script[0] == 0x00
-                  and script[1] in (0x14, 0x20))
+    is_witness = (len(script) >= 2 and script[0] == 0x00 and
+                  script[1] in (0x14, 0x20))
     if is_witness:
         return sighash_segwit(tx, vin, script, value, flag)
     return sighash_legacy(tx, vin, script, flag)

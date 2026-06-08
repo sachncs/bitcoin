@@ -335,7 +335,7 @@ def fetch_text(url: str) -> str:
         except HTTPError as exc:
             msg = f"HTTP {exc.code} fetching {url}: {exc.reason}"
             if exc.code in RETRYABLE_STATUSES and attempt < MAX_RETRIES - 1:
-                wait = RETRY_BACKOFF * (2 ** attempt)
+                wait = RETRY_BACKOFF * (2**attempt)
                 logger.debug(
                     "HTTP %d fetching %s, retrying in %.1fs (attempt %d/%d)",
                     exc.code, url, wait, attempt + 1, MAX_RETRIES)
@@ -346,7 +346,7 @@ def fetch_text(url: str) -> str:
         except URLError as exc:
             msg = f"URL error fetching {url}: {exc.reason}"
             if attempt < MAX_RETRIES - 1:
-                wait = RETRY_BACKOFF * (2 ** attempt)
+                wait = RETRY_BACKOFF * (2**attempt)
                 logger.debug(
                     "URL error fetching %s, retrying in %.1fs (attempt %d/%d)",
                     url, wait, attempt + 1, MAX_RETRIES)
@@ -444,7 +444,9 @@ def fetch_and_extract(
 
     from bitcoin.signature.extraction.engine import extract_signatures
 
-    return extract_signatures(tx, utxo_script_pubkeys=scripts, utxo_values=values)
+    return extract_signatures(tx,
+                              utxo_script_pubkeys=scripts,
+                              utxo_values=values)
 
 
 class MempoolSpaceProvider:

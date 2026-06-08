@@ -20,6 +20,7 @@ from bitcoin.curve import (
 
 
 class TestPoint:
+
     def test_creation(self) -> None:
         p = Point(x=1, y=2)
         assert p.x == 1
@@ -68,6 +69,7 @@ class TestPoint:
 
 
 class TestPointOperations:
+
     def test_negate(self) -> None:
         neg = negate(GENERATOR)
         assert is_on_curve(neg)
@@ -106,6 +108,7 @@ class TestPointOperations:
 
 
 class TestPointSecRoundtrip:
+
     def test_compressed_roundtrip(self) -> None:
         ser = GENERATOR.to_sec_compressed()
         assert len(ser) == 33
@@ -135,6 +138,7 @@ class TestPointSecRoundtrip:
 
 
 class TestBackendDispatch:
+
     def test_default_backend(self) -> None:
         assert get_backend() is None
 

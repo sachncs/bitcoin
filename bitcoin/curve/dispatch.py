@@ -108,9 +108,8 @@ def _try_load_libsecp() -> CurveBackend | None:
         from bitcoin.curve.backend.libsec import LibsecpBackend  # noqa: PLC0415
         return LibsecpBackend()
     except ImportError:
-        logger.warning(
-            "libsecp backend requested but not available; "
-            "falling back to NativeBackend.")
+        logger.warning("libsecp backend requested but not available; "
+                       "falling back to NativeBackend.")
         return None
 
 

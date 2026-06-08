@@ -4,15 +4,27 @@ from __future__ import annotations
 import pytest
 
 from bitcoin import (
-    extract_signatures, linearize_signatures, Record,
-    sighash_legacy, sighash_segwit, sighash_taproot,
-    SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, SIGHASH_ANYONECANPAY,
-    Tx, TxIn, TxOut, OutPoint, Witness,
+    extract_signatures,
+    linearize_signatures,
+    Record,
+    sighash_legacy,
+    sighash_segwit,
+    sighash_taproot,
+    SIGHASH_ALL,
+    SIGHASH_NONE,
+    SIGHASH_SINGLE,
+    SIGHASH_ANYONECANPAY,
+    Tx,
+    TxIn,
+    TxOut,
+    OutPoint,
+    Witness,
 )
 from bitcoin.curve import GENERATOR
 
 
 class TestExtractSignatures:
+
     def test_extract_empty_tx(self) -> None:
         """Empty transaction has no signatures."""
         tx = Tx(version=1, inputs=(), outputs=(), lock_time=0)
@@ -41,6 +53,7 @@ class TestExtractSignatures:
 
 
 class TestSighashFlags:
+
     def test_sighash_all_value(self) -> None:
         assert SIGHASH_ALL == 0x01
 
@@ -55,9 +68,12 @@ class TestSighashFlags:
 
 
 class TestSighashLegacy:
+
     def __make_tx(self) -> Tx:
         txin = TxIn(previous_output=OutPoint(txid=b"\x00" * 32, vout=0),
-                     script_sig=b"", sequence=0xFFFFFFFF, witness=Witness(()))
+                    script_sig=b"",
+                    sequence=0xFFFFFFFF,
+                    witness=Witness(()))
         return Tx(version=1, inputs=(txin,), outputs=(), lock_time=0)
 
     def test_sighash_legacy_returns_32_bytes(self) -> None:
@@ -85,9 +101,12 @@ class TestSighashLegacy:
 
 
 class TestSighashSegwit:
+
     def __make_tx(self) -> Tx:
         txin = TxIn(previous_output=OutPoint(txid=b"\x00" * 32, vout=0),
-                     script_sig=b"", sequence=0xFFFFFFFF, witness=Witness(()))
+                    script_sig=b"",
+                    sequence=0xFFFFFFFF,
+                    witness=Witness(()))
         return Tx(version=1, inputs=(txin,), outputs=(), lock_time=0)
 
     def test_sighash_segwit_returns_32_bytes(self) -> None:
@@ -108,9 +127,12 @@ class TestSighashSegwit:
 
 
 class TestSighashTaproot:
+
     def __make_tx(self) -> Tx:
         txin = TxIn(previous_output=OutPoint(txid=b"\x00" * 32, vout=0),
-                     script_sig=b"", sequence=0xFFFFFFFF, witness=Witness(()))
+                    script_sig=b"",
+                    sequence=0xFFFFFFFF,
+                    witness=Witness(()))
         txout = TxOut(value=1000, script_pubkey=b"\x51")
         return Tx(version=1, inputs=(txin,), outputs=(txout,), lock_time=0)
 
@@ -127,13 +149,16 @@ class TestSighashTaproot:
 
 
 class TestExtractTaproot:
+
     def __p2tr_script_pubkey(self) -> bytes:
         """Build a minimal P2TR scriptPubKey."""
         pubkey = b"\x00" * 32  # 32-byte x-only pubkey
         return bytes([0x51, 0x20]) + pubkey
 
     def __make_tx_with_witness(
-        self, witness_items: tuple[bytes, ...], script_pubkey: bytes | None = None,
+        self,
+        witness_items: tuple[bytes, ...],
+        script_pubkey: bytes | None = None,
     ) -> Tx:
         txin = TxIn(
             previous_output=OutPoint(txid=b"\x00" * 32, vout=0),
@@ -151,7 +176,8 @@ class TestExtractTaproot:
         sig = b"\x01" * 64
         tx = self.__make_tx_with_witness((sig,))
         records = extract_signatures(
-            tx, utxo_script_pubkeys=[self.__p2tr_script_pubkey()],
+            tx,
+            utxo_script_pubkeys=[self.__p2tr_script_pubkey()],
         )
         assert len(records) == 1
         assert records[0].script_type == "p2tr"
@@ -162,7 +188,8 @@ class TestExtractTaproot:
         sig = b"\x01" * 64 + b"\x03"  # 64-byte sig + SIGHASH_SINGLE
         tx = self.__make_tx_with_witness((sig,))
         records = extract_signatures(
-            tx, utxo_script_pubkeys=[self.__p2tr_script_pubkey()],
+            tx,
+            utxo_script_pubkeys=[self.__p2tr_script_pubkey()],
         )
         assert len(records) == 1
         assert records[0].sighash_flag == 0x03
@@ -174,7 +201,8 @@ class TestExtractTaproot:
         control_block = b"\xc0" + b"\x00" * 32
         tx = self.__make_tx_with_witness((sig, leaf_script, control_block))
         records = extract_signatures(
-            tx, utxo_script_pubkeys=[self.__p2tr_script_pubkey()],
+            tx,
+            utxo_script_pubkeys=[self.__p2tr_script_pubkey()],
         )
         assert len(records) == 1
         assert records[0].script_type == "p2tr"
@@ -183,21 +211,26 @@ class TestExtractTaproot:
         """Empty witness yields no records."""
         tx = self.__make_tx_with_witness(())
         records = extract_signatures(
-            tx, utxo_script_pubkeys=[self.__p2tr_script_pubkey()],
+            tx,
+            utxo_script_pubkeys=[self.__p2tr_script_pubkey()],
         )
         assert records == []
 
 
 class TestLinearizeSignatures:
+
     def test_linearize_empty(self) -> None:
         assert linearize_signatures([]) == []
 
     def test_linearize_preserves_single(self) -> None:
         rec = Record(
-            txid=b"\x00" * 32, input_index=0,
+            txid=b"\x00" * 32,
+            input_index=0,
             signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
-            public_key=GENERATOR, script_type="p2pkh",
-            sighash_flag=0x01, amount=0,
+            public_key=GENERATOR,
+            script_type="p2pkh",
+            sighash_flag=0x01,
+            amount=0,
         )
         result = linearize_signatures([rec])
         assert len(result) == 1
@@ -205,16 +238,22 @@ class TestLinearizeSignatures:
 
     def test_linearize_sorts_by_txid(self) -> None:
         rec_a = Record(
-            txid=b"\x00" * 32, input_index=0,
+            txid=b"\x00" * 32,
+            input_index=0,
             signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
-            public_key=GENERATOR, script_type="p2pkh",
-            sighash_flag=0x01, amount=0,
+            public_key=GENERATOR,
+            script_type="p2pkh",
+            sighash_flag=0x01,
+            amount=0,
         )
         rec_b = Record(
-            txid=b"\x01" * 32, input_index=0,
+            txid=b"\x01" * 32,
+            input_index=0,
             signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
-            public_key=GENERATOR, script_type="p2pkh",
-            sighash_flag=0x01, amount=0,
+            public_key=GENERATOR,
+            script_type="p2pkh",
+            sighash_flag=0x01,
+            amount=0,
         )
         result = linearize_signatures([rec_b, rec_a])
         assert result[0].txid == b"\x00" * 32

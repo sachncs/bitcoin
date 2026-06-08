@@ -8,6 +8,7 @@ from bitcoin.services.serializer import serialize_tx, serialize_legacy_tx
 
 
 class TestParseTx:
+
     def test_parse_legacy_no_inputs(self) -> None:
         """Minimal legacy transaction: version 1, 0 inputs, 0 outputs, locktime 0."""
         tx = Tx(version=1, inputs=(), outputs=(), lock_time=0)
@@ -24,7 +25,9 @@ class TestParseTx:
         """Transaction with one input and one output."""
         txin = TxIn(
             previous_output=OutPoint(txid=b"\x00" * 32, vout=0),
-            script_sig=b"", sequence=0xFFFFFFFF, witness=Witness(()),
+            script_sig=b"",
+            sequence=0xFFFFFFFF,
+            witness=Witness(()),
         )
         txout = TxOut(value=1000, script_pubkey=b"")
         tx = Tx(version=1, inputs=(txin,), outputs=(txout,), lock_time=0)
@@ -49,7 +52,10 @@ class TestParseTx:
             value=50000,
             script_pubkey=b"\x76\xa9\x14" + b"\x00" * 20 + b"\x88\xac",
         )
-        original = Tx(version=2, inputs=(tx_in,), outputs=(tx_out,), lock_time=0)
+        original = Tx(version=2,
+                      inputs=(tx_in,),
+                      outputs=(tx_out,),
+                      lock_time=0)
         raw = serialize_tx(original)
         parsed, consumed = parse_tx(raw)
         assert consumed == len(raw)
@@ -68,7 +74,10 @@ class TestParseTx:
             witness=Witness((b"\x30\x45\x02\x21\x00", b"\x02" * 33)),
         )
         tx_out = TxOut(value=10000, script_pubkey=b"\x00\x14" + b"\x00" * 20)
-        original = Tx(version=2, inputs=(tx_in,), outputs=(tx_out,), lock_time=0)
+        original = Tx(version=2,
+                      inputs=(tx_in,),
+                      outputs=(tx_out,),
+                      lock_time=0)
         raw = serialize_tx(original)
         parsed, consumed = parse_tx(raw)
         assert consumed == len(raw)
@@ -83,13 +92,9 @@ class TestParseTx:
                 script_sig=b"",
                 sequence=0xFFFFFFFF,
                 witness=Witness(()),
-            )
-            for i in range(3)
-        )
+            ) for i in range(3))
         outputs = tuple(
-            TxOut(value=i * 1000, script_pubkey=b"\x6a")
-            for i in range(2)
-        )
+            TxOut(value=i * 1000, script_pubkey=b"\x6a") for i in range(2))
         original = Tx(version=1, inputs=inputs, outputs=outputs, lock_time=0)
         raw = serialize_tx(original)
         parsed, consumed = parse_tx(raw)
@@ -107,8 +112,14 @@ class TestParseTx:
         """make_tx convenience builder works."""
         tx = make_tx(
             version=2,
-            inputs=[{"txid": b"\x01" * 32, "vout": 0}],
-            outputs=[{"value": 1, "script_pubkey": b"\x6a"}],
+            inputs=[{
+                "txid": b"\x01" * 32,
+                "vout": 0
+            }],
+            outputs=[{
+                "value": 1,
+                "script_pubkey": b"\x6a"
+            }],
         )
         assert tx.version == 2
         assert len(tx.inputs) == 1

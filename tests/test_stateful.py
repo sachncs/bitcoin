@@ -33,9 +33,9 @@ class ExtractionPipeline(stateful.RuleBasedStateMachine):
         if self.tx is None:
             return
         if len(scripts) < len(self.tx.inputs):
-            scripts = list(scripts) + [b""
-                                       for _ in range(len(self.tx.inputs) -
-                                                       len(scripts))]
+            scripts = list(scripts) + [
+                b"" for _ in range(len(self.tx.inputs) - len(scripts))
+            ]
         self.utxo_scripts = scripts[:len(self.tx.inputs)]
 
     @stateful.rule()

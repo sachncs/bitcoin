@@ -18,6 +18,7 @@ from bitcoin.transaction.models import (
 
 
 class TestRecordCoverage:
+
     def test_empty_sig(self) -> None:
         with pytest.raises(ValueError, match="signature must be non-empty"):
             Record(
@@ -56,6 +57,7 @@ class TestRecordCoverage:
 
 
 class TestCollectionCoverage:
+
     def test_iter(self) -> None:
         rec = Record(
             txid=b"\x00" * 32,
@@ -88,10 +90,13 @@ class TestCollectionCoverage:
     def test_linearize_with_collection(self) -> None:
         recs = [
             Record(
-                txid=b"\x01" * 32, input_index=1,
+                txid=b"\x01" * 32,
+                input_index=1,
                 signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
-                public_key=GENERATOR, script_type="p2pkh",
-                sighash_flag=0x01, amount=0,
+                public_key=GENERATOR,
+                script_type="p2pkh",
+                sighash_flag=0x01,
+                amount=0,
             ),
         ]
         coll = SignatureCollection(records=tuple(recs))
@@ -100,6 +105,7 @@ class TestCollectionCoverage:
 
 
 class TestCoefficientsCoverage:
+
     def test_alpha_beta_properties(self) -> None:
         rec = derive_linear_coefficients(7, 11, 42, input_index=5)
         col = LinearCoefficientCollection(records=(rec,))
@@ -120,6 +126,7 @@ class TestCoefficientsCoverage:
 
 
 class TestWtxidCoverage:
+
     def test_wtxid(self) -> None:
         txin = TxIn(
             previous_output=OutPoint(txid=b"\x00" * 32, vout=0),

@@ -36,8 +36,7 @@ def verify_all(
     if len(der_signatures) != n or len(public_keys) != n:
         raise ValueError(
             f"Length mismatch: {len(message_hashes)} messages, "
-            f"{len(der_signatures)} signatures, {len(public_keys)} keys."
-        )
+            f"{len(der_signatures)} signatures, {len(public_keys)} keys.")
 
     zipped = zip(message_hashes, der_signatures, public_keys, strict=True)
     return all(verify_sig(m, s, pk) for m, s, pk in zipped)

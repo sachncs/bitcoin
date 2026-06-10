@@ -1,5 +1,7 @@
 # bitcoin
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **bitcoin** is a pure-Python library for parsing raw Bitcoin transactions,
 extracting ECDSA and Schnorr signatures (`r`, `s`, `z`), deriving linearized
 ECDSA relations, recovering nonce reuse, and verifying signatures — all on the
@@ -45,6 +47,9 @@ bitcoin linearize <tx-hex>
 
 # Print version
 bitcoin version
+
+# Run health checks (JSON report)
+bitcoin health
 ```
 
 Or via `python -m bitcoin.cli`:
@@ -54,6 +59,7 @@ python -m bitcoin.cli decode <tx-hex>
 python -m bitcoin.cli extract <tx-hex>
 python -m bitcoin.cli linearize <tx-hex>
 python -m bitcoin.cli version
+python -m bitcoin.cli health
 ```
 
 ### CLI reference
@@ -63,11 +69,15 @@ python -m bitcoin.cli version
 | `decode` | Decode a raw transaction and print as JSON |
 | `extract` | Extract ECDSA/Schnorr signatures from a raw transaction hex |
 | `linearize` | Extract and sort signatures by txid/input_index |
+| `health` | Run health checks and print a JSON status report |
 | `version` | Print the installed package version |
 
 `extract` options: `--utxo-script`, `--utxo-value`, `--json`, `--csv`, `--format` (text/json/csv), `--input-file`, `--progress`/`-p`.
 
 `linearize` options: `--json`, `--csv`, `--format`, `--input-file`, `--progress`/`-p`.
+
+Logs are emitted as **JSON** to stderr. Set ``BITCOIN_LOG_LEVEL`` (default ``WARNING``) to control
+verbosity (``DEBUG``, ``INFO``, ``WARNING``, ``ERROR``, ``CRITICAL``).
 
 ## Python API
 
@@ -433,9 +443,17 @@ lc = derive_linear_coefficients(r, s, z)
 
 ```bash
 pip install -e ".[dev]"
-pytest tests/
-mypy bitcoin/ tests/
-ruff check .
+make test           # pytest
+make typecheck      # mypy
+make lint           # ruff
+make test-cov       # pytest + coverage (99%+)
+
+# Vulnerability scan
+pip-audit
 ```
 
-`mypy` runs with `--strict`. `ruff` enforces pyupgrade, bugbear, and pycodestyle rules.
+### Environment
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `BITCOIN_LOG_LEVEL` | `WARNING` | JSON log verbosity (DEBUG/INFO/WARNING/ERROR/CRITICAL) |

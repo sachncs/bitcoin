@@ -8,7 +8,6 @@ transaction inputs using the appropriate sighash algorithm.
 from __future__ import annotations
 
 import hmac
-
 from typing import TYPE_CHECKING
 
 from bitcoin.curve import CURVE_ORDER, GENERATOR, multiply
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
     from bitcoin.transaction.models import Tx
 
 HASH_BYTE_LENGTH = 32
-_HMAC_DRBG_MAX_RETRIES = 1000
+HMAC_DRBG_MAX_RETRIES = 1000
 
 
 def bits2int(data: bytes) -> int:
@@ -62,7 +61,7 @@ def hmac_drbg_generate_k(private_key_bytes: bytes,
                  "sha256").digest()
     V = hmac.new(K, V, "sha256").digest()
 
-    for _ in range(_HMAC_DRBG_MAX_RETRIES):
+    for _ in range(HMAC_DRBG_MAX_RETRIES):
         T = b""
         while len(T) < rolen:
             V = hmac.new(K, V, "sha256").digest()
@@ -76,7 +75,7 @@ def hmac_drbg_generate_k(private_key_bytes: bytes,
         V = hmac.new(K, V, "sha256").digest()
 
     raise RuntimeError(f"HMAC-DRBG failed to generate a valid k after "
-                       f"{_HMAC_DRBG_MAX_RETRIES} attempts.")
+                       f"{HMAC_DRBG_MAX_RETRIES} attempts.")
 
 
 def sign(message_hash: bytes, private_key: int) -> bytes:

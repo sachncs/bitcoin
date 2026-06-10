@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import importlib.metadata
+import logging
 from typing import Any
 
 
 def check_backend() -> dict[str, Any]:
     """Return status of curve backends."""
-    from bitcoin.curve.backend.native import NativeBackend
     from bitcoin.curve.backend.libsec import LibsecpBackend
+    from bitcoin.curve.backend.native import NativeBackend
 
     status: dict[str, Any] = {}
     try:
@@ -49,19 +50,21 @@ def check_imports() -> dict[str, bool]:
     ]
     import importlib
 
+    logger = logging.getLogger(__name__)
     result: dict[str, bool] = {}
     for mod in modules:
         try:
             importlib.import_module(mod)
             result[mod] = True
-        except Exception:
+        except Exception as exc:
+            logger.warning("Module import failed: %s — %s", mod, exc)
             result[mod] = False
     return result
 
 
 def health() -> dict[str, Any]:
     """Run all health checks and return a comprehensive status dict."""
-    from bitcoin.curve import multiply, GENERATOR
+    from bitcoin.curve import GENERATOR, multiply
 
     status: dict[str, Any] = {
         "version": importlib.metadata.version("bitcoin"),

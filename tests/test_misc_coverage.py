@@ -87,6 +87,44 @@ class TestCollectionCoverage:
         coll = SignatureCollection(records=(rec,))
         assert coll[0] == rec
 
+    def test_sort_records(self) -> None:
+        rec1 = Record(
+            txid=b"\x01" * 32,
+            input_index=1,
+            signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+            public_key=GENERATOR,
+            script_type="p2pkh",
+            sighash_flag=0x01,
+            amount=0,
+        )
+        rec2 = Record(
+            txid=b"\x02" * 32,
+            input_index=0,
+            signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+            public_key=GENERATOR,
+            script_type="p2wpkh",
+            sighash_flag=0x01,
+            amount=0,
+        )
+        coll = SignatureCollection(records=(rec1, rec2))
+        sorted_coll = coll.sort_records()
+        assert sorted_coll[0].input_index == 0
+        assert sorted_coll[1].input_index == 1
+
+    def test_sort_records_invalid_key(self) -> None:
+        rec = Record(
+            txid=b"\x00" * 32,
+            input_index=0,
+            signature=b"\x30\x06\x02\x01\x01\x02\x01\x01",
+            public_key=GENERATOR,
+            script_type="p2pkh",
+            sighash_flag=0x01,
+            amount=0,
+        )
+        coll = SignatureCollection(records=(rec,))
+        with pytest.raises(ValueError, match="Invalid sort key"):
+            coll.sort_records(key="nonexistent")
+
     def test_linearize_with_collection(self) -> None:
         recs = [
             Record(

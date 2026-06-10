@@ -7,6 +7,10 @@ dataclasses with basic validation in ``__post_init__``.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from bitcoin.transaction.tx_services import TxRbf, TxSerializer, TxSighash
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,6 +106,38 @@ class Tx:
     inputs: tuple[TxIn, ...]
     outputs: tuple[TxOut, ...]
     lock_time: int
+
+    # -- composed engine access ---------------------------------------------
+
+    @property
+    def serializer(self) -> TxSerializer:
+        """Access serialisation through a composed engine.
+
+        Returns:
+            A ``TxSerializer`` instance bound to this transaction.
+        """
+        from bitcoin.transaction.tx_services import TxSerializer
+        return TxSerializer(self)
+
+    @property
+    def rbf(self) -> TxRbf:
+        """Access RBF detection through a composed engine.
+
+        Returns:
+            A ``TxRbf`` instance bound to this transaction.
+        """
+        from bitcoin.transaction.tx_services import TxRbf
+        return TxRbf(self)
+
+    @property
+    def sighash(self) -> TxSighash:
+        """Access sighash computation through a composed engine.
+
+        Returns:
+            A ``TxSighash`` instance bound to this transaction.
+        """
+        from bitcoin.transaction.tx_services import TxSighash
+        return TxSighash(self)
 
     def is_segwit(self) -> bool:
         """Check whether this transaction uses SegWit.

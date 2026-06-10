@@ -4,21 +4,21 @@ from __future__ import annotations
 import pytest
 
 from bitcoin import (
-    extract_signatures,
-    linearize_signatures,
-    Record,
-    sighash_legacy,
-    sighash_segwit,
-    sighash_taproot,
     SIGHASH_ALL,
+    SIGHASH_ANYONECANPAY,
     SIGHASH_NONE,
     SIGHASH_SINGLE,
-    SIGHASH_ANYONECANPAY,
+    OutPoint,
+    Record,
     Tx,
     TxIn,
     TxOut,
-    OutPoint,
     Witness,
+    extract_signatures,
+    linearize_signatures,
+    sighash_legacy,
+    sighash_segwit,
+    sighash_taproot,
 )
 from bitcoin.curve import GENERATOR
 

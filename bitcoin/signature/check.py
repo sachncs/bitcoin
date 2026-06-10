@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import hmac
+import logging
 from typing import TYPE_CHECKING
 
 from bitcoin.curve import GENERATOR
-from bitcoin.curve.dispatch import add, multiply, is_on_curve
+from bitcoin.curve.dispatch import add, is_on_curve, multiply
 from bitcoin.curve.params import CURVE_ORDER, FIELD_PRIME
 from bitcoin.encoding.der import decode_der
 
 if TYPE_CHECKING:
     from bitcoin.curve.point import Point
+
+logger = logging.getLogger(__name__)
 
 PUBKEY_RECOVERY_OFFSET = 27
 HASH_BYTE_LENGTH = 32
@@ -89,16 +92,20 @@ def verify_signature(message_hash: bytes, der_signature: bytes,
     try:
         r, s = decode_der(der_signature)
     except ValueError:
+        logger.debug("verify_signature: DER decoding failed")
         return False
 
     if r < 1 or r >= CURVE_ORDER or s < 1 or s >= CURVE_ORDER:
+        logger.debug("verify_signature: r/s out of range")
         return False
 
     if not is_on_curve(public_key) or public_key.infinity:
+        logger.debug("verify_signature: invalid public key")
         return False
 
     e = int.from_bytes(message_hash, "big") % CURVE_ORDER
     if e == 0:
+        logger.debug("verify_signature: message hash is zero")
         return False
 
     from bitcoin.field import inverse
@@ -111,10 +118,12 @@ def verify_signature(message_hash: bytes, der_signature: bytes,
     point = add(u1_g, u2_p)
 
     if point.infinity:
+        logger.debug("verify_signature: resulting point is infinity")
         return False
 
     px = point.x
     if px is None:
+        logger.debug("verify_signature: point x is None")
         return False
     r_bytes = r.to_bytes(HASH_BYTE_LENGTH, "big")
     px_bytes = (px % CURVE_ORDER).to_bytes(HASH_BYTE_LENGTH, "big")

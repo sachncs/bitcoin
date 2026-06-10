@@ -3,20 +3,28 @@ from __future__ import annotations
 
 import pytest
 
-from bitcoin.curve import GENERATOR, INFINITY, CURVE_ORDER, FIELD_PRIME, Point, multiply, double
+from bitcoin.curve import (
+    CURVE_ORDER,
+    FIELD_PRIME,
+    GENERATOR,
+    INFINITY,
+    Point,
+    double,
+    multiply,
+)
 from bitcoin.curve.backend.libsec import LibsecpBackend
-from bitcoin.encoding.binary import bytes_to_int, int_to_bytes, read_exactly, iter_bytes
+from bitcoin.encoding.binary import bytes_to_int, int_to_bytes, iter_bytes, read_exactly
+from bitcoin.exceptions import UnsupportedScriptPathError
 from bitcoin.script.parser import (
+    ScriptChunk,
+    chunks_to_pushes,
+    parse_multisig_redeem_script,
     parse_script,
     parse_script_chunks,
-    serialize_script,
-    script_to_string,
-    chunks_to_pushes,
     reject_code_separators,
-    parse_multisig_redeem_script,
-    ScriptChunk,
+    script_to_string,
+    serialize_script,
 )
-from bitcoin.exceptions import UnsupportedScriptPathError
 
 # ── libsec.py ────────────────────────────────────────────────────────
 
@@ -383,8 +391,8 @@ class TestParseMultisigRedeemScript:
 class TestOperationsEdgeCases:
 
     def test_negate_non_infinity_with_y(self) -> None:
-        from bitcoin.curve.operations import negate
         from bitcoin.curve import GENERATOR
+        from bitcoin.curve.operations import negate
         result = negate(GENERATOR)
         assert result.x == GENERATOR.x
         assert result.y == FIELD_PRIME - GENERATOR.y
@@ -498,8 +506,8 @@ class TestPointEdgeCases:
 class TestDispatchCoverage:
 
     def test_is_generator_infinity(self) -> None:
-        from bitcoin.curve.dispatch import _is_generator
-        assert not _is_generator(INFINITY)
+        from bitcoin.curve.dispatch import is_generator
+        assert not is_generator(INFINITY)
 
     def test_normalize(self) -> None:
         from bitcoin.curve.dispatch import normalize
@@ -512,9 +520,9 @@ class TestDispatchCoverage:
         assert val == 42
 
     def test_normalize_non_negative_negative(self) -> None:
-        from bitcoin.curve.dispatch import normalize_non_negative
-        from bitcoin.field import validate_non_negative
         import re
+
+        from bitcoin.curve.dispatch import normalize_non_negative
         with pytest.raises(ValueError,
                            match=re.escape("test must be non-negative")):
             normalize_non_negative(-1, "test")
@@ -527,8 +535,8 @@ class TestDispatchCoverage:
         assert (result * result) % FIELD_PRIME == val
 
     def test_set_backend_then_get(self) -> None:
-        from bitcoin.curve.dispatch import set_backend, get_backend, resolve_backend
         from bitcoin.curve.backend.native import NativeBackend
+        from bitcoin.curve.dispatch import get_backend, resolve_backend, set_backend
         backend = NativeBackend()
         set_backend(backend)
         assert get_backend() is backend
@@ -555,7 +563,7 @@ class TestNativeBackendCoverage:
 class TestVarintCoverage:
 
     def test_encode_decode_roundtrip_large(self) -> None:
-        from bitcoin.encoding.varint import encode_varint, decode_varint
+        from bitcoin.encoding.varint import decode_varint, encode_varint
         for val in [0, 1, 252, 253, 65535, 65536, 2**32 - 1, 2**32]:
             encoded = encode_varint(val)
             decoded, consumed = decode_varint(encoded)

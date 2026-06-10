@@ -14,9 +14,9 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 
-from bitcoin.field import inverse as field_inverse
 from bitcoin.curve.params import CURVE_ORDER
 from bitcoin.exceptions import BitcoinError
+from bitcoin.field import inverse as field_inverse
 from bitcoin.signature.linearization.coefficients import (
     LinearCoefficientCollection,
     LinearCoefficientRecord,

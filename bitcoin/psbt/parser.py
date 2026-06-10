@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from bitcoin.signature.collection import SignatureCollection
     from bitcoin.curve.point import Point
+    from bitcoin.signature.collection import SignatureCollection
 
 from bitcoin.encoding.varint import decode_varint, encode_varint
 from bitcoin.psbt.models import Psbt, PsbtInput, PsbtOutput
@@ -433,8 +433,8 @@ def psbt_extract_signatures(
     """
     from bitcoin.curve import parse_public_key
     from bitcoin.encoding.der import decode_der
-    from bitcoin.signature.record import Record
     from bitcoin.signature.collection import SignatureCollection
+    from bitcoin.signature.record import Record
     from bitcoin.transaction.parser import parse_tx
 
     tx, _ = parse_tx(psbt.tx)

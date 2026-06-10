@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from bitcoin.encoding.der import decode_der
+
 if TYPE_CHECKING:
     from bitcoin.curve.point import Point
 
@@ -41,6 +43,19 @@ class Record:
     def sig(self) -> bytes:
         """Return the signature bytes (alias for :attr:`signature`)."""
         return self.signature
+
+    @property
+    def r_value(self) -> int:
+        """Return the R component of the DER-encoded signature.
+
+        Returns:
+            The integer R component.
+
+        Raises:
+            ValueError: If the signature cannot be decoded as DER.
+        """
+        r, _ = decode_der(self.signature)
+        return r
 
     def __post_init__(self) -> None:
         """Validate field invariants after initialization.

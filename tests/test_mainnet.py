@@ -2,13 +2,13 @@
 
 import os
 
-from bitcoin.transaction.parser import parse_tx
-from bitcoin.services.serializer import serialize_tx
-from bitcoin.sighash.legacy import sighash_legacy
-from bitcoin.sighash.flag import SIGHASH_ALL
-from bitcoin.signature.check import verify_sig
-from bitcoin.encoding.sec import serialize_sec, parse_sec
 from bitcoin.encoding.hasher import hash160
+from bitcoin.encoding.sec import parse_sec, serialize_sec
+from bitcoin.services.serializer import serialize_tx
+from bitcoin.sighash.flag import SIGHASH_ALL
+from bitcoin.sighash.legacy import sighash_legacy
+from bitcoin.signature.check import verify_sig
+from bitcoin.transaction.parser import parse_tx
 
 EXPECTED_TXID = "a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d"
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")

@@ -16,8 +16,7 @@ rm -rf .venv/
 rm -rf bitcoin.egg-info/
 rm -rf htmlcov/
 rm -f .coverage.*
-find . -name '*,cover' -delete
-find . -name '*.cover' -delete
+find . \( -name '*.cover' -o -name '*,cover' \) -delete
 find . -type d -name "__pycache__" -exec rm -rf {} +
 
 echo "Cleanup complete."

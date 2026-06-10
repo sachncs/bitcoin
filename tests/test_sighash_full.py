@@ -4,6 +4,12 @@ from __future__ import annotations
 
 import pytest
 
+from bitcoin.services.serializer import (
+    serialize_legacy_tx,
+    serialize_legacy_tx_for_sighash,
+    serialize_tx,
+    serialize_tx_for_sighash_taproot,
+)
 from bitcoin.sighash.flag import (
     SIGHASH_ALL,
     SIGHASH_ALL_ANYONECANPAY,
@@ -17,12 +23,6 @@ from bitcoin.sighash.flag import (
 from bitcoin.sighash.legacy import sighash_legacy
 from bitcoin.sighash.segwit import sighash_segwit
 from bitcoin.sighash.taproot import sighash_taproot
-from bitcoin.services.serializer import (
-    serialize_legacy_tx_for_sighash,
-    serialize_tx_for_sighash_taproot,
-    serialize_legacy_tx,
-    serialize_tx,
-)
 from bitcoin.transaction.models import OutPoint, Tx, TxIn, TxOut, Witness
 
 # ---------------------------------------------------------------------------

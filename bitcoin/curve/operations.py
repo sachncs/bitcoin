@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from bitcoin.curve.params import CURVE_A, CURVE_B, FIELD_PRIME, CURVE_ORDER
+from bitcoin.curve.params import CURVE_A, CURVE_B, CURVE_ORDER, FIELD_PRIME
 from bitcoin.curve.point import Point
 from bitcoin.field import inverse
 

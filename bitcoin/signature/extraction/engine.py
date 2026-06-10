@@ -3,32 +3,170 @@
 Supports legacy (P2PK, P2PKH), SegWit (P2WPKH, P2WSH), P2SH-wrapped
 SegWit, and Taproot (P2TR) input types.  Public-key recovery is attempted
 for each discovered signature.
+
+Extraction is dispatched polymorphically via registered ``ExtractorPlugin``
+instances rather than a hard-coded if-elif chain.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from bitcoin.curve import INFINITY, Point
 from bitcoin.encoding.der import decode_der
-from bitcoin.sighash.flag import SIGHASH_ALL
-from bitcoin.signature.check import recover_public_key
-from bitcoin.signature.record import Record
 from bitcoin.script.classifier import (
     P2SH,
+    P2TR,
     P2WPKH,
     P2WSH,
-    P2TR,
     classify_script_pubkey,
 )
 from bitcoin.script.parser import parse_script
+from bitcoin.sighash.flag import SIGHASH_ALL
+from bitcoin.signature.check import recover_public_key
+from bitcoin.signature.extraction.plugins import register_plugin
+from bitcoin.signature.record import Record
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from bitcoin.transaction.models import Tx, TxIn
+
+# ── Polymorphic extraction strategies (Strategy pattern) ────────────
+
+
+class LegacyExtractor:
+    """Extractor for non-SegWit (legacy P2PK/P2PKH) inputs."""
+
+    name = "legacy"
+
+    @staticmethod
+    def can_handle(script_type: str, is_segwit: bool) -> bool:
+        return not is_segwit
+
+    @staticmethod
+    def extract(
+        tx: Tx,
+        vin: int,
+        txin: TxIn,
+        script_pubkey: bytes,
+        value: int,
+    ) -> list[Record]:
+        parsed_sig: Sequence[object] = list(parse_script(
+            txin.script_sig)) if txin.script_sig else []
+        return extract_legacy(tx, vin, script_pubkey, parsed_sig)
+
+
+class P2WPKHExtractor:
+    """Extractor for P2WPKH (SegWit v0 key-path) inputs."""
+
+    name = P2WPKH
+
+    @staticmethod
+    def can_handle(script_type: str, is_segwit: bool) -> bool:
+        return script_type == P2WPKH and is_segwit
+
+    @staticmethod
+    def extract(
+        tx: Tx,
+        vin: int,
+        txin: TxIn,
+        script_pubkey: bytes,
+        value: int,
+    ) -> list[Record]:
+        return extract_p2wpkh(tx, vin, script_pubkey, value, txin.witness.items)
+
+
+class P2WSHExtractor:
+    """Extractor for P2WSH (SegWit v0 script-path) inputs."""
+
+    name = P2WSH
+
+    @staticmethod
+    def can_handle(script_type: str, is_segwit: bool) -> bool:
+        return script_type == P2WSH and is_segwit
+
+    @staticmethod
+    def extract(
+        tx: Tx,
+        vin: int,
+        txin: TxIn,
+        script_pubkey: bytes,
+        value: int,
+    ) -> list[Record]:
+        return extract_p2wsh(tx, vin, script_pubkey, value, txin.witness.items)
+
+
+class P2SHSegWitExtractor:
+    """Extractor for P2SH-wrapped SegWit inputs."""
+
+    name = f"p2sh_{P2WPKH}"
+
+    @staticmethod
+    def can_handle(script_type: str, is_segwit: bool) -> bool:
+        return script_type == P2SH and is_segwit
+
+    @staticmethod
+    def extract(
+        tx: Tx,
+        vin: int,
+        txin: TxIn,
+        script_pubkey: bytes,
+        value: int,
+    ) -> list[Record]:
+        return extract_p2sh_segwit(tx, vin, script_pubkey, value, txin)
+
+
+class TaprootExtractor:
+    """Extractor for P2TR (Taproot) inputs — both key-path and script-path."""
+
+    name = P2TR
+
+    @staticmethod
+    def can_handle(script_type: str, is_segwit: bool) -> bool:
+        return script_type == P2TR and is_segwit
+
+    @staticmethod
+    def extract(
+        tx: Tx,
+        vin: int,
+        txin: TxIn,
+        script_pubkey: bytes,
+        value: int,
+    ) -> list[Record]:
+        return extract_taproot(tx, vin, script_pubkey, value,
+                               txin.witness.items)
+
+
+# ── Built-in extractor registry ──────────────────────────────────────
+
+BUILTIN_EXTRACTOR_CLASSES: list[type] = [
+    LegacyExtractor,
+    P2WPKHExtractor,
+    P2WSHExtractor,
+    P2SHSegWitExtractor,
+    TaprootExtractor,
+]
+
+_BUILTINS_REGISTERED: bool = False
+
+
+def register_builtin_extractors() -> None:
+    """Register all built-in script-path extractor plugins.
+
+    Idempotent — subsequent calls are no-ops once registered.
+    """
+    global _BUILTINS_REGISTERED
+    if _BUILTINS_REGISTERED:
+        return
+    for ext_cls in BUILTIN_EXTRACTOR_CLASSES:
+        register_plugin(ext_cls())
+    _BUILTINS_REGISTERED = True
+
+
+# ── Public dispatch ─────────────────────────────────────────────────
 
 
 def extract_signatures(
@@ -39,8 +177,7 @@ def extract_signatures(
     """Extract all signatures (ECDSA and Schnorr) from a transaction.
 
     Iterates over each input, determines the script type, and dispatches
-    to the appropriate extraction handler (legacy, P2WPKH, P2WSH,
-    P2SH-SegWit, or Taproot).
+    to the appropriate extraction handler via registered plugins.
 
     Args:
         tx: The transaction to extract from.
@@ -58,12 +195,15 @@ def extract_signatures(
         AttributeError: If *tx* is malformed.
         ValueError: If sighash computation fails (e.g. invalid flag).
     """
+    register_builtin_extractors()
     records: list[Record] = []
     script_type_counts: dict[str, int] = {}
     failed_inputs = 0
 
     if not tx.inputs:
         return records
+
+    from bitcoin.signature.extraction.plugins import get_plugin, list_plugins
 
     for vin, txin in enumerate(tx.inputs):
         parsed_sig: Sequence[object] = list(parse_script(
@@ -76,26 +216,17 @@ def extract_signatures(
         value = utxo_values[vin] if utxo_values else 0
         is_segwit = bool(txin.witness.items)
 
-        if is_segwit:
-            if script_type == P2WPKH:
+        dispatched = False
+        for plugin_name in list_plugins():
+            plugin = get_plugin(plugin_name)
+            if plugin is not None and plugin.can_handle(script_type, is_segwit):
                 records.extend(
-                    extract_p2wpkh(tx, vin, script_pubkey, value,
-                                   txin.witness.items))
-            elif script_type == P2WSH:
-                records.extend(
-                    extract_p2wsh(tx, vin, script_pubkey, value,
-                                  txin.witness.items))
-            elif script_type == P2SH:
-                records.extend(
-                    extract_p2sh_segwit(tx, vin, script_pubkey, value, txin))
-            elif script_type == P2TR:
-                records.extend(
-                    extract_taproot(tx, vin, script_pubkey, value,
-                                    txin.witness.items))
-            else:
-                failed_inputs += 1
-        else:
-            records.extend(extract_legacy(tx, vin, script_pubkey, parsed_sig))
+                    plugin.extract(tx, vin, txin, script_pubkey, value))
+                dispatched = True
+                break
+
+        if not dispatched:
+            failed_inputs += 1
 
     type_summary = ", ".join(
         f"{n} {t}" for t, n in sorted(script_type_counts.items()))
@@ -154,37 +285,36 @@ def extract_legacy(
     pubkey_bytes = extract_pubkey_from_script_sig(script_sig)
     for element in script_sig:
         if isinstance(element, bytes) and len(element) > 1:
+            der = element[:-1]
+            flag = element[-1]
             try:
-                der = element[:-1]
-                flag = element[-1]
                 decode_der(der)
-                pubkey = recover_or_parse_pubkey(
-                    tx,
-                    vin,
-                    der,
-                    flag,
-                    effective_script,
-                    value=0,
-                    pubkey_bytes=pubkey_bytes,
-                )
-                if pubkey is None:
-                    logger.debug("Pubkey recovery failed for input %d", vin)
-                    continue
-                records.append(
-                    Record(
-                        txid=tx.txid(),
-                        input_index=vin,
-                        signature=der,
-                        public_key=pubkey,
-                        script_type=determine_script_type(
-                            script_pubkey, script_sig),
-                        sighash_flag=flag,
-                        amount=0,
-                    ))
-                logger.debug("Signature extracted from input %d", vin)
-            except (ValueError, TypeError, IndexError) as exc:
-                logger.warning("Signature skipped for input %d: %s", vin, exc)
+            except ValueError:
                 continue
+            pubkey = recover_or_parse_pubkey(
+                tx,
+                vin,
+                der,
+                flag,
+                effective_script,
+                value=0,
+                pubkey_bytes=pubkey_bytes,
+            )
+            if pubkey is None:
+                logger.debug("Pubkey recovery failed for input %d", vin)
+                continue
+            records.append(
+                Record(
+                    txid=tx.txid(),
+                    input_index=vin,
+                    signature=der,
+                    public_key=pubkey,
+                    script_type=determine_script_type(script_pubkey,
+                                                      script_sig),
+                    sighash_flag=flag,
+                    amount=0,
+                ))
+            logger.debug("Signature extracted from input %d", vin)
     return records
 
 
@@ -231,37 +361,34 @@ def extract_p2wpkh(
     records: list[Record] = []
     for item in witness_items[:-1]:
         if len(item) > 1:
+            der = item[:-1]
+            flag = item[-1]
             try:
-                der = item[:-1]
-                flag = item[-1]
                 decode_der(der)
-                pubkey = recover_or_parse_pubkey(
-                    tx,
-                    vin,
-                    der,
-                    flag,
-                    script_code,
-                    value=value,
-                )
-                if pubkey is None:
-                    logger.debug("P2WPKH pubkey recovery failed for input %d",
-                                 vin)
-                    continue
-                records.append(
-                    Record(
-                        txid=tx.txid(),
-                        input_index=vin,
-                        signature=der,
-                        public_key=pubkey,
-                        script_type=P2WPKH,
-                        sighash_flag=flag,
-                        amount=value,
-                    ))
-                logger.debug("P2WPKH signature extracted for input %d", vin)
-            except (ValueError, TypeError, IndexError) as exc:
-                logger.warning("P2WPKH signature skipped for input %d: %s", vin,
-                               exc)
+            except ValueError:
                 continue
+            pubkey = recover_or_parse_pubkey(
+                tx,
+                vin,
+                der,
+                flag,
+                script_code,
+                value=value,
+            )
+            if pubkey is None:
+                logger.debug("P2WPKH pubkey recovery failed for input %d", vin)
+                continue
+            records.append(
+                Record(
+                    txid=tx.txid(),
+                    input_index=vin,
+                    signature=der,
+                    public_key=pubkey,
+                    script_type=P2WPKH,
+                    sighash_flag=flag,
+                    amount=value,
+                ))
+            logger.debug("P2WPKH signature extracted for input %d", vin)
     return records
 
 
@@ -295,37 +422,34 @@ def extract_p2wsh(
     records: list[Record] = []
     for item in witness_items[:-1]:
         if len(item) > 1:
+            der = item[:-1]
+            flag = item[-1]
             try:
-                der = item[:-1]
-                flag = item[-1]
                 decode_der(der)
-                pubkey = recover_or_parse_pubkey(
-                    tx,
-                    vin,
-                    der,
-                    flag,
-                    script_code,
-                    value=value,
-                )
-                if pubkey is None:
-                    logger.debug("P2WSH pubkey recovery failed for input %d",
-                                 vin)
-                    continue
-                records.append(
-                    Record(
-                        txid=tx.txid(),
-                        input_index=vin,
-                        signature=der,
-                        public_key=pubkey,
-                        script_type=P2WSH,
-                        sighash_flag=flag,
-                        amount=value,
-                    ))
-                logger.debug("P2WSH signature extracted for input %d", vin)
-            except (ValueError, TypeError, IndexError) as exc:
-                logger.warning("P2WSH signature skipped for input %d: %s", vin,
-                               exc)
+            except ValueError:
                 continue
+            pubkey = recover_or_parse_pubkey(
+                tx,
+                vin,
+                der,
+                flag,
+                script_code,
+                value=value,
+            )
+            if pubkey is None:
+                logger.debug("P2WSH pubkey recovery failed for input %d", vin)
+                continue
+            records.append(
+                Record(
+                    txid=tx.txid(),
+                    input_index=vin,
+                    signature=der,
+                    public_key=pubkey,
+                    script_type=P2WSH,
+                    sighash_flag=flag,
+                    amount=value,
+                ))
+            logger.debug("P2WSH signature extracted for input %d", vin)
     return records
 
 
@@ -374,38 +498,35 @@ def extract_p2sh_segwit(
 
     for item in witness_items[:-1]:
         if len(item) > 1:
+            der = item[:-1]
+            flag = item[-1]
             try:
-                der = item[:-1]
-                flag = item[-1]
                 decode_der(der)
-                pubkey = recover_or_parse_pubkey(
-                    tx,
-                    vin,
-                    der,
-                    flag,
-                    script_code,
-                    value=value,
-                )
-                if pubkey is None:
-                    logger.debug(
-                        "P2SH-SegWit pubkey recovery failed for input %d", vin)
-                    continue
-                records.append(
-                    Record(
-                        txid=tx.txid(),
-                        input_index=vin,
-                        signature=der,
-                        public_key=pubkey,
-                        script_type=f"p2sh_{redeem_type}",
-                        sighash_flag=flag,
-                        amount=value,
-                    ))
-                logger.debug("P2SH-SegWit signature extracted for input %d",
-                             vin)
-            except (ValueError, TypeError, IndexError) as exc:
-                logger.warning("P2SH-SegWit signature skipped for input %d: %s",
-                               vin, exc)
+            except ValueError:
                 continue
+            pubkey = recover_or_parse_pubkey(
+                tx,
+                vin,
+                der,
+                flag,
+                script_code,
+                value=value,
+            )
+            if pubkey is None:
+                logger.debug("P2SH-SegWit pubkey recovery failed for input %d",
+                             vin)
+                continue
+            records.append(
+                Record(
+                    txid=tx.txid(),
+                    input_index=vin,
+                    signature=der,
+                    public_key=pubkey,
+                    script_type=f"p2sh_{redeem_type}",
+                    sighash_flag=flag,
+                    amount=value,
+                ))
+            logger.debug("P2SH-SegWit signature extracted for input %d", vin)
     return records
 
 
@@ -589,7 +710,7 @@ def recover_or_parse_pubkey(
             continue
     logger.debug("Public key recovery failed for input %d", vin)
     if pubkey_bytes:
-        from bitcoin.curve import parse_public_key, is_on_curve
+        from bitcoin.curve import is_on_curve, parse_public_key
         try:
             point = parse_public_key(pubkey_bytes)
             if point is not None and not point.infinity and is_on_curve(point):

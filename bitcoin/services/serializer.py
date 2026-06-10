@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from bitcoin.encoding.varint import encode_varint
 from bitcoin.encoding.hex import encode_hex
+from bitcoin.encoding.varint import encode_varint
 
 if TYPE_CHECKING:
     from bitcoin.transaction.models import Tx

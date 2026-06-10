@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- `bitcoin health` CLI command for runtime introspection (runs health checks, prints JSON).
+- JSON structured logging via `JSONFormatter`; configurable via `BITCOIN_LOG_LEVEL` env var.
+- `register_builtin_extractors()` — plugin registration moved from import-time side effect to an explicit idempotent call.
+- Library health module (`health.py`) now logs import failures instead of silently swallowing them.
+- `MAINTAINERS.md`, `SECURITY.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md` governance files.
+- GitHub issue templates (`bug_report.md`, `feature_request.md`) and pull request template.
+- `.github/FUNDING.yml` skeleton for sponsors.
+- `pip-audit` dependency CVE scanning step in CI and release workflows.
+- Concurrency control (`cancel-in-progress: true`) and path filtering on CI.
+- Dependency caching for `astral-sh/setup-uv` in all CI jobs.
+- `workflow_dispatch` trigger on both CI and release workflows.
+- Test PyPI publish and build provenance attestation (`attest-build-provenance`) in release pipeline.
+- Build artifacts uploaded as workflow artifacts in releases.
+- Environment variable reference and JSON logging callout in README.
+- License badge to README.
+
+### Changed
+- CLI error handling: `main()` now returns `1` on unhandled exceptions (was always `0`).
+- CLI exception coverage broadened to `ValueError`, `OSError`, `IndexError`, `TypeError`, `AttributeError`.
+- Logging format switched from plain text to JSON (all log entries are now machine-parseable).
+- `verify_signature()` in `signature/check.py` now logs per-path debug messages on each failure mode.
+- `pyproject.toml`: expanded Ruff ruleset (`I`, `N`), added `maintainers`/`keywords`/`urls`, added `Python 3.14` classifier.
+- `cleanup.sh`: merged redundant `find` calls and fixed `.cover` glob typo.
+- `Makefile`: changed `python` to `python3` in test targets for consistency.
+- `setup.sh`: pins pip version (`>=24,<25`), guards `pre-commit install` behind file existence check.
+- `.gitignore`: added `.env`, `.env.*`, `*.log` patterns.
+- `release.yml`: release notes now sourced from `CHANGELOG.md`.
+- CI test jobs depend on `lint-typecheck` (fail-fast on lint errors).
+
+### Removed
+- Import-time auto-registration of extraction plugins (replaced by `register_builtin_extractors()`).
+- `RuntimeError` from CLI exception handlers (typer.Exit is a RuntimeError; was being swallowed).
+
+### Fixed
+- `health.py:57` silent exception swallow — now logs `logger.warning` with module name and error.
+- Mypy: `coincurve` import-not-found errors suppressed per-module override.
+- Ruff naming violations: `# noqa` annotations for crypto-standard uppercase variables.
+- `setup.sh` no longer crashes when `.pre-commit-config.yaml` is absent.
+
+### Security
+- `pip-audit` scans for known CVEs in CI and release workflows.
+- PyPI publish uses Test PyPI dry-run before production push.
+- Build provenance attestation generated for every release.
+- Pip version pinned in `setup.sh` to mitigate supply-chain risk.
+
 ## [0.5.0] - 2026-06-05
 
 ### Added

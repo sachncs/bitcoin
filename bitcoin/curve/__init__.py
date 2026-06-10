@@ -4,19 +4,10 @@ Everything in this package is independent of Bitcoin transactions,
 scripts, and signatures.
 """
 
-from bitcoin.curve.params import (
-    CURVE_A,
-    CURVE_B,
-    CURVE_ORDER,
-    FIELD_PRIME,
-    GENERATOR_X,
-    GENERATOR_Y,
-)
-from bitcoin.curve.point import Point
-from bitcoin.curve.backend.base import CurveBackend
-from bitcoin.curve.backend.native import NativeBackend
-from bitcoin.curve.backend.libsec import LibsecpBackend
 from bitcoin.curve import libsecp256k1
+from bitcoin.curve.backend.base import CurveBackend
+from bitcoin.curve.backend.libsec import LibsecpBackend
+from bitcoin.curve.backend.native import NativeBackend
 from bitcoin.curve.dispatch import (
     add,
     double,
@@ -31,6 +22,15 @@ from bitcoin.curve.dispatch import (
     set_backend,
     sqrt_field,
 )
+from bitcoin.curve.params import (
+    CURVE_A,
+    CURVE_B,
+    CURVE_ORDER,
+    FIELD_PRIME,
+    GENERATOR_X,
+    GENERATOR_Y,
+)
+from bitcoin.curve.point import Point
 
 # Singleton points
 GENERATOR = Point(x=GENERATOR_X, y=GENERATOR_Y)  # The secp256k1 generator point

@@ -7,17 +7,17 @@ constants naming each type identifier.
 from __future__ import annotations
 
 from bitcoin.script.opcodes import (
-    OP_CHECKSIG,
+    OP_0,
+    OP_1,
     OP_CHECKLOCKTIMEVERIFY,
     OP_CHECKMULTISIG,
     OP_CHECKSEQUENCEVERIFY,
+    OP_CHECKSIG,
     OP_DUP,
     OP_EQUAL,
     OP_EQUALVERIFY,
     OP_HASH160,
     OP_RETURN,
-    OP_0,
-    OP_1,
 )
 
 # Standard script type identifiers returned by classify_script_pubkey.

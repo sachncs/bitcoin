@@ -1,6 +1,7 @@
 """ECDSA signature types, extraction, linearization, verification, and signing."""
 
 from bitcoin.signature.attack import NonceReuseGroup
+from bitcoin.signature.batch_verify import batch_verify, verify_all
 from bitcoin.signature.check import recover_public_key, verify_sig
 from bitcoin.signature.collection import SignatureCollection
 from bitcoin.signature.extraction import extract_signatures
@@ -14,7 +15,6 @@ from bitcoin.signature.pipeline import (
 )
 from bitcoin.signature.record import Record
 from bitcoin.signature.schnorr import lift_x, verify_schnorr_sig
-from bitcoin.signature.batch_verify import batch_verify, verify_all
 from bitcoin.signature.signer import sign, sign_tx_input
 
 __all__ = [

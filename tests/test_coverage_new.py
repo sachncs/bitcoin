@@ -1,7 +1,7 @@
 """Coverage tests for low-coverage modules and new features."""
 from __future__ import annotations
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -9,35 +9,47 @@ from bitcoin.curve import GENERATOR, multiply
 from bitcoin.curve.params import FIELD_PRIME
 from bitcoin.encoding.der import encode_der
 from bitcoin.encoding.hasher import hash256, sha256
+from bitcoin.psbt import Psbt, PsbtEditor, PsbtInput, PsbtOutput
+from bitcoin.psbt.editor import MutableInput, MutableOutput
 from bitcoin.script import (
     build_p2pkh,
     build_p2wpkh,
 )
 from bitcoin.script.classifier import (
+    MULTISIG,
+    NON_STANDARD,
     P2PK,
     P2PKH,
     P2SH,
+    P2TR,
     P2WPKH,
     P2WSH,
-    P2TR,
-    NON_STANDARD,
-    MULTISIG,
     TIMELOCK,
+    classify_detailed,
     classify_script_pubkey,
     classify_script_sig,
-    classify_detailed,
-    is_p2sh,
-    is_op_return,
-    is_bare_multisig,
     has_timelocks,
+    is_bare_multisig,
+    is_op_return,
+    is_p2sh,
     parse_p2pkh_script_sig,
 )
 from bitcoin.script.taproot import (
     TaprootScriptPath,
-    parse_taproot_witness_stack,
     extract_taproot_scripts,
     get_x_only_pubkey,
+    parse_taproot_witness_stack,
 )
+from bitcoin.services.blockchain import (
+    BlockchainInfoProvider,
+    BlockstreamProvider,
+    MempoolSpaceProvider,
+    enrich_transaction,
+    fetch_and_extract,
+    fetch_text,
+)
+from bitcoin.services.serializer import serialize_legacy_tx, serialize_tx
+from bitcoin.sighash.flag import SIGHASH_ALL
 from bitcoin.signature import (
     Record,
     batch_extract,
@@ -51,37 +63,25 @@ from bitcoin.signature import (
 from bitcoin.signature.batch_verify import batch_verify
 from bitcoin.signature.extraction.plugins import (
     ExtractorPlugin,
-    register_plugin,
-    unregister_plugin,
     get_plugin,
     list_plugins,
+    register_plugin,
+    unregister_plugin,
 )
 from bitcoin.signature.pipeline import BatchResult
-from bitcoin.services.blockchain import (
-    BlockstreamProvider,
-    BlockchainInfoProvider,
-    MempoolSpaceProvider,
-    enrich_transaction,
-    fetch_and_extract,
-    fetch_text,
-)
 from bitcoin.transaction import (
+    OutPoint,
+    TransactionBuilder,
     Tx,
     TxIn,
     TxOut,
-    OutPoint,
     Witness,
-    TransactionBuilder,
-    tx_from_dict,
-    make_tx,
-    is_opt_in_rbf,
     has_sequence_lock,
+    is_opt_in_rbf,
+    make_tx,
+    tx_from_dict,
 )
 from bitcoin.transaction.models import EMPTY_WITNESS
-from bitcoin.psbt import Psbt, PsbtInput, PsbtOutput, PsbtEditor
-from bitcoin.psbt.editor import MutableInput, MutableOutput
-from bitcoin.services.serializer import serialize_legacy_tx, serialize_tx
-from bitcoin.sighash.flag import SIGHASH_ALL
 
 # ── helpers ────────────────────────────────────────────────────────
 
@@ -561,10 +561,10 @@ class TestPipeline:
 
     def test_batch_extract_from_file_with_comments(self,
                                                    tmp_path: object) -> None:
-        from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness
-        from bitcoin.services.serializer import serialize_legacy_tx
         from bitcoin.script import build_p2pkh
         from bitcoin.script.parser import serialize_script
+        from bitcoin.services.serializer import serialize_legacy_tx
+        from bitcoin.transaction.models import OutPoint, Tx, TxIn, TxOut, Witness
         priv = 42
         txin = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness(()))
         txout = TxOut(1000, build_p2pkh(TEST_PUB_HASH))
@@ -740,11 +740,11 @@ class TestPipeline:
 
     def test_batch_extract_threaded(self) -> None:
         """batch_extract with multiple workers processes successfully."""
-        from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness
-        from bitcoin.services.serializer import serialize_legacy_tx
-        from bitcoin.signature.pipeline import batch_extract
         from bitcoin.script import build_p2pkh
         from bitcoin.script.parser import serialize_script
+        from bitcoin.services.serializer import serialize_legacy_tx
+        from bitcoin.signature.pipeline import batch_extract
+        from bitcoin.transaction.models import OutPoint, Tx, TxIn, TxOut, Witness
         priv = 42
         txin = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness(()))
         txout = TxOut(1000, build_p2pkh(TEST_PUB_HASH))
@@ -768,11 +768,12 @@ class TestPipeline:
     def test_batch_extract_from_file2(self) -> None:
         """batch_extract_from_file reads hex txs from a file (2)."""
         import tempfile
-        from bitcoin.signature.pipeline import batch_extract_from_file
-        from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness
-        from bitcoin.services.serializer import serialize_legacy_tx
+
         from bitcoin.script import build_p2pkh
         from bitcoin.script.parser import serialize_script
+        from bitcoin.services.serializer import serialize_legacy_tx
+        from bitcoin.signature.pipeline import batch_extract_from_file
+        from bitcoin.transaction.models import OutPoint, Tx, TxIn, TxOut, Witness
         priv = 42
         txin = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness(()))
         txout = TxOut(1000, build_p2pkh(TEST_PUB_HASH))

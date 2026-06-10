@@ -8,26 +8,26 @@ from bitcoin.curve import GENERATOR, INFINITY, Point, is_on_curve, multiply
 from bitcoin.curve.params import CURVE_ORDER, FIELD_PRIME
 from bitcoin.encoding.der import encode_der
 from bitcoin.encoding.hasher import hash160, hash256, sha256
+from bitcoin.script.builder import (
+    build_p2pk,
+    build_p2pkh,
+    build_p2tr,
+    build_p2wpkh,
+    build_p2wsh,
+    make_p2pkh_script,
+)
 from bitcoin.script.classifier import (
+    NON_STANDARD,
     P2PK,
     P2PKH,
     P2SH,
+    P2TR,
     P2WPKH,
     P2WSH,
-    P2TR,
-    NON_STANDARD,
     classify_script_pubkey,
     classify_script_sig,
     is_p2sh,
     parse_p2pkh_script_sig,
-)
-from bitcoin.script.builder import (
-    build_p2pk,
-    build_p2pkh,
-    build_p2wpkh,
-    build_p2wsh,
-    build_p2tr,
-    make_p2pkh_script,
 )
 from bitcoin.signature.check import recover_public_key, verify_sig
 from bitcoin.signature.extraction.engine import extract_signatures
@@ -878,8 +878,8 @@ class TestExtractUnknownScriptType:
 class TestExtractPubkeyFromScriptSig:
 
     def test_extract_success(self) -> None:
-        from bitcoin.signature.extraction.engine import extract_pubkey_from_script_sig
         from bitcoin.script.parser import parse_script
+        from bitcoin.signature.extraction.engine import extract_pubkey_from_script_sig
 
         parsed = list(parse_script(make_p2pkh_scriptsig()))
         pk = extract_pubkey_from_script_sig(parsed)
@@ -904,8 +904,8 @@ class TestExtractPubkeyFromScriptSig:
 class TestExtractGuessP2PKH:
 
     def test_guess_found(self) -> None:
-        from bitcoin.signature.extraction.engine import guess_p2pkh_script
         from bitcoin.script.parser import parse_script
+        from bitcoin.signature.extraction.engine import guess_p2pkh_script
 
         parsed = list(parse_script(make_p2pkh_scriptsig()))
         result = guess_p2pkh_script(parsed)

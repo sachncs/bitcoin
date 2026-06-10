@@ -87,7 +87,7 @@ class LibsecpBackend(CurveBackend):
         Returns:
             The resulting point.
         """
-        import coincurve
+        import coincurve  # type: ignore[import-not-found]
 
         px = coincurve.PublicKey(point.to_sec_compressed())
         tweak = scalar.to_bytes(32, "big")

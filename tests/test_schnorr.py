@@ -1,9 +1,9 @@
 """Tests for BIP-340 Schnorr signature verification."""
 from __future__ import annotations
 
-from bitcoin.signature.schnorr import verify_schnorr_sig, lift_x
-from bitcoin.curve.params import FIELD_PRIME, CURVE_ORDER
+from bitcoin.curve.params import CURVE_ORDER, FIELD_PRIME
 from bitcoin.encoding.hasher import sha256
+from bitcoin.signature.schnorr import lift_x, verify_schnorr_sig
 
 
 def test_verify_schnorr_bad_pubkey_length() -> None:

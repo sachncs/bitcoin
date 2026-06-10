@@ -7,13 +7,13 @@ import threading
 import pytest
 
 from bitcoin.curve import (
+    CURVE_ORDER,
     GENERATOR,
     INFINITY,
-    CURVE_ORDER,
-    set_backend,
+    NativeBackend,
     get_backend,
     multiply,
-    NativeBackend,
+    set_backend,
 )
 from bitcoin.settings import Settings
 

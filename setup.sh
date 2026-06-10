@@ -12,13 +12,17 @@ echo "Activating virtual environment..."
 source .venv/bin/activate || { echo "Failed to activate virtual environment."; exit 1; }
 
 echo "Installing package in development mode with dev dependencies..."
-pip install --upgrade pip
-pip install -e ".[dev]"
+.venv/bin/pip install --upgrade "pip>=24,<25"
+.venv/bin/pip install -e ".[dev]"
 
 echo "Installing pre-commit hooks..."
-pre-commit install
+if [ -f .pre-commit-config.yaml ]; then
+    pre-commit install
+else
+    echo "No .pre-commit-config.yaml found — skipping pre-commit setup."
+fi
 
 echo "Running tests..."
-python -m pytest tests/
+.venv/bin/python -m pytest tests/
 
 echo "Done."

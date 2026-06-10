@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from bitcoin.curve.backend.base import CurveBackend
 from bitcoin.curve import operations as ops
+from bitcoin.curve.backend.base import CurveBackend
 from bitcoin.encoding.sec import parse_sec, serialize_sec
 from bitcoin.field.sqrt import sqrt as field_sqrt
 

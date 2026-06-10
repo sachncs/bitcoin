@@ -4,8 +4,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from bitcoin.curve import (
-    INFINITY,
     GENERATOR,
+    INFINITY,
     add,
     double,
     multiply,

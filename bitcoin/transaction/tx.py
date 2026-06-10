@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness
+from bitcoin.transaction.models import OutPoint, Tx, TxIn, TxOut, Witness
 
 
 def build_transaction(

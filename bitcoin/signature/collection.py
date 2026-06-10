@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from collections.abc import Iterator
+from dataclasses import dataclass
 
 from bitcoin.signature.record import Record
 
@@ -31,3 +31,23 @@ class SignatureCollection:
     def __getitem__(self, index: int) -> Record:
         """Return the record at *index*."""
         return self.records[index]
+
+    def sort_records(self, *, key: str = "input_index") -> SignatureCollection:
+        """Return a new collection sorted by the given attribute.
+
+        Args:
+            key: Attribute name to sort by (default: ``"input_index"``).
+
+        Returns:
+            A new ``SignatureCollection`` with sorted records.
+
+        Raises:
+            ValueError: If *key* is not a valid attribute of ``Record``.
+        """
+        if not hasattr(self.records[0], key) if self.records else False:
+            valid = [a for a in dir(Record) if not a.startswith("_")]
+            raise ValueError(
+                f"Invalid sort key {key!r}. Valid options: {valid}")
+        sorted_records = tuple(
+            sorted(self.records, key=lambda r: getattr(r, key)))
+        return SignatureCollection(records=sorted_records)

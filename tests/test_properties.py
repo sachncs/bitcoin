@@ -8,16 +8,24 @@ Covers:
 """
 from __future__ import annotations
 
-from hypothesis import assume, given, strategies as st
+from hypothesis import assume, given
+from hypothesis import strategies as st
 
-from bitcoin.curve import (GENERATOR, INFINITY, add, double, multiply, negate,
-                           is_on_curve)
+from bitcoin.curve import (
+    GENERATOR,
+    INFINITY,
+    add,
+    double,
+    is_on_curve,
+    multiply,
+    negate,
+)
 from bitcoin.curve.params import CURVE_ORDER, FIELD_PRIME
-from bitcoin.encoding.der import encode_der, decode_der
-from bitcoin.encoding.sec import serialize_sec, parse_sec
+from bitcoin.encoding.der import decode_der, encode_der
+from bitcoin.encoding.sec import parse_sec, serialize_sec
 from bitcoin.field import inverse
-from bitcoin.transaction import Tx, TxIn, TxOut, OutPoint, Witness, parse_tx
-from bitcoin.services.serializer import serialize_tx, serialize_legacy_tx
+from bitcoin.services.serializer import serialize_legacy_tx, serialize_tx
+from bitcoin.transaction import OutPoint, Tx, TxIn, TxOut, Witness, parse_tx
 
 # ── Strategies ────────────────────────────────────────────────────
 

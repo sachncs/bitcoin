@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from bitcoin import parse_tx, Tx, TxIn, TxOut, OutPoint, Witness, make_tx, ParsingError
-from bitcoin.services.serializer import serialize_tx, serialize_legacy_tx
+from bitcoin import OutPoint, ParsingError, Tx, TxIn, TxOut, Witness, make_tx, parse_tx
+from bitcoin.services.serializer import serialize_legacy_tx, serialize_tx
 
 
 class TestParseTx:

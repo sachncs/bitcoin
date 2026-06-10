@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
+from bitcoin.encoding.hasher import hash160
 from bitcoin.script.opcodes import (
+    OP_0,
+    OP_1,
     OP_CHECKSIG,
     OP_DUP,
     OP_EQUAL,
     OP_EQUALVERIFY,
     OP_HASH160,
-    OP_0,
-    OP_1,
 )
-
 from bitcoin.script.parser import serialize_script
-from bitcoin.encoding.hasher import hash160
 
 
 def build_p2pk(public_key_bytes: bytes) -> bytes:

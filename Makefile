@@ -17,13 +17,13 @@ typecheck:
 	mypy -p bitcoin
 
 test:
-	python -m pytest
+	python3 -m pytest
 
 test-verbose:
-	python -m pytest -v --tb=long
+	python3 -m pytest -v --tb=long
 
 test-cov:
-	python -m pytest --cov=bitcoin --cov-report=term-missing
+	python3 -m pytest --cov=bitcoin --cov-report=term-missing
 
 clean:
 	./cleanup.sh

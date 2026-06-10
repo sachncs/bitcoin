@@ -2,10 +2,10 @@
 
 import pytest
 
-from bitcoin.signature import Record, linearize_signatures
-from bitcoin.signature.check import verify_sig
 from bitcoin.curve import GENERATOR, multiply
 from bitcoin.encoding.hasher import hash256
+from bitcoin.signature import Record, linearize_signatures
+from bitcoin.signature.check import verify_sig
 
 
 class TestRecord:
@@ -34,6 +34,32 @@ class TestRecord:
                 sighash_flag=0x01,
                 amount=0,
             )
+
+    def test_r_value(self) -> None:
+        # DER encoding of r=1, s=1
+        sig = b"\x30\x06\x02\x01\x01\x02\x01\x01"
+        rec = Record(
+            txid=b"\x00" * 32,
+            input_index=0,
+            signature=sig,
+            public_key=GENERATOR,
+            script_type="p2pkh",
+            sighash_flag=0x01,
+            amount=0,
+        )
+        assert rec.r_value == 1
+
+    def test_r_value_bad_der(self) -> None:
+        with pytest.raises(ValueError):
+            Record(
+                txid=b"\x00" * 32,
+                input_index=0,
+                signature=b"\x00\x01\x02",
+                public_key=GENERATOR,
+                script_type="p2pkh",
+                sighash_flag=0x01,
+                amount=0,
+            ).r_value
 
     def test_negative_vin(self) -> None:
         with pytest.raises(ValueError,

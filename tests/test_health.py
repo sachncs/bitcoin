@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from bitcoin.health import health, check_backend, check_imports
+from bitcoin.health import check_backend, check_imports, health
 
 
 class TestHealth:

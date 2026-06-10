@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from bitcoin.curve import GENERATOR
-from bitcoin.curve.dispatch import multiply, add, negate
+from bitcoin.curve.dispatch import add, multiply, negate
 from bitcoin.curve.params import CURVE_ORDER, FIELD_PRIME
 from bitcoin.encoding.hasher import tagged_hash
 

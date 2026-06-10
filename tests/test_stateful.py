@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from hypothesis import assume, stateful, strategies as st
+from hypothesis import assume, stateful
+from hypothesis import strategies as st
 
 from bitcoin.signature.extraction.engine import extract_signatures
 from bitcoin.signature.record import Record

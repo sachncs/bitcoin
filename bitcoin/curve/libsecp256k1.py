@@ -7,4 +7,4 @@ extension is installed.
 
 def check() -> None:
     """Raise ``ImportError`` if ``coincurve`` is not installed."""
-    import coincurve  # noqa: F401
+    import coincurve  # noqa: F401  # type: ignore[import-not-found]

@@ -24,6 +24,13 @@ htmlcov/
 # Linting
 .ruff_cache/
 
+# Environment
+.env
+.env.*
+
+# Logs
+*.log
+
 # IDE
 .vscode/
 .idea/

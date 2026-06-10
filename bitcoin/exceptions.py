@@ -13,7 +13,7 @@ class BitcoinError(ValueError):
     """Base exception for all bitcoin package errors."""
 
 
-class NotInvertible(BitcoinError):
+class NotInvertible(BitcoinError):  # noqa: N818
     """Raised when a value is not invertible in the given finite field."""
 
 

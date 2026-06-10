@@ -65,9 +65,9 @@ def test_removed_exceptions_gone() -> None:
 def test_derive_linear_coefficients_import_path() -> None:
     """Verify derive_linear_coefficients imports from correct module."""
     from bitcoin.signature.linearization.coefficients import (
-        derive_linear_coefficients,
         LinearCoefficientCollection,
         LinearCoefficientRecord,
+        derive_linear_coefficients,
     )
     assert callable(derive_linear_coefficients)
     assert LinearCoefficientCollection is not None
@@ -77,10 +77,10 @@ def test_derive_linear_coefficients_import_path() -> None:
 def test_attack_imports_correct() -> None:
     """Verify attack module imports from correct locations."""
     from bitcoin.signature.attack import (
-        RecoveredKey,
         NonceReuseGroup,
-        recover_from_nonce_reuse,
+        RecoveredKey,
         detect_nonce_reuse,
+        recover_from_nonce_reuse,
     )
     assert RecoveredKey is not None
     assert NonceReuseGroup is not None

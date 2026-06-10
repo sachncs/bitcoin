@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 
 from bitcoin.curve.backend.base import CurveBackend
 from bitcoin.curve.backend.native import NativeBackend
@@ -11,15 +12,18 @@ from bitcoin.curve.point import Point
 
 logger = logging.getLogger(__name__)
 
+backend_lock = threading.Lock()
 backend: CurveBackend | None = None
 
 # Pre-computation table for fixed-base multiplication with the generator.
-# _G_TABLE[i] == GENERATOR * i  for i in 0..15, using 4-bit windows.
-_G_TABLE: list[Point] = []
-_G_TABLE_INITIALIZED = False
+# G_TABLE[i] == GENERATOR * i  for i in 0..15, using 4-bit windows.
+# Protected by g_table_lock for thread-safe lazy initialization.
+G_TABLE: list[Point] = []
+g_table_initialized = False
+g_table_lock = threading.Lock()
 
 
-def _build_G_table() -> list[Point]:
+def build_g_table() -> list[Point]:
     from bitcoin.curve.operations import add
     from bitcoin.curve.params import GENERATOR_X, GENERATOR_Y
 
@@ -30,23 +34,25 @@ def _build_G_table() -> list[Point]:
     return table
 
 
-def _get_G_table() -> list[Point]:
-    global _G_TABLE, _G_TABLE_INITIALIZED
-    if not _G_TABLE_INITIALIZED:
-        _G_TABLE = _build_G_table()
-        _G_TABLE_INITIALIZED = True
-    return _G_TABLE
+def get_g_table() -> list[Point]:
+    global G_TABLE, g_table_initialized
+    if not g_table_initialized:
+        with g_table_lock:
+            if not g_table_initialized:
+                G_TABLE = build_g_table()
+                g_table_initialized = True
+    return G_TABLE
 
 
-def _is_generator(point: Point) -> bool:
+def is_generator(point: Point) -> bool:
     from bitcoin.curve.params import GENERATOR_X, GENERATOR_Y
     if point.infinity:
         return False
     return point.x == GENERATOR_X and point.y == GENERATOR_Y
 
 
-def _multiply_fixed_base(scalar: int) -> Point:
-    table = _get_G_table()
+def multiply_fixed_base(scalar: int) -> Point:
+    table = get_g_table()
     result = Point(infinity=True)
     num_windows = (scalar.bit_length() + 3) // 4
     for i in range(num_windows - 1, -1, -1):
@@ -64,40 +70,38 @@ def get_backend() -> CurveBackend | None:
 
 
 def set_backend(value: CurveBackend) -> None:
-    """Set the active curve backend.
+    """Set the active curve backend (thread-safe).
 
     Args:
         value: A ``CurveBackend`` instance.
 
     Raises:
         TypeError: If *value* is not a ``CurveBackend`` instance.
-
-    Note:
-        This function is **not thread-safe** when called concurrently with
-        dispatch functions.  Set the backend once at startup before
-        creating any worker threads.
     """
     if not isinstance(value, CurveBackend):
         raise TypeError(
             f"Expected CurveBackend instance, got {type(value).__name__}.")
     global backend
-    backend = value
+    with backend_lock:
+        backend = value
 
 
 def resolve_backend() -> CurveBackend:
     """Return the active backend or the default native backend."""
-    if backend is not None:
-        return backend
+    global backend
+    with backend_lock:
+        if backend is not None:
+            return backend
     from bitcoin.settings import settings
     backend_name = settings.default_backend
     if backend_name == "libsecp":
-        libsecp_backend = _try_load_libsecp()
+        libsecp_backend = try_load_libsecp()
         if libsecp_backend is not None:
             return libsecp_backend
     return NativeBackend()
 
 
-def _try_load_libsecp() -> CurveBackend | None:
+def try_load_libsecp() -> CurveBackend | None:
     """Attempt to load the ``coincurve``-based libsecp backend.
 
     Returns:
@@ -174,8 +178,8 @@ def multiply(scalar: int, point: Point) -> Point:
     scalar = scalar % CURVE_ORDER
     if scalar == 0:
         return Point(infinity=True)
-    if _is_generator(point):
-        return _multiply_fixed_base(scalar)
+    if is_generator(point):
+        return multiply_fixed_base(scalar)
     return resolve_backend().multiply(scalar, point)
 
 
@@ -239,3 +243,20 @@ def normalize_non_negative(value: int, label: str = "value") -> int:
     """Thin wrapper over ``field.modular.validate_non_negative``."""
     from bitcoin.field import validate_non_negative
     return validate_non_negative(value, label)
+
+
+__all__ = [
+    "add",
+    "double",
+    "get_backend",
+    "is_on_curve",
+    "multiply",
+    "negate",
+    "normalize",
+    "normalize_non_negative",
+    "parse_public_key",
+    "resolve_backend",
+    "serialize_public_key",
+    "set_backend",
+    "sqrt_field",
+]

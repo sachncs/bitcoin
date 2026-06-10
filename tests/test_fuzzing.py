@@ -2,18 +2,19 @@
 """Fuzz tests for binary parsers using Hypothesis."""
 
 import pytest
-from hypothesis import given, strategies as st, settings
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
-from bitcoin.transaction.parser import parse_tx
-from bitcoin.services.serializer import serialize_tx, serialize_legacy_tx
-from bitcoin.encoding.der import encode_der, decode_der
-from bitcoin.encoding.sec import parse_sec, serialize_sec
-from bitcoin.encoding.varint import encode_varint, decode_varint
-from bitcoin.psbt.parser import parse_psbt, serialize_psbt
-from bitcoin.psbt.models import Psbt, PsbtInput, PsbtOutput
-from bitcoin.curve.params import CURVE_ORDER
 from bitcoin.curve import GENERATOR
-from bitcoin.transaction.models import Tx, TxIn, TxOut, OutPoint, Witness
+from bitcoin.curve.params import CURVE_ORDER
+from bitcoin.encoding.der import decode_der, encode_der
+from bitcoin.encoding.sec import parse_sec, serialize_sec
+from bitcoin.encoding.varint import decode_varint, encode_varint
+from bitcoin.psbt.models import Psbt, PsbtInput, PsbtOutput
+from bitcoin.psbt.parser import parse_psbt, serialize_psbt
+from bitcoin.services.serializer import serialize_legacy_tx, serialize_tx
+from bitcoin.transaction.models import OutPoint, Tx, TxIn, TxOut, Witness
+from bitcoin.transaction.parser import parse_tx
 
 # ── Transaction parser ─────────────────────────────────────────────
 

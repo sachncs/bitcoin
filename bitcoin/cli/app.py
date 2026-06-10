@@ -1,23 +1,72 @@
-# ruff: noqa: B008
-"""Typer-based CLI app: decode, extract, linearize, version commands."""
+# ruff: noqa: B008  # typer uses mutable defaults intentionally
+"""Typer-based CLI app: decode, extract, linearize, health, version commands."""
 
 from __future__ import annotations
 
 import csv
 import io
 import json
+import logging
+import os
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
 
+from bitcoin.encoding.hex import decode_hex, encode_hex
 from bitcoin.services.serializer import tx_to_json
 from bitcoin.signature import extract_signatures, linearize_signatures
 from bitcoin.signature.record import Record
-from bitcoin.encoding.hex import decode_hex, encode_hex
 from bitcoin.transaction import parse_tx
 
 app = typer.Typer(name="bitcoin")
+
+logger = logging.getLogger("bitcoin.cli")
+_LOGGING_CONFIGURED: bool = False
+
+
+class JSONFormatter(logging.Formatter):
+    """Produces JSON log entries for structured ingestion (ELK, Datadog, etc.)."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        return json.dumps(
+            {
+                "timestamp":
+                    datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
+                "level":
+                    record.levelname,
+                "logger":
+                    record.name,
+                "module":
+                    record.module,
+                "function":
+                    record.funcName,
+                "line":
+                    record.lineno,
+                "message":
+                    record.getMessage(),
+            },
+            default=str)
+
+
+def configure_logging() -> None:
+    """Configure structured (JSON) logging for the bitcoin CLI.
+
+    Log level is read from the ``BITCOIN_LOG_LEVEL`` environment variable
+    (default: ``WARNING``).
+
+    Idempotent — safe to call from multiple commands.
+    """
+    global _LOGGING_CONFIGURED
+    if _LOGGING_CONFIGURED:
+        return
+    handler = logging.StreamHandler()
+    handler.setFormatter(JSONFormatter())
+    root = logging.getLogger("bitcoin")
+    level = os.getenv("BITCOIN_LOG_LEVEL", "WARNING").upper()
+    root.setLevel(level)
+    _LOGGING_CONFIGURED = True
 
 
 def parse_input_values(value_str: str) -> list[int | None]:
@@ -156,10 +205,16 @@ def decode(
                                            help="Read tx hex from file"),
 ) -> None:
     """Decode a raw transaction and output as JSON."""
-    tx_hex_resolved = read_tx_hex(tx_hex, input_file)
-    tx_bytes = decode_hex(tx_hex_resolved)
-    tx, _ = parse_tx(tx_bytes)
-    typer.echo(json.dumps(tx_to_json(tx), indent=2))
+    configure_logging()
+    try:
+        tx_hex_resolved = read_tx_hex(tx_hex, input_file)
+        tx_bytes = decode_hex(tx_hex_resolved)
+        tx, _ = parse_tx(tx_bytes)
+        typer.echo(json.dumps(tx_to_json(tx), indent=2))
+    except (ValueError, OSError, TypeError, AttributeError) as exc:
+        logger.error("decode failed", exc_info=True)
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
 
 
 @app.command()
@@ -181,31 +236,36 @@ def extract(
                                   help="Show progress dots"),
 ) -> None:
     """Extract ECDSA signatures from a raw transaction hex."""
-    fmt = resolve_output_format(
-        json_output=json_output,
-        csv_output=csv_output,
-        output_format=output_format,
-    )
-    tx_hex_resolved = read_tx_hex(tx_hex, input_file)
+    configure_logging()
+    try:
+        fmt = resolve_output_format(
+            json_output=json_output,
+            csv_output=csv_output,
+            output_format=output_format,
+        )
+        tx_hex_resolved = read_tx_hex(tx_hex, input_file)
+        tx_bytes = decode_hex(tx_hex_resolved)
+        tx, _ = parse_tx(tx_bytes)
 
-    tx_bytes = decode_hex(tx_hex_resolved)
-    tx, _ = parse_tx(tx_bytes)
+        script_pubkeys = ([decode_hex(s) for s in utxo_scripts]
+                          if utxo_scripts else None)
 
-    script_pubkeys = ([decode_hex(s) for s in utxo_scripts]
-                      if utxo_scripts else None)
+        if progress:
+            typer.echo(
+                f"Parsed tx with {len(tx.inputs)} inputs, "
+                f"{len(tx.outputs)} outputs.",
+                err=True)
 
-    if progress:
-        typer.echo(
-            f"Parsed tx with {len(tx.inputs)} inputs, "
-            f"{len(tx.outputs)} outputs.",
-            err=True)
+        records = extract_signatures(tx, script_pubkeys, utxo_values)
 
-    records = extract_signatures(tx, script_pubkeys, utxo_values)
+        if progress:
+            typer.echo(f" Found {len(records)} signature(s).", err=True)
 
-    if progress:
-        typer.echo(f" Found {len(records)} signature(s).", err=True)
-
-    output_records(records, fmt)
+        output_records(records, fmt)
+    except (ValueError, OSError, IndexError, TypeError, AttributeError) as exc:
+        logger.error("extract failed", exc_info=True)
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
 
 
 @app.command()
@@ -223,29 +283,35 @@ def linearize(
                                   help="Show progress dots"),
 ) -> None:
     """Extract and linearize (sort) signatures from a raw transaction hex."""
-    fmt = resolve_output_format(
-        json_output=json_output,
-        csv_output=csv_output,
-        output_format=output_format,
-    )
-    tx_hex_resolved = read_tx_hex(tx_hex, input_file)
+    configure_logging()
+    try:
+        fmt = resolve_output_format(
+            json_output=json_output,
+            csv_output=csv_output,
+            output_format=output_format,
+        )
+        tx_hex_resolved = read_tx_hex(tx_hex, input_file)
+        tx_bytes = decode_hex(tx_hex_resolved)
+        tx, _ = parse_tx(tx_bytes)
 
-    tx_bytes = decode_hex(tx_hex_resolved)
-    tx, _ = parse_tx(tx_bytes)
+        if progress:
+            typer.echo(
+                f"Parsed tx with {len(tx.inputs)} inputs, "
+                f"{len(tx.outputs)} outputs.",
+                err=True)
 
-    if progress:
-        typer.echo(
-            f"Parsed tx with {len(tx.inputs)} inputs, "
-            f"{len(tx.outputs)} outputs.",
-            err=True)
+        records = extract_signatures(tx)
+        sorted_records = linearize_signatures(records)
 
-    records = extract_signatures(tx)
-    sorted_records = linearize_signatures(records)
+        if progress:
+            typer.echo(f" Linearized {len(sorted_records)} signature(s).",
+                       err=True)
 
-    if progress:
-        typer.echo(f" Linearized {len(sorted_records)} signature(s).", err=True)
-
-    output_sorted_records(sorted_records, fmt)
+        output_sorted_records(sorted_records, fmt)
+    except (ValueError, OSError, IndexError, TypeError, AttributeError) as exc:
+        logger.error("linearize failed", exc_info=True)
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
 
 
 @app.command()
@@ -256,6 +322,24 @@ def version() -> None:
     typer.echo(f"bitcoin v{ver}")
 
 
+@app.command()
+def health() -> None:
+    """Run health checks and print a JSON status report."""
+    configure_logging()
+    try:
+        from bitcoin.health import health as run_health
+
+        status = run_health()
+        typer.echo(json.dumps(status, indent=2, default=str))
+        if not status.get("curve_operation", False):
+            logger.critical("health check FAILED: curve operation failed")
+            raise typer.Exit(1)
+    except (ValueError, OSError, TypeError, AttributeError) as exc:
+        logger.error("health check failed", exc_info=True)
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+
 def main(args: Sequence[str] | None = None) -> int:
     """CLI entry point — delegates to the Typer app.
 
@@ -263,10 +347,18 @@ def main(args: Sequence[str] | None = None) -> int:
         args: Optional argument list.  If ``None``, uses ``sys.argv``.
 
     Returns:
-        Always ``0``.
+        ``0`` on success, ``1`` on unhandled error.
     """
-    if args is not None:
-        app(args)
-    else:
-        app()
+    configure_logging()
+    try:
+        if args is not None:
+            app(args)
+        else:
+            app()
+    except typer.Exit as e:
+        return getattr(e, "exit_code", 0) or 0
+    except Exception as exc:
+        logger.critical("Unhandled CLI error", exc_info=True)
+        typer.echo(f"Unexpected error: {exc}", err=True)
+        return 1
     return 0

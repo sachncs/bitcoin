@@ -12,7 +12,7 @@ functions from its submodules:
 from bitcoin.transaction.builder import TransactionBuilder, tx_from_dict
 from bitcoin.transaction.models import EMPTY_WITNESS, OutPoint, Tx, TxIn, TxOut, Witness
 from bitcoin.transaction.parser import parse_tx
-from bitcoin.transaction.rbf import is_opt_in_rbf, has_sequence_lock
+from bitcoin.transaction.rbf import has_sequence_lock, is_opt_in_rbf
 from bitcoin.transaction.tx import make_tx
 
 __all__ = [

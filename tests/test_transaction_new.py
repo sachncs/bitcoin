@@ -2,15 +2,15 @@
 
 import pytest
 
+from bitcoin.transaction import make_tx
 from bitcoin.transaction.models import (
+    EMPTY_WITNESS,
     OutPoint,
+    Tx,
     TxIn,
     TxOut,
-    Tx,
     Witness,
-    EMPTY_WITNESS,
 )
-from bitcoin.transaction import make_tx
 
 
 class TestOutPoint:
@@ -128,3 +128,42 @@ class TestTx:
         tx = Tx(version=2, inputs=(), outputs=(), lock_time=0)
         with pytest.raises(Exception):
             tx.version = 3  # type: ignore[misc]
+
+    def test_serializer_property(self) -> None:
+        tx = Tx(version=2, inputs=(), outputs=(), lock_time=0)
+        ser = tx.serializer.serialize()
+        assert len(ser) > 0
+        legacy = tx.serializer.serialize_legacy()
+        assert legacy == ser
+
+    def test_serializer_to_json(self) -> None:
+        tx = Tx(version=2, inputs=(), outputs=(), lock_time=0)
+        js = tx.serializer.to_json()
+        assert js["version"] == 2
+
+    def test_rbf_property_not_opt_in(self) -> None:
+        tx = Tx(version=2, inputs=(), outputs=(), lock_time=0)
+        assert not tx.rbf.is_opt_in()
+        assert not tx.rbf.has_sequence_lock()
+
+    def test_sighash_property(self) -> None:
+        txin = TxIn(
+            previous_output=OutPoint(txid=b"\x00" * 32, vout=0),
+            script_sig=b"",
+            sequence=0xFFFFFFFF,
+            witness=Witness(()),
+        )
+        tx = Tx(version=2, inputs=(txin,), outputs=(), lock_time=0)
+        h = tx.sighash.legacy(0, b"", 0x01)
+        assert len(h) == 32
+
+    def test_sighash_segwit(self) -> None:
+        txin = TxIn(
+            previous_output=OutPoint(txid=b"\x00" * 32, vout=0),
+            script_sig=b"",
+            sequence=0xFFFFFFFF,
+            witness=Witness(()),
+        )
+        tx = Tx(version=2, inputs=(txin,), outputs=(), lock_time=0)
+        h = tx.sighash.segwit(0, b"", 0, 0x01)
+        assert len(h) == 32

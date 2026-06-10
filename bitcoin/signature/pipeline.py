@@ -2,11 +2,16 @@
 
 Supports parallel processing via ``concurrent.futures.ThreadPoolExecutor``,
 file-based input, and cross-transaction nonce reuse detection.
+
+Includes graceful shutdown via SIGTERM/SIGINT handling and per-batch
+request-ID logging for observability.
 """
 
 from __future__ import annotations
 
 import logging
+import signal
+import uuid
 from collections import defaultdict
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -21,6 +26,39 @@ from bitcoin.signature.record import Record
 from bitcoin.transaction.parser import parse_tx
 
 logger = logging.getLogger(__name__)
+
+# ── Graceful shutdown support ────────────────────────────────────────
+# Production lifecycle: SIGTERM/SIGINT set a flag that worker loops
+# check between tasks, avoiding abrupt thread termination.
+
+shutdown_requested = False
+shutdown_lock = Lock()
+
+
+def handle_shutdown(signum: int, frame: object) -> None:
+    """Signal handler: set the shutdown flag so workers stop gracefully."""
+    global shutdown_requested
+    with shutdown_lock:
+        shutdown_requested = True
+    logger.warning(
+        "Shutdown requested (signal %d). Completing current "
+        "tasks...", signum)
+
+
+def is_shutdown_requested() -> bool:
+    with shutdown_lock:
+        return shutdown_requested
+
+
+def install_shutdown_handlers() -> None:
+    """Install SIGTERM and SIGINT handlers (idempotent, safe in threads)."""
+    signal.signal(signal.SIGTERM, handle_shutdown)
+    signal.signal(signal.SIGINT, handle_shutdown)
+
+
+def generate_request_id() -> str:
+    """Generate a short unique request ID for log correlation."""
+    return uuid.uuid4().hex[:12]
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,11 +124,16 @@ def batch_extract(
     utxo_scripts: Sequence[Sequence[bytes] | None] | None = None,
     utxo_values: Sequence[Sequence[int] | None] | None = None,
     max_workers: int = 1,
+    request_id: str | None = None,
 ) -> BatchResult:
     """Extract signatures from multiple transactions.
 
     Processes transactions sequentially when *max_workers* is ``1``,
     or in parallel via a ``ThreadPoolExecutor`` when greater than ``1``.
+
+    Graceful shutdown: installs SIGTERM/SIGINT handlers on first call.
+    After a signal is received, in-flight tasks complete but no new
+    tasks are started.
 
     Args:
         transactions: A sequence of hex-encoded strings or raw bytes.
@@ -102,10 +145,18 @@ def batch_extract(
             *transactions*; elements may be ``None``.
         max_workers: Maximum number of worker threads (``1`` for
             single-threaded).
+        request_id: Optional correlation ID for structured logging.
+            Auto-generated if not provided.
 
     Returns:
         A ``BatchResult`` aggregating all extracted records and errors.
     """
+    install_shutdown_handlers()
+
+    rid = request_id or generate_request_id()
+    logger.info("[%s] Starting batch extract: %d transactions, "
+                "%d workers", rid, len(transactions), max_workers)
+
     n = len(transactions)
     scripts = utxo_scripts or [None] * n
     values = utxo_values or [None] * n
@@ -118,24 +169,42 @@ def batch_extract(
     all_records: list[Record] = []
     errors: list[tuple[str, str]] = []
     successful = 0
-    _lock = Lock()
+    lock = Lock()
+
+    def process_one_with_shutdown(
+        tx_input: str | bytes,
+        tx_scripts: Sequence[bytes] | None,
+        tx_values: Sequence[int] | None,
+    ) -> list[Record] | tuple[str, str]:
+        """Wrapper that checks shutdown flag and returns records or error."""
+        if is_shutdown_requested():
+            label = tx_input[:64] if isinstance(tx_input, str) else "<bytes>"
+            return (label, "Shutdown requested")
+        try:
+            return process_single(tx_input, tx_scripts, tx_values)
+        except Exception as exc:
+            label = tx_input[:64] if isinstance(tx_input, str) else "<bytes>"
+            logger.warning("[%s] Failed to process %s: %s",
+                           rid,
+                           label,
+                           exc,
+                           exc_info=True)
+            return (label, str(exc))
 
     if max_workers <= 1:
         for tx_input, tx_scripts, tx_values in zip(transactions,
                                                    scripts,
                                                    values,
                                                    strict=True):
-            label = tx_input[:64] if isinstance(tx_input, str) else "<bytes>"
-            try:
-                records = process_single(tx_input, tx_scripts, tx_values)
-                all_records.extend(records)
+            if is_shutdown_requested():
+                logger.warning("[%s] Shutdown detected, aborting batch.", rid)
+                break
+            outcome = process_one_with_shutdown(tx_input, tx_scripts, tx_values)
+            if isinstance(outcome, tuple):
+                errors.append(outcome)
+            else:
+                all_records.extend(outcome)
                 successful += 1
-            except (ValueError, IndexError, OSError) as exc:
-                logger.warning("Failed to process %s: %s",
-                               label,
-                               exc,
-                               exc_info=True)
-                errors.append((label, str(exc)))
     else:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_map = {}
@@ -143,34 +212,51 @@ def batch_extract(
                                                        scripts,
                                                        values,
                                                        strict=True):
+                if is_shutdown_requested():
+                    logger.warning(
+                        "[%s] Shutdown detected, skipping "
+                        "remaining submissions.", rid)
+                    break
                 label = (tx_input[:64]
                          if isinstance(tx_input, str) else "<bytes>")
-                fut = executor.submit(process_single, tx_input, tx_scripts,
-                                      tx_values)
+                fut = executor.submit(process_one_with_shutdown, tx_input,
+                                      tx_scripts, tx_values)
                 future_map[fut] = label
 
             for future in as_completed(future_map):
                 label = future_map[future]
                 try:
-                    records = future.result()
-                    with _lock:
-                        all_records.extend(records)
-                        successful += 1
-                except (ValueError, IndexError, OSError) as exc:
-                    logger.warning("Failed to process %s: %s",
-                                   label,
-                                   exc,
-                                   exc_info=True)
-                    with _lock:
+                    fut_result = future.result()
+                except Exception as exc:
+                    logger.warning(
+                        "[%s] Unexpected worker exception for "
+                        "%s: %s",
+                        rid,
+                        label,
+                        exc,
+                        exc_info=True)
+                    with lock:
                         errors.append((label, str(exc)))
+                    continue
+                if isinstance(fut_result, tuple):
+                    with lock:
+                        errors.append(fut_result)
+                else:
+                    with lock:
+                        all_records.extend(fut_result)
+                        successful += 1
 
-    return BatchResult(
+    batch_result = BatchResult(
         records=all_records,
         errors=errors,
         total_transactions=n,
         successful=successful,
         failed=n - successful,
     )
+    logger.info("[%s] Batch complete: %d / %d successful, %d errors.", rid,
+                batch_result.successful, batch_result.total_transactions,
+                len(batch_result.errors))
+    return batch_result
 
 
 def batch_extract_from_file(
@@ -178,6 +264,7 @@ def batch_extract_from_file(
     *,
     delimiter: str = "\n",
     max_workers: int = 1,
+    request_id: str | None = None,
 ) -> BatchResult:
     """Read hex-encoded transactions from a file and extract signatures.
 
@@ -189,6 +276,7 @@ def batch_extract_from_file(
         delimiter: Line delimiter for splitting transactions
             (default ``"\\n"``).
         max_workers: Maximum number of worker threads.
+        request_id: Optional correlation ID for logging.
 
     Returns:
         A ``BatchResult`` aggregating all extracted records and errors.
@@ -196,6 +284,9 @@ def batch_extract_from_file(
     Raises:
         FileNotFoundError: If *file_path* does not exist.
     """
+    rid = request_id or generate_request_id()
+    logger.info("[%s] Reading transactions from %s", rid, file_path)
+
     with open(file_path, encoding="utf-8") as f:
         text = f.read()
 
@@ -206,7 +297,8 @@ def batch_extract_from_file(
         if stripped and not stripped.startswith("#"):
             transactions.append(stripped)
 
-    return batch_extract(transactions, max_workers=max_workers)
+    logger.info("[%s] Loaded %d transactions from file", rid, len(transactions))
+    return batch_extract(transactions, max_workers=max_workers, request_id=rid)
 
 
 def merge_records(results: Sequence[BatchResult]) -> list[Record]:

@@ -3,19 +3,19 @@
 import pytest
 
 from bitcoin.curve import (
-    Point,
-    GENERATOR,
-    INFINITY,
     CURVE_ORDER,
     FIELD_PRIME,
-    is_on_curve,
-    negate,
+    GENERATOR,
+    INFINITY,
+    NativeBackend,
+    Point,
     add,
     double,
-    multiply,
-    set_backend,
     get_backend,
-    NativeBackend,
+    is_on_curve,
+    multiply,
+    negate,
+    set_backend,
 )
 
 
@@ -137,6 +137,44 @@ class TestPointSecRoundtrip:
             serialize_sec(INFINITY)
 
 
+class TestPointArithmetic:
+
+    def test_arithmetic_negate(self) -> None:
+        neg = GENERATOR.arithmetic.negate()
+        assert neg.x == GENERATOR.x
+        assert neg.y == -GENERATOR.y % FIELD_PRIME
+
+    def test_arithmetic_add(self) -> None:
+        result = GENERATOR.arithmetic.add(GENERATOR)
+        assert result == double(GENERATOR)
+
+    def test_arithmetic_double(self) -> None:
+        result = GENERATOR.arithmetic.double()
+        assert result == double(GENERATOR)
+
+    def test_arithmetic_multiply(self) -> None:
+        result = GENERATOR.arithmetic.multiply(2)
+        assert result == double(GENERATOR)
+
+    def test_arithmetic_multiply_by_zero(self) -> None:
+        result = GENERATOR.arithmetic.multiply(0)
+        assert result.infinity
+
+    def test_arithmetic_is_on_curve(self) -> None:
+        assert GENERATOR.arithmetic.is_on_curve()
+
+    def test_arithmetic_is_on_curve_infinity(self) -> None:
+        assert INFINITY.arithmetic.is_on_curve()
+
+    def test_arithmetic_serialize_compressed(self) -> None:
+        ser = GENERATOR.arithmetic.serialize(compressed=True)
+        assert len(ser) == 33
+
+    def test_arithmetic_serialize_uncompressed(self) -> None:
+        ser = GENERATOR.arithmetic.serialize(compressed=False)
+        assert len(ser) == 65
+
+
 class TestBackendDispatch:
 
     def test_default_backend(self) -> None:
@@ -163,7 +201,7 @@ class TestBackendDispatch:
 
     def test_dispatch_functions_work_without_set_backend(self) -> None:
         """Operations work with auto-resolved backend."""
-        from bitcoin.curve.dispatch import is_on_curve, negate, add
+        from bitcoin.curve.dispatch import add, is_on_curve, negate
         assert is_on_curve(GENERATOR)
         neg = negate(GENERATOR)
         assert add(GENERATOR, neg) == INFINITY

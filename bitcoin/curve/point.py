@@ -1,8 +1,99 @@
-"""The ``Point`` value type — a point on the secp256k1 curve."""
+"""The ``Point`` value type — a point on the secp256k1 curve.
+
+Domain-driven composed engine exposed via ``Point.arithmetic`` for
+arithmetic operations (negate, add, double, multiply, is_on_curve).
+"""
 
 from __future__ import annotations
 
 from bitcoin.curve.params import CURVE_B, FIELD_PRIME
+
+
+class PointArithmetic:
+    """Composed arithmetic engine for point operations.
+
+    Accessed via ``point.arithmetic``.  Provides domain-chain access to
+    curve arithmetic without exposing the underlying operations module.
+
+    Args:
+        point: The Point instance this engine is bound to.
+    """
+
+    __slots__ = ("__point",)
+
+    def __init__(self, point: Point) -> None:
+        self.__point: Point = point
+
+    def negate(self) -> Point:
+        """Return the additive inverse of the bound point.
+
+        Returns:
+            The negated Point, or the point at infinity unchanged.
+        """
+        from bitcoin.curve.operations import negate
+        return negate(self.__point)
+
+    def add(self, other: Point) -> Point:
+        """Return the sum of the bound point and *other*.
+
+        Args:
+            other: The point to add.
+
+        Returns:
+            The sum Point.
+        """
+        from bitcoin.curve.operations import add
+        return add(self.__point, other)
+
+    def double(self) -> Point:
+        """Return the bound point doubled (2 * point).
+
+        Returns:
+            The doubled Point.
+        """
+        from bitcoin.curve.operations import double
+        return double(self.__point)
+
+    def multiply(self, scalar: int) -> Point:
+        """Return scalar multiplication scalar * point.
+
+        Args:
+            scalar: The scalar multiplier (non-negative).
+
+        Returns:
+            The resulting Point.
+
+        Raises:
+            ValueError: If *scalar* is negative.
+        """
+        from bitcoin.curve.operations import multiply
+        return multiply(scalar, self.__point)
+
+    def is_on_curve(self) -> bool:
+        """Check whether the bound point lies on the secp256k1 curve.
+
+        Returns:
+            True if the point is on the curve.  The point at infinity
+            is always considered on the curve.
+        """
+        from bitcoin.curve.operations import is_on_curve
+        return is_on_curve(self.__point)
+
+    def serialize(self, compressed: bool = True) -> bytes:
+        """Serialize the bound point to SEC-encoded bytes.
+
+        Args:
+            compressed: Whether to use compressed encoding (default True).
+
+        Returns:
+            SEC-encoded bytes.
+
+        Raises:
+            ValueError: If the point is at infinity.
+        """
+        if compressed:
+            return self.__point.to_sec_compressed()
+        return self.__point.to_sec_uncompressed()
 
 
 class Point:
@@ -61,6 +152,17 @@ class Point:
         """``True`` if this is the point at infinity."""
         return self.__infinity
 
+    # -- composed engine access ---------------------------------------------
+
+    @property
+    def arithmetic(self) -> PointArithmetic:
+        """Access point arithmetic via a composed engine.
+
+        Returns:
+            A ``PointArithmetic`` instance bound to this point.
+        """
+        return PointArithmetic(self)
+
     # -- equality / hashing --------------------------------------------------
 
     def __eq__(self, other: object) -> bool:
@@ -91,6 +193,9 @@ class Point:
     def from_sec_compressed(cls, data: bytes) -> Point:
         """Parse a 33-byte compressed SEC-encoded public key.
 
+        Validates that the decompressed y-coordinate satisfies the curve
+        equation ``y^2 = x^3 + b (mod p)``, rejecting invalid encodings.
+
         Args:
             data: A 33-byte SEC-compressed key.
 
@@ -98,7 +203,8 @@ class Point:
             A new Point parsed from the encoding.
 
         Raises:
-            ValueError: If *data* is not a valid compressed SEC key.
+            ValueError: If *data* is not a valid compressed SEC key or
+                the decompressed point is not on the curve.
         """
         if len(data) != 33 or data[0] not in (0x02, 0x03):
             raise ValueError("Invalid compressed SEC key.")
@@ -107,6 +213,10 @@ class Point:
         y = pow(y_sq, (FIELD_PRIME + 1) // 4, FIELD_PRIME)
         if (y & 1) != (data[0] & 1):
             y = FIELD_PRIME - y
+        # Validate that the decompressed y satisfies the curve equation.
+        if (y * y) % FIELD_PRIME != y_sq:
+            raise ValueError(
+                "Decompressed point is not on the secp256k1 curve.")
         return cls(x=x, y=y)
 
     @classmethod

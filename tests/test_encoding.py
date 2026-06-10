@@ -2,24 +2,24 @@
 
 import pytest
 
+from bitcoin.curve import GENERATOR, INFINITY
 from bitcoin.encoding import (
-    encode_hex,
+    bytes_to_int,
+    decode_der,
     decode_hex,
-    encode_varint,
     decode_varint,
     encode_der,
-    decode_der,
+    encode_hex,
+    encode_varint,
+    hash160,
+    hash256,
+    int_to_bytes,
     parse_sec,
+    read_exactly,
     serialize_sec,
     sha256,
-    hash256,
-    hash160,
     tagged_hash,
-    int_to_bytes,
-    bytes_to_int,
-    read_exactly,
 )
-from bitcoin.curve import GENERATOR, INFINITY
 
 
 class TestHex:

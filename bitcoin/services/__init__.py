@@ -9,8 +9,8 @@ from bitcoin.services.blockchain import (
     fetch_and_extract,
 )
 from bitcoin.services.serializer import (
-    serialize_tx,
     serialize_legacy_tx,
+    serialize_tx,
     tx_to_json,
 )
 

@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from bitcoin.field import inverse
 from bitcoin.curve.params import CURVE_ORDER
+from bitcoin.field import inverse
 
 
 @dataclass(frozen=True, slots=True)

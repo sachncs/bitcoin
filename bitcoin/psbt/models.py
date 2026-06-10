@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from bitcoin.signature.collection import SignatureCollection
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +39,15 @@ class PsbtInput:
     proprietary: dict[bytes, bytes] = field(default_factory=dict)
     unknown: dict[bytes, bytes] = field(default_factory=dict)
 
+    def serialize(self) -> bytes:
+        """Serialize this input map to its PSBT wire format.
+
+        Returns:
+            The serialized input map bytes.
+        """
+        from bitcoin.psbt.parser import serialize_input_map
+        return serialize_input_map(self)
+
 
 @dataclass(frozen=True, slots=True)
 class PsbtOutput:
@@ -53,6 +66,15 @@ class PsbtOutput:
     bip32_derivations: dict[bytes, bytes] = field(default_factory=dict)
     proprietary: dict[bytes, bytes] = field(default_factory=dict)
     unknown: dict[bytes, bytes] = field(default_factory=dict)
+
+    def serialize(self) -> bytes:
+        """Serialize this output map to its PSBT wire format.
+
+        Returns:
+            The serialized output map bytes.
+        """
+        from bitcoin.psbt.parser import serialize_output_map
+        return serialize_output_map(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,3 +103,28 @@ class Psbt:
             raise ValueError(
                 f"Mismatched input/output count in PSBT: "
                 f"{len(self.inputs)} inputs vs {len(self.outputs)} outputs.")
+
+    def serialize(self) -> bytes:
+        """Serialize this PSBT to its binary wire format (BIP-174).
+
+        Returns:
+            The serialized PSBT bytes.
+        """
+        from bitcoin.psbt.parser import serialize_psbt
+        return serialize_psbt(self)
+
+    def extract_signatures(
+        self,
+        *,
+        input_values: list[int] | None = None,
+    ) -> SignatureCollection:
+        """Extract ECDSA signatures from PSBT partial signatures.
+
+        Args:
+            input_values: Optional per-input UTXO values in satoshis.
+
+        Returns:
+            A ``SignatureCollection`` containing all extracted records.
+        """
+        from bitcoin.psbt.parser import psbt_extract_signatures
+        return psbt_extract_signatures(self, input_values=input_values)

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sachn-cs/bitcoin/docs/schemas/health.json",
+  "title": "Bitcoin Health Check Output",
+  "description": "Schema for the JSON output of `bitcoin health` command.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+",
+      "description": "Installed package version."
+    },
+    "imports": {
+      "type": "object",
+      "patternProperties": {
+        "^bitcoin\\.": {"type": "boolean"}
+      },
+      "description": "Per-module import status (true = importable)."
+    },
+    "backends": {
+      "type": "object",
+      "properties": {
+        "native": {
+          "type": "object",
+          "properties": {
+            "available": {"type": "boolean"},
+            "multiply": {"type": "boolean"}
+          },
+          "required": ["available"],
+          "additionalProperties": false
+        },
+        "libsecp256k1": {
+          "type": "object",
+          "properties": {
+            "available": {"type": "boolean"},
+            "multiply": {"type": "boolean"}
+          },
+          "required": ["available"],
+          "additionalProperties": false
+        }
+      },
+      "description": "Curve backend availability."
+    },
+    "curve_operation": {
+      "type": "object",
+      "properties": {
+        "ok": {"type": "boolean"},
+        "error": {"type": "string"}
+      },
+      "required": ["ok"],
+      "description": "Curve arithmetic validation result."
+    }
+  },
+  "required": ["version", "imports", "backends", "curve_operation"],
+  "additionalProperties": false
+}

@@ -40,8 +40,7 @@ def inverse(value: int, modulus: int) -> int:
         old_t, t = t, old_t - quotient * t
 
     if old_r != 1:
-        raise NotInvertible(
-            f"Value {value} is not invertible modulo {modulus}.")
+        raise NotInvertible(f"Value {value} is not invertible modulo {modulus}.")
     return old_t % modulus
 
 

@@ -124,8 +124,7 @@ def reject_code_separators(script: bytes) -> bytes:
     for chunk in parse_script_chunks(script):
         if chunk.opcode == 0xAB and chunk.data is None:
             from bitcoin.exceptions import UnsupportedScriptPathError
-            raise UnsupportedScriptPathError(
-                "OP_CODESEPARATOR is not supported.")
+            raise UnsupportedScriptPathError("OP_CODESEPARATOR is not supported.")
     return script
 
 
@@ -278,12 +277,10 @@ def parse_multisig_redeem_script(script: bytes) -> tuple[int, list[bytes]]:
     from bitcoin.script.opcodes import OP_CHECKSIG
     if chunks[-1].opcode != OP_CHECKSIG:
         from bitcoin.exceptions import UnsupportedScriptPathError
-        raise UnsupportedScriptPathError(
-            "Multisig script is missing CHECKMULTISIG.")
+        raise UnsupportedScriptPathError("Multisig script is missing CHECKMULTISIG.")
     if chunks[0].data is not None or chunks[-2].data is not None:
         from bitcoin.exceptions import UnsupportedScriptPathError
-        raise UnsupportedScriptPathError(
-            "Multisig script has invalid structure.")
+        raise UnsupportedScriptPathError("Multisig script has invalid structure.")
     if not (0x51 <= chunks[0].opcode <= 0x60):
         from bitcoin.exceptions import UnsupportedScriptPathError
         raise UnsupportedScriptPathError("Multisig m value is unsupported.")
@@ -296,13 +293,11 @@ def parse_multisig_redeem_script(script: bytes) -> tuple[int, list[bytes]]:
     pubkeys = [c.data for c in chunks[1:-2] if c.data is not None]
     if len(pubkeys) != n:
         from bitcoin.exceptions import UnsupportedScriptPathError
-        raise UnsupportedScriptPathError(
-            "Multisig pubkey count is inconsistent.")
+        raise UnsupportedScriptPathError("Multisig pubkey count is inconsistent.")
     for pubkey in pubkeys:
         if len(pubkey) not in {33, 65}:
             from bitcoin.exceptions import UnsupportedScriptPathError
-            raise UnsupportedScriptPathError(
-                "Unsupported multisig public key length.")
+            raise UnsupportedScriptPathError("Unsupported multisig public key length.")
     if m < 1 or m > n:
         from bitcoin.exceptions import UnsupportedScriptPathError
         raise UnsupportedScriptPathError("Multisig threshold is invalid.")

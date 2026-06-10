@@ -69,6 +69,7 @@ column_limit = 88
 "bitcoin/signature/signer.py" = ["N806"]
 "tests/test_attack.py" = ["N806"]
 "tests/test_mainnet_vectors.py" = ["N806"]
+"bitcoin/psbt/parser.py" = ["I001"]
 
 [tool.mypy]
 python_version = "3.12"

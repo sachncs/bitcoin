@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: all setup venv lint typecheck test test-verbose test-cov clean
+.PHONY: all setup venv lint typecheck test test-verbose test-cov docs clean
 
 all: lint typecheck test
 
@@ -24,6 +24,9 @@ test-verbose:
 
 test-cov:
 	uv run pytest --cov=bitcoin --cov-report=term-missing
+
+docs:
+	uv run sphinx-build -b html docs/source docs/build
 
 clean:
 	./cleanup.sh

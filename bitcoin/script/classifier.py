@@ -48,9 +48,9 @@ def classify_script_pubkey(script: bytes) -> str:
         return NON_STANDARD
 
     # P2PKH: OP_DUP OP_HASH160 <20 bytes> OP_EQUALVERIFY OP_CHECKSIG
-    if (len(script) == 25 and script[0] == OP_DUP and
-            script[1] == OP_HASH160 and script[2] == 0x14 and
-            script[23] == OP_EQUALVERIFY and script[24] == OP_CHECKSIG):
+    if (len(script) == 25 and script[0] == OP_DUP and script[1] == OP_HASH160 and
+            script[2] == 0x14 and script[23] == OP_EQUALVERIFY and
+            script[24] == OP_CHECKSIG):
         return P2PKH
 
     # P2SH: OP_HASH160 <20 bytes> OP_EQUAL

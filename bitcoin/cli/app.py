@@ -32,20 +32,13 @@ class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         return json.dumps(
             {
-                "timestamp":
-                    datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
-                "level":
-                    record.levelname,
-                "logger":
-                    record.name,
-                "module":
-                    record.module,
-                "function":
-                    record.funcName,
-                "line":
-                    record.lineno,
-                "message":
-                    record.getMessage(),
+                "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
+                "level": record.levelname,
+                "logger": record.name,
+                "module": record.module,
+                "function": record.funcName,
+                "line": record.lineno,
+                "message": record.getMessage(),
             },
             default=str)
 
@@ -120,8 +113,7 @@ def read_tx_hex(tx_hex: str | None, input_file: Path | None) -> str:
         return input_file.read_text().strip()
     if tx_hex is not None:
         return tx_hex
-    typer.echo("Either provide tx_hex as argument or use --input-file",
-               err=True)
+    typer.echo("Either provide tx_hex as argument or use --input-file", err=True)
     raise typer.Exit(1)
 
 
@@ -144,9 +136,8 @@ def output_records(records: list[Record], fmt: str) -> None:
     elif fmt == "csv":
         buf = io.StringIO()
         writer = csv.writer(buf)
-        writer.writerow([
-            "txid", "input_index", "signature", "type", "sighash_flag", "value"
-        ])
+        writer.writerow(
+            ["txid", "input_index", "signature", "type", "sighash_flag", "value"])
         for r in records:
             writer.writerow([
                 encode_hex(r.txid),
@@ -193,8 +184,7 @@ def output_sorted_records(records: list[Record], fmt: str) -> None:
     else:
         for rec in records:
             typer.echo(
-                f"{encode_hex(rec.txid)}:{rec.input_index} {encode_hex(rec.signature)}"
-            )
+                f"{encode_hex(rec.txid)}:{rec.input_index} {encode_hex(rec.signature)}")
 
 
 @app.command()
@@ -230,10 +220,7 @@ def extract(
     input_file: Path | None = typer.Option(None,
                                            "--input-file",
                                            help="Read tx hex from file"),
-    progress: bool = typer.Option(False,
-                                  "--progress",
-                                  "-p",
-                                  help="Show progress dots"),
+    progress: bool = typer.Option(False, "--progress", "-p", help="Show progress dots"),
 ) -> None:
     """Extract ECDSA signatures from a raw transaction hex."""
     configure_logging()
@@ -277,10 +264,7 @@ def linearize(
     input_file: Path | None = typer.Option(None,
                                            "--input-file",
                                            help="Read tx hex from file"),
-    progress: bool = typer.Option(False,
-                                  "--progress",
-                                  "-p",
-                                  help="Show progress dots"),
+    progress: bool = typer.Option(False, "--progress", "-p", help="Show progress dots"),
 ) -> None:
     """Extract and linearize (sort) signatures from a raw transaction hex."""
     configure_logging()
@@ -304,8 +288,7 @@ def linearize(
         sorted_records = linearize_signatures(records)
 
         if progress:
-            typer.echo(f" Linearized {len(sorted_records)} signature(s).",
-                       err=True)
+            typer.echo(f" Linearized {len(sorted_records)} signature(s).", err=True)
 
         output_sorted_records(sorted_records, fmt)
     except (ValueError, OSError, IndexError, TypeError, AttributeError) as exc:
@@ -320,6 +303,80 @@ def version() -> None:
     from bitcoin import __version__ as ver
 
     typer.echo(f"bitcoin v{ver}")
+
+
+@app.command()
+def broadcast(
+    tx_hex: str = typer.Argument(..., help="Raw transaction hex to broadcast"),
+    provider_name: str = typer.Option(
+        "blockstream", "--provider",
+        help="Blockchain provider (blockstream, mempool, blockchain_info)"),
+    input_file: Path | None = typer.Option(
+        None, "--input-file", help="Read tx hex from file"),
+) -> None:
+    """Broadcast a raw transaction to the Bitcoin network."""
+    configure_logging()
+    try:
+        from bitcoin.services.blockchain import (
+            BlockchainInfoProvider,
+            BlockstreamProvider,
+            MempoolSpaceProvider,
+        )
+        providers = {
+            "blockstream": BlockstreamProvider,
+            "mempool": MempoolSpaceProvider,
+            "blockchain_info": BlockchainInfoProvider,
+        }
+        provider_cls = providers.get(provider_name)
+        if provider_cls is None:
+            typer.echo(f"Unknown provider: {provider_name}. "
+                       f"Choose from: {', '.join(providers)}", err=True)
+            raise typer.Exit(1)
+
+        hex_data = read_tx_hex(tx_hex, input_file)
+        provider = provider_cls()
+        from bitcoin.services.blockchain import broadcast_transaction
+        txid = broadcast_transaction(hex_data, provider=provider)
+        typer.echo(txid)
+    except (ValueError, OSError, IndexError, TypeError, AttributeError) as exc:
+        logger.error("broadcast failed", exc_info=True)
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+
+@app.command()
+def schema(
+    output_type: str = typer.Argument(
+        ..., help="Schema name: extraction, health"),
+) -> None:
+    """Print the JSON Schema for a CLI output format."""
+    configure_logging()
+    schemas = {
+        "extraction": "docs/schemas/extraction.json",
+        "health": "docs/schemas/health.json",
+    }
+    path = schemas.get(output_type)
+    if path is None:
+        typer.echo(f"Unknown schema: {output_type}. Choose from: {', '.join(schemas)}",
+                   err=True)
+        raise typer.Exit(1)
+    from pathlib import Path as _Path
+    schema_path = _Path(__file__).resolve().parent.parent.parent / path
+    if not schema_path.exists():
+        typer.echo(f"Schema file not found: {schema_path}", err=True)
+        raise typer.Exit(1)
+    typer.echo(schema_path.read_text())
+
+
+@app.command()
+def install_completion() -> None:
+    """Install shell tab-completion for bash, zsh, fish, or PowerShell."""
+    configure_logging()
+    typer.echo("Run the following command to enable tab-completion:")
+    typer.echo("")
+    typer.echo('  eval "$(bitcoin --install-completion)"')
+    typer.echo("")
+    typer.echo("Or see: bitcoin --help  (completion is auto-enabled via shell)")
 
 
 @app.command()

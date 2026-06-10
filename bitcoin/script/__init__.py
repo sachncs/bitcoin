@@ -60,8 +60,7 @@ from bitcoin.script.parser import (
     script_to_string,
     serialize_script,
 )
-from bitcoin.script.parser import (
-    parse_script_chunks as parse_script,)
+from bitcoin.script.parser import parse_script_chunks as parse_script
 from bitcoin.script.taproot import (
     TaprootScriptPath,
     get_x_only_pubkey,

@@ -91,14 +91,12 @@ def recover_from_nonce_reuse(
         SameNonceError: If the ``r`` values differ.
     """
     if record_1.r != record_2.r:
-        raise SameNonceError(
-            f"r values differ (0x{record_1.r:x} != 0x{record_2.r:x}).")
+        raise SameNonceError(f"r values differ (0x{record_1.r:x} != 0x{record_2.r:x}).")
 
     alpha_diff = (record_1.alpha - record_2.alpha) % CURVE_ORDER
     if alpha_diff == 0:
-        raise SameNonceError(
-            "alpha values are identical; signatures may not be from"
-            " the same private key.")
+        raise SameNonceError("alpha values are identical; signatures may not be from"
+                             " the same private key.")
 
     beta_diff = (record_1.beta - record_2.beta) % CURVE_ORDER
     alpha_diff_inv = field_inverse(alpha_diff, CURVE_ORDER)
@@ -139,8 +137,7 @@ def recover_from_related_nonces(
     alpha_diff_inv = field_inverse(alpha_diff, CURVE_ORDER)
 
     delta_mod = delta % CURVE_ORDER
-    nonce_1 = (
-        (beta_diff + record_2.alpha * delta_mod) * alpha_diff_inv) % CURVE_ORDER
+    nonce_1 = ((beta_diff + record_2.alpha * delta_mod) * alpha_diff_inv) % CURVE_ORDER
     private_key = (record_1.alpha * nonce_1 - record_1.beta) % CURVE_ORDER
 
     return RecoveredKey(

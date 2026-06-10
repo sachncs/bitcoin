@@ -47,8 +47,7 @@ def add(left: Point, right: Point) -> Point:
     x2, y2 = right.x, right.y
     if x1 is None or y1 is None or x2 is None or y2 is None:
         return Point(infinity=True)
-    slope = ((y2 - y1) * inverse(
-        (x2 - x1) % FIELD_PRIME, FIELD_PRIME)) % FIELD_PRIME
+    slope = ((y2 - y1) * inverse((x2 - x1) % FIELD_PRIME, FIELD_PRIME)) % FIELD_PRIME
     x3 = (slope * slope - x1 - x2) % FIELD_PRIME
     y3 = (slope * (x1 - x3) - y1) % FIELD_PRIME
     return Point(x=x3, y=y3)

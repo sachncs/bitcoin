@@ -141,7 +141,9 @@ class TestPointArithmetic:
 
     def test_arithmetic_negate(self) -> None:
         neg = GENERATOR.arithmetic.negate()
+        assert GENERATOR.y is not None
         assert neg.x == GENERATOR.x
+        assert neg.y is not None
         assert neg.y == -GENERATOR.y % FIELD_PRIME
 
     def test_arithmetic_add(self) -> None:

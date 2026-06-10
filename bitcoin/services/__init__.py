@@ -5,6 +5,7 @@ from bitcoin.services.blockchain import (
     BlockchainProvider,
     BlockstreamProvider,
     MempoolSpaceProvider,
+    broadcast_transaction,
     enrich_transaction,
     fetch_and_extract,
 )
@@ -19,6 +20,7 @@ __all__ = [
     "BlockchainProvider",
     "BlockstreamProvider",
     "MempoolSpaceProvider",
+    "broadcast_transaction",
     "enrich_transaction",
     "fetch_and_extract",
     "serialize_legacy_tx",

@@ -6,6 +6,7 @@ SegWit v0 (P2WPKH and P2WSH).
 
 from __future__ import annotations
 
+import functools
 from typing import TYPE_CHECKING
 
 from bitcoin.encoding.hasher import hash256
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
 ZERO_HASH_32 = b"\x00" * 32
 
 
+@functools.lru_cache(maxsize=128)
 def sighash_segwit(transaction: Tx, input_index: int, script: bytes, value: int,
                    sighash_flag: int) -> bytes:
     """Compute the BIP-143 SegWit v0 sighash for a transaction input.
@@ -53,10 +55,9 @@ def sighash_segwit(transaction: Tx, input_index: int, script: bytes, value: int,
     if sighash_flag & SIGHASH_ANYONECANPAY:
         data.extend(ZERO_HASH_32)
     else:
-        hash_prevouts = hash256(
-            b"".join(txin.previous_output.txid +
-                     txin.previous_output.vout.to_bytes(4, "little")
-                     for txin in transaction.inputs))
+        hash_prevouts = hash256(b"".join(
+            txin.previous_output.txid + txin.previous_output.vout.to_bytes(4, "little")
+            for txin in transaction.inputs))
         data.extend(hash_prevouts)
 
     # Hash sequences
@@ -89,19 +90,16 @@ def sighash_segwit(transaction: Tx, input_index: int, script: bytes, value: int,
         data.extend(ZERO_HASH_32)
     elif (sighash_flag & SIGHASH_MASK) == SIGHASH_SINGLE:
         if input_index >= len(transaction.outputs):
-            raise ValueError(
-                f"Input {input_index} out of range for SIGHASH_SINGLE "
-                f"(only {len(transaction.outputs)} outputs).")
+            raise ValueError(f"Input {input_index} out of range for SIGHASH_SINGLE "
+                             f"(only {len(transaction.outputs)} outputs).")
         out = transaction.outputs[input_index]
         hash_outputs_data = (out.value.to_bytes(8, "little") +
-                             encode_varint(len(out.script_pubkey)) +
-                             out.script_pubkey)
+                             encode_varint(len(out.script_pubkey)) + out.script_pubkey)
         data.extend(hash256(hash_outputs_data))
     else:
         hash_outputs = hash256(b"".join(
-            out.value.to_bytes(8, "little") +
-            encode_varint(len(out.script_pubkey)) + out.script_pubkey
-            for out in transaction.outputs))
+            out.value.to_bytes(8, "little") + encode_varint(len(out.script_pubkey)) +
+            out.script_pubkey for out in transaction.outputs))
         data.extend(hash_outputs)
 
     data.extend(transaction.lock_time.to_bytes(4, "little"))

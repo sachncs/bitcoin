@@ -30,8 +30,7 @@ def bits2int(data: bytes) -> int:
     Returns:
         The integer value right-shifted by ``(8 * len(data) - qlen)`` bits.
     """
-    return int.from_bytes(data,
-                          "big") >> (len(data) * 8 - CURVE_ORDER.bit_length())
+    return int.from_bytes(data, "big") >> (len(data) * 8 - CURVE_ORDER.bit_length())
 
 
 def hmac_drbg_generate_k(private_key_bytes: bytes,
@@ -53,12 +52,10 @@ def hmac_drbg_generate_k(private_key_bytes: bytes,
     K = b"\x00" * HASH_BYTE_LENGTH
     V = b"\x01" * HASH_BYTE_LENGTH
 
-    K = hmac.new(K, V + b"\x00" + private_key_bytes + message_hash,
-                 "sha256").digest()
+    K = hmac.new(K, V + b"\x00" + private_key_bytes + message_hash, "sha256").digest()
     V = hmac.new(K, V, "sha256").digest()
 
-    K = hmac.new(K, V + b"\x01" + private_key_bytes + message_hash,
-                 "sha256").digest()
+    K = hmac.new(K, V + b"\x01" + private_key_bytes + message_hash, "sha256").digest()
     V = hmac.new(K, V, "sha256").digest()
 
     for _ in range(HMAC_DRBG_MAX_RETRIES):
@@ -159,7 +156,7 @@ def sign_tx_input(
     Returns:
         Signature bytes (DER-encoded signature + sighash flag byte).
     """
-    message_hash = compute_sighash(transaction, input_index, script,
-                                   sighash_flag, value)
+    message_hash = compute_sighash(transaction, input_index, script, sighash_flag,
+                                   value)
     der_signature = sign(message_hash, private_key)
     return der_signature + bytes([sighash_flag])

@@ -1,7 +1,7 @@
 """Fluent builder for constructing and editing PSBTs (BIP-174).
 
-Provides ``PsbtEditor`` for programmatic creation and modification of
-``Psbt`` instances.
+Provides ``PsbtEditor`` for programmatic creation, signing, and
+finalization of ``Psbt`` instances.
 """
 
 from __future__ import annotations
@@ -157,8 +157,7 @@ class PsbtEditor:
         self.inputs[vin].sighash_type = flag
         return self
 
-    def add_input_partial_sig(self, vin: int, pubkey: bytes,
-                              sig: bytes) -> Self:
+    def add_input_partial_sig(self, vin: int, pubkey: bytes, sig: bytes) -> Self:
         """Add a partial signature for a PSBT input.
 
         Args:
@@ -196,6 +195,75 @@ class PsbtEditor:
             ``self`` for chaining.
         """
         self.outputs[vout].witness_script = script
+        return self
+
+    def sign_input(
+        self,
+        vin: int,
+        private_key: int,
+        *,
+        pubkey: bytes | None = None,
+        sighash_flag: int | None = None,
+    ) -> Self:
+        """Sign a PSBT input with a private key.
+
+        Parses the unsigned transaction, determines the script code and
+        value from the PSBT input data, signs the input, and stores the
+        resulting signature in ``partial_sigs``.
+
+        Args:
+            vin: Input index to sign.
+            private_key: Private key as an integer.
+            pubkey: Public key bytes.  If ``None``, derived from
+                *private_key* via multiplication with GENERATOR.
+            sighash_flag: Sighash flag.  If ``None``, uses the input's
+                ``sighash_type`` or defaults to ``SIGHASH_ALL``.
+
+        Returns:
+            ``self`` for chaining.
+        """
+        from bitcoin.curve import GENERATOR, multiply
+        from bitcoin.sighash.flag import SIGHASH_ALL
+        from bitcoin.signature.signer import sign_tx_input
+
+        tx, _ = parse_tx(self.tx)
+        inp = self.inputs[vin]
+
+        flag = sighash_flag if sighash_flag is not None else (
+            inp.sighash_type if inp.sighash_type is not None else SIGHASH_ALL)
+
+        # Determine the script code from the PSBT input data.
+        script_code = b""
+        value = 0
+
+        if inp.witness_script is not None:
+            script_code = inp.witness_script
+        elif inp.redeem_script is not None:
+            script_code = inp.redeem_script
+        else:
+            # Derive the script code from the witness_utxo scriptPubKey
+            if inp.witness_utxo is not None:
+                from bitcoin.encoding.varint import decode_varint
+                offset = 0
+                value, offset = decode_varint(inp.witness_utxo, offset)
+                script_pubkey_len, offset = decode_varint(inp.witness_utxo, offset)
+                script_pubkey = inp.witness_utxo[offset:offset + script_pubkey_len]
+                from bitcoin.script.classifier import classify_script_pubkey
+                st = classify_script_pubkey(script_pubkey)
+                if st in ("p2wpkh", "p2sh"):
+                    from bitcoin.script.builder import build_p2pkh
+                    script_code = build_p2pkh(script_pubkey[-20:])
+                else:
+                    script_code = script_pubkey
+
+        if pubkey is None:
+            pubkey_point = multiply(private_key, GENERATOR)
+            from bitcoin.curve import serialize_public_key
+            pubkey = serialize_public_key(pubkey_point)
+
+        sig = sign_tx_input(tx, vin, private_key, script=script_code,
+                            value=value, sighash_flag=flag)
+        inp.partial_sigs[pubkey] = sig
         return self
 
     def finalize_input(

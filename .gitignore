@@ -10,6 +10,9 @@ build/
 # Virtual environment
 .venv/
 
+# Docs build output
+docs/build/
+
 # Testing & coverage
 .pytest_cache/
 .benchmarks/

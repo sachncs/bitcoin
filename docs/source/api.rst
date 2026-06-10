@@ -1,11 +1,6 @@
 API Reference
 =============
 
-.. automodule:: bitcoin
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Subpackages
 -----------
 

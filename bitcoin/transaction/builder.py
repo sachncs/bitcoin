@@ -97,8 +97,7 @@ class TransactionBuilder:
             ValueError: If *lock_time* is negative.
         """
         if lock_time < 0:
-            raise ValueError(
-                f"Lock time must be non-negative, got {lock_time}.")
+            raise ValueError(f"Lock time must be non-negative, got {lock_time}.")
         self.__lock_time = lock_time
         return self
 

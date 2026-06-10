@@ -14,7 +14,7 @@ import signal
 import uuid
 from collections import defaultdict
 from collections.abc import Sequence
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from threading import Lock
 
@@ -40,9 +40,8 @@ def handle_shutdown(signum: int, frame: object) -> None:
     global shutdown_requested
     with shutdown_lock:
         shutdown_requested = True
-    logger.warning(
-        "Shutdown requested (signal %d). Completing current "
-        "tasks...", signum)
+    logger.warning("Shutdown requested (signal %d). Completing current "
+                   "tasks...", signum)
 
 
 def is_shutdown_requested() -> bool:
@@ -54,6 +53,22 @@ def install_shutdown_handlers() -> None:
     """Install SIGTERM and SIGINT handlers (idempotent, safe in threads)."""
     signal.signal(signal.SIGTERM, handle_shutdown)
     signal.signal(signal.SIGINT, handle_shutdown)
+
+
+def _process_single_worker(
+    tx_input: str | bytes,
+    utxo_scripts: Sequence[bytes] | None,
+    utxo_values: Sequence[int] | None,
+) -> list[Record] | tuple[str, str]:
+    """Top-level worker function for ``ProcessPoolExecutor``.
+
+    Must be at module level for pickling across process boundaries.
+    """
+    try:
+        return process_single(tx_input, utxo_scripts, utxo_values)
+    except Exception as exc:
+        label = tx_input[:64] if isinstance(tx_input, str) else "<bytes>"
+        return (label, str(exc))
 
 
 def generate_request_id() -> str:
@@ -108,8 +123,7 @@ def process_single(
     tx, _ = parse_tx(raw)
     records = extract_signatures(
         tx,
-        utxo_script_pubkeys=list(utxo_scripts)
-        if utxo_scripts is not None else None,
+        utxo_script_pubkeys=list(utxo_scripts) if utxo_scripts is not None else None,
         utxo_values=list(utxo_values) if utxo_values is not None else None,
     )
     if not records and any(
@@ -124,12 +138,14 @@ def batch_extract(
     utxo_scripts: Sequence[Sequence[bytes] | None] | None = None,
     utxo_values: Sequence[Sequence[int] | None] | None = None,
     max_workers: int = 1,
+    use_process_pool: bool = False,
     request_id: str | None = None,
 ) -> BatchResult:
     """Extract signatures from multiple transactions.
 
     Processes transactions sequentially when *max_workers* is ``1``,
-    or in parallel via a ``ThreadPoolExecutor`` when greater than ``1``.
+    or in parallel via a ``ThreadPoolExecutor`` (default) or
+    ``ProcessPoolExecutor`` (CPU-bound) when greater than ``1``.
 
     Graceful shutdown: installs SIGTERM/SIGINT handlers on first call.
     After a signal is received, in-flight tasks complete but no new
@@ -145,6 +161,10 @@ def batch_extract(
             *transactions*; elements may be ``None``.
         max_workers: Maximum number of worker threads (``1`` for
             single-threaded).
+        use_process_pool: If ``True``, use ``ProcessPoolExecutor``
+            instead of ``ThreadPoolExecutor`` (recommended for CPU-bound
+            extraction).  Not compatible with graceful shutdown
+            (process pools ignore SIGTERM/SIGINT handlers).
         request_id: Optional correlation ID for structured logging.
             Auto-generated if not provided.
 
@@ -205,8 +225,41 @@ def batch_extract(
             else:
                 all_records.extend(outcome)
                 successful += 1
+    elif use_process_pool:
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            future_map = {}
+            for tx_input, tx_scripts, tx_values in zip(transactions,
+                                                       scripts,
+                                                       values,
+                                                       strict=True):
+                label = (tx_input[:64] if isinstance(tx_input, str) else "<bytes>")
+                fut = executor.submit(_process_single_worker, tx_input,
+                                      tx_scripts, tx_values)
+                future_map[fut] = label
+
+            for future in as_completed(future_map):
+                label = future_map[future]
+                try:
+                    fut_result = future.result()
+                except Exception as exc:
+                    logger.warning("[%s] Unexpected worker exception for "
+                                   "%s: %s",
+                                   rid,
+                                   label,
+                                   exc,
+                                   exc_info=True)
+                    with lock:
+                        errors.append((label, str(exc)))
+                    continue
+                if isinstance(fut_result, tuple):
+                    with lock:
+                        errors.append(fut_result)
+                else:
+                    with lock:
+                        all_records.extend(fut_result)
+                        successful += 1
     else:
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:  # type: ignore[assignment]
             future_map = {}
             for tx_input, tx_scripts, tx_values in zip(transactions,
                                                        scripts,
@@ -217,10 +270,9 @@ def batch_extract(
                         "[%s] Shutdown detected, skipping "
                         "remaining submissions.", rid)
                     break
-                label = (tx_input[:64]
-                         if isinstance(tx_input, str) else "<bytes>")
-                fut = executor.submit(process_one_with_shutdown, tx_input,
-                                      tx_scripts, tx_values)
+                label = (tx_input[:64] if isinstance(tx_input, str) else "<bytes>")
+                fut = executor.submit(process_one_with_shutdown, tx_input, tx_scripts,
+                                      tx_values)
                 future_map[fut] = label
 
             for future in as_completed(future_map):
@@ -228,13 +280,12 @@ def batch_extract(
                 try:
                     fut_result = future.result()
                 except Exception as exc:
-                    logger.warning(
-                        "[%s] Unexpected worker exception for "
-                        "%s: %s",
-                        rid,
-                        label,
-                        exc,
-                        exc_info=True)
+                    logger.warning("[%s] Unexpected worker exception for "
+                                   "%s: %s",
+                                   rid,
+                                   label,
+                                   exc,
+                                   exc_info=True)
                     with lock:
                         errors.append((label, str(exc)))
                     continue

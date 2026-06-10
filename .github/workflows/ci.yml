@@ -58,6 +58,9 @@ jobs:
 
   benchmark:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      deployments: write
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86  # v5
@@ -72,6 +75,16 @@ jobs:
         with:
           name: benchmark
           path: benchmark.json
+      - name: Compare benchmarks to main
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'pytest'
+          output-file-path: benchmark.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: false
+          alert-threshold: '110%'
+          comment-on-alert: true
+          fail-on-alert: true
 
   test-coincurve:
     runs-on: ubuntu-latest

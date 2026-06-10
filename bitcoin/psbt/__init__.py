@@ -5,6 +5,7 @@ from bitcoin.psbt.models import Psbt, PsbtInput, PsbtOutput
 from bitcoin.psbt.parser import (
     parse_keypath_value,
     parse_psbt,
+    parse_psbt_from_file,
     parse_psbt_hex,
     psbt_extract_signatures,
     serialize_psbt,
@@ -18,6 +19,7 @@ __all__ = [
     "parse_keypath_value",
     "parse_psbt",
     "parse_psbt_hex",
+    "parse_psbt_from_file",
     "psbt_extract_signatures",
     "serialize_psbt",
 ]

@@ -8,6 +8,11 @@ from bitcoin.curve import libsecp256k1
 from bitcoin.curve.backend.base import CurveBackend
 from bitcoin.curve.backend.libsec import LibsecpBackend
 from bitcoin.curve.backend.native import NativeBackend
+from bitcoin.curve.batch import (
+    batch_normalize,
+    batch_validate,
+    multi_multiply,
+)
 from bitcoin.curve.dispatch import (
     add,
     double,
@@ -50,10 +55,13 @@ __all__ = [
     "NativeBackend",
     "Point",
     "add",
+    "batch_normalize",
+    "batch_validate",
     "double",
+    "libsecp256k1",
     "get_backend",
     "is_on_curve",
-    "libsecp256k1",
+    "multi_multiply",
     "multiply",
     "negate",
     "normalize",

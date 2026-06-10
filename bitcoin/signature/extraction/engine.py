@@ -25,7 +25,14 @@ from bitcoin.script.classifier import (
 )
 from bitcoin.script.parser import parse_script
 from bitcoin.sighash.flag import SIGHASH_ALL
-from bitcoin.signature.check import recover_public_key
+from bitcoin.signature.extraction.helpers import (
+    build_p2pkh_script_code,  # noqa: F401  re-exported
+    compute_sighash,  # noqa: F401  re-exported
+    default_script_code,
+    extract_pubkey_from_script_sig,
+    p2wpkh_script_code,
+    recover_or_parse_pubkey,
+)
 from bitcoin.signature.extraction.plugins import register_plugin
 from bitcoin.signature.record import Record
 
@@ -136,8 +143,7 @@ class TaprootExtractor:
         script_pubkey: bytes,
         value: int,
     ) -> list[Record]:
-        return extract_taproot(tx, vin, script_pubkey, value,
-                               txin.witness.items)
+        return extract_taproot(tx, vin, script_pubkey, value, txin.witness.items)
 
 
 # ── Built-in extractor registry ──────────────────────────────────────
@@ -210,8 +216,7 @@ def extract_signatures(
             txin.script_sig)) if txin.script_sig else []
         script_pubkey = utxo_script_pubkeys[vin] if utxo_script_pubkeys else b""
         script_type = determine_script_type(script_pubkey, parsed_sig)
-        script_type_counts[script_type] = script_type_counts.get(
-            script_type, 0) + 1
+        script_type_counts[script_type] = script_type_counts.get(script_type, 0) + 1
         logger.debug("Processing input %d, script_type=%s", vin, script_type)
         value = utxo_values[vin] if utxo_values else 0
         is_segwit = bool(txin.witness.items)
@@ -220,23 +225,20 @@ def extract_signatures(
         for plugin_name in list_plugins():
             plugin = get_plugin(plugin_name)
             if plugin is not None and plugin.can_handle(script_type, is_segwit):
-                records.extend(
-                    plugin.extract(tx, vin, txin, script_pubkey, value))
+                records.extend(plugin.extract(tx, vin, txin, script_pubkey, value))
                 dispatched = True
                 break
 
         if not dispatched:
             failed_inputs += 1
 
-    type_summary = ", ".join(
-        f"{n} {t}" for t, n in sorted(script_type_counts.items()))
-    logger.info("Extracted %d signatures from %d inputs (%s). failed=%d",
-                len(records), len(tx.inputs), type_summary, failed_inputs)
+    type_summary = ", ".join(f"{n} {t}" for t, n in sorted(script_type_counts.items()))
+    logger.info("Extracted %d signatures from %d inputs (%s). failed=%d", len(records),
+                len(tx.inputs), type_summary, failed_inputs)
     return records
 
 
-def determine_script_type(script_pubkey: bytes,
-                          script_sig: Sequence[object]) -> str:
+def determine_script_type(script_pubkey: bytes, script_sig: Sequence[object]) -> str:
     """Classify the script type from the ``scriptPubKey``.
 
     Args:
@@ -309,8 +311,7 @@ def extract_legacy(
                     input_index=vin,
                     signature=der,
                     public_key=pubkey,
-                    script_type=determine_script_type(script_pubkey,
-                                                      script_sig),
+                    script_type=determine_script_type(script_pubkey, script_sig),
                     sighash_flag=flag,
                     amount=0,
                 ))
@@ -483,8 +484,7 @@ def extract_p2sh_segwit(
     if not parsed_sig:
         return records
     redeem_script = parsed_sig[-1] if isinstance(parsed_sig[-1], bytes) else b""
-    redeem_type = classify_script_pubkey(
-        redeem_script) if redeem_script else "unknown"
+    redeem_type = classify_script_pubkey(redeem_script) if redeem_script else "unknown"
 
     witness_items = txin.witness.items
     # Determine script code from the redeem type
@@ -513,8 +513,7 @@ def extract_p2sh_segwit(
                 value=value,
             )
             if pubkey is None:
-                logger.debug("P2SH-SegWit pubkey recovery failed for input %d",
-                             vin)
+                logger.debug("P2SH-SegWit pubkey recovery failed for input %d", vin)
                 continue
             records.append(
                 Record(
@@ -590,8 +589,7 @@ def extract_taproot(
                     amount=value,
                 ))
         except ValueError:
-            logger.debug(
-                "Taproot key-path spend extraction failed for input %d", vin)
+            logger.debug("Taproot key-path spend extraction failed for input %d", vin)
         return records
 
     # Script-path spend: stack is [sig, ..., script, control_block]
@@ -643,176 +641,3 @@ def pubkey_from_p2tr_script(script_pubkey: bytes) -> Point:
         except ValueError:
             logger.debug("Failed to lift x-only pubkey from P2TR script")
     return INFINITY
-
-
-# ── Public key recovery ───────────────────────────────────────────
-
-
-def extract_pubkey_from_script_sig(
-        script_sig: Sequence[object]) -> bytes | None:
-    """Extract the public key from a legacy P2PKH ``scriptSig``.
-
-    Searches from the end for a 33- or 65-byte push that is the
-    uncompressed or compressed public key.
-
-    Args:
-        script_sig: Parsed ``scriptSig`` elements.
-
-    Returns:
-        The public key bytes, or ``None`` if not found.
-    """
-    for element in reversed(script_sig):
-        if isinstance(element, bytes) and len(element) in {33, 65}:
-            return element
-    return None
-
-
-def recover_or_parse_pubkey(
-    tx: Tx,
-    vin: int,
-    sig: bytes,
-    flag: int,
-    script: bytes = b"",
-    value: int = 0,
-    pubkey_bytes: bytes | None = None,
-) -> Point | None:
-    """Recover a public key from a signature, falling back to SEC parsing.
-
-    Computes the sighash and tries all four recovery IDs.  If recovery
-    fails and *pubkey_bytes* is provided, attempts to parse it as an
-    SEC-encoded public key instead.
-
-    Args:
-        tx: The parent transaction.
-        vin: Input index.
-        sig: DER-encoded signature (without the sighash byte).
-        flag: Sighash flag byte.
-        script: Script code used for sighash computation.
-        value: UTXO value in satoshis (used for SegWit sighashes).
-        pubkey_bytes: Optional SEC-encoded public key as fallback.
-
-    Returns:
-        The recovered ``Point``, or ``None`` if every method fails.
-
-    Raises:
-        AttributeError: If *tx* is malformed.
-    """
-    try:
-        message = compute_sighash(tx, vin, script, flag, value)
-    except ValueError:
-        logger.debug("Sighash computation failed for input %d", vin)
-        return None
-    for rec_id in range(4):
-        recovery_flag = 27 + rec_id + 4
-        try:
-            return recover_public_key(message, sig, recovery_flag)
-        except ValueError:
-            continue
-    logger.debug("Public key recovery failed for input %d", vin)
-    if pubkey_bytes:
-        from bitcoin.curve import is_on_curve, parse_public_key
-        try:
-            point = parse_public_key(pubkey_bytes)
-            if point is not None and not point.infinity and is_on_curve(point):
-                return point
-        except (ValueError, TypeError):
-            logger.debug("Failed to parse fallback public key for input %d",
-                         vin)
-    return None
-
-
-# ── Sighash computation ───────────────────────────────────────────
-
-
-def compute_sighash(tx: Tx, vin: int, script: bytes, flag: int,
-                    value: int) -> bytes:
-    """Compute the transaction sighash for a given input.
-
-    Dispatches to legacy or SegWit sighash depending on whether the
-    *script* is a witness program (``OP_0 <20|32 bytes>``).  This is
-    correct even for P2SH-wrapped SegWit inputs where the transaction
-    itself may not have witness data.
-
-    Args:
-        tx: The transaction.
-        vin: Input index.
-        script: Script code.
-        flag: Sighash flag byte.
-        value: UTXO value in satoshis (required for SegWit).
-
-    Returns:
-        The 32-byte sighash digest.
-
-    Raises:
-        ValueError: If ``SIGHASH_SINGLE`` is used with out-of-bounds
-            input index, or for other invalid flag combinations.
-    """
-    from bitcoin.sighash.legacy import sighash_legacy
-    from bitcoin.sighash.segwit import sighash_segwit
-
-    # A witness program is OP_0 followed by a 20- or 32-byte push.
-    is_witness = (len(script) >= 2 and script[0] == 0x00 and
-                  script[1] in (0x14, 0x20))
-    if is_witness:
-        return sighash_segwit(tx, vin, script, value, flag)
-    return sighash_legacy(tx, vin, script, flag)
-
-
-# ── Script code helpers ───────────────────────────────────────────
-
-
-def p2wpkh_script_code(script_pubkey: bytes) -> bytes:
-    """Derive the P2WPKH script code from the witness program.
-
-    The script code for a P2WPKH input is the 25-byte P2PKH script
-    constructed from the 20-byte pubkey hash inside the witness program.
-
-    Args:
-        script_pubkey: The P2WPKH witness program (typically 22 bytes:
-            ``0x00 0x14 <20-byte-hash>``).
-
-    Returns:
-        The 25-byte script code suitable for SegWit sighash computation.
-    """
-    if len(script_pubkey) >= 2:
-        program = script_pubkey[
-            2:] if script_pubkey[:1] == b"\x00" else script_pubkey
-        if len(program) >= 20:
-            return build_p2pkh_script_code(program[:20])
-    return default_script_code()
-
-
-def build_p2pkh_script_code(pubkey_hash: bytes) -> bytes:
-    """Build the 25-byte P2PKH script code from a 20-byte pubkey hash.
-
-    Args:
-        pubkey_hash: The 20-byte HASH160 of the public key.
-
-    Returns:
-        A 25-byte script: ``<len> OP_DUP OP_HASH160 OP_PUSH_20 <hash>
-        OP_EQUALVERIFY OP_CHECKSIG``.
-
-    Raises:
-        ValueError: If *pubkey_hash* is not 20 bytes.
-    """
-    if len(pubkey_hash) != 20:
-        raise ValueError(
-            f"pubkey_hash must be 20 bytes, got {len(pubkey_hash)}")
-    return b"".join([
-        bytes([0x19]),  # length
-        bytes([0x76]),  # OP_DUP
-        bytes([0xA9]),  # OP_HASH160
-        bytes([0x14]),  # OP_PUSH_20
-        pubkey_hash,
-        bytes([0x88]),  # OP_EQUALVERIFY
-        bytes([0xAC]),  # OP_CHECKSIG
-    ])
-
-
-def default_script_code() -> bytes:
-    """Return a fallback script code when the real one cannot be determined.
-
-    Returns:
-        22 zero bytes — a placeholder that will not match any real script.
-    """
-    return b"\x00" * 22

@@ -5,8 +5,7 @@ from collections.abc import Iterator
 from typing import Literal
 
 
-def bytes_to_int(data: bytes,
-                 byteorder: Literal["big", "little"] = "big") -> int:
+def bytes_to_int(data: bytes, byteorder: Literal["big", "little"] = "big") -> int:
     """Convert bytes to an integer.
 
     Args:
@@ -52,9 +51,8 @@ def read_exactly(stream: bytes, n: int, offset: int = 0) -> tuple[bytes, int]:
             at *offset*.
     """
     if offset + n > len(stream):
-        raise ValueError(
-            f"Requested {n} bytes at offset {offset} but stream only "
-            f"has {len(stream)} bytes.")
+        raise ValueError(f"Requested {n} bytes at offset {offset} but stream only "
+                         f"has {len(stream)} bytes.")
     return stream[offset:offset + n], offset + n
 
 

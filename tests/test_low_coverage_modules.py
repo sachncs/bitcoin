@@ -394,7 +394,9 @@ class TestOperationsEdgeCases:
         from bitcoin.curve import GENERATOR
         from bitcoin.curve.operations import negate
         result = negate(GENERATOR)
+        assert GENERATOR.y is not None
         assert result.x == GENERATOR.x
+        assert result.y is not None
         assert result.y == FIELD_PRIME - GENERATOR.y
 
     def test_add_both_infinity(self) -> None:
@@ -454,6 +456,7 @@ class TestOperationsEdgeCases:
 
     def test_add_points_negated(self) -> None:
         from bitcoin.curve.operations import add
+        assert GENERATOR.y is not None
         neg_gen = Point(x=GENERATOR.x, y=FIELD_PRIME - GENERATOR.y)
         result = add(GENERATOR, neg_gen)
         assert result.infinity

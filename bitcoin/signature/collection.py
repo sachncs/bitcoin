@@ -46,8 +46,6 @@ class SignatureCollection:
         """
         if not hasattr(self.records[0], key) if self.records else False:
             valid = [a for a in dir(Record) if not a.startswith("_")]
-            raise ValueError(
-                f"Invalid sort key {key!r}. Valid options: {valid}")
-        sorted_records = tuple(
-            sorted(self.records, key=lambda r: getattr(r, key)))
+            raise ValueError(f"Invalid sort key {key!r}. Valid options: {valid}")
+        sorted_records = tuple(sorted(self.records, key=lambda r: getattr(r, key)))
         return SignatureCollection(records=sorted_records)

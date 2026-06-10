@@ -23,9 +23,8 @@ class LibsecpBackend(CurveBackend):
 
     def __init__(self) -> None:
         check_libsecp256k1()
-        logger.debug(
-            "LibsecpBackend initialised; negate/add/double fall back to "
-            "pure Python because coincurve does not expose them.")
+        logger.debug("LibsecpBackend initialised; negate/add/double fall back to "
+                     "pure Python because coincurve does not expose them.")
 
     def negate(self, point: Point) -> Point:
         """Return the additive inverse of *point* (pure-Python fallback).

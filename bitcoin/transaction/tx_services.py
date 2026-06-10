@@ -102,8 +102,7 @@ class TxSighash:
     def __init__(self, tx: Tx) -> None:
         self.__tx: Tx = tx
 
-    def legacy(self, input_index: int, script: bytes,
-               sighash_flag: int) -> bytes:
+    def legacy(self, input_index: int, script: bytes, sighash_flag: int) -> bytes:
         """Compute the legacy (pre-SegWit) sighash.
 
         Args:
@@ -131,8 +130,7 @@ class TxSighash:
             32-byte sighash.
         """
         from bitcoin.sighash.segwit import sighash_segwit
-        return sighash_segwit(self.__tx, input_index, script, value,
-                              sighash_flag)
+        return sighash_segwit(self.__tx, input_index, script, value, sighash_flag)
 
     def taproot(
         self,

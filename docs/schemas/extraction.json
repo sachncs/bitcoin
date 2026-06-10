@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sachn-cs/bitcoin/docs/schemas/extraction.json",
+  "title": "Bitcoin Signature Extraction Output",
+  "description": "Schema for the JSON output of `bitcoin extract` and `bitcoin linearize` commands.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "txid": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$",
+        "description": "Transaction ID as a 64-character hex string (little-endian)."
+      },
+      "input_index": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Input index (vin) within the transaction."
+      },
+      "signature": {
+        "type": "string",
+        "pattern": "^[0-9a-f]+$",
+        "description": "DER-encoded ECDSA or Schnorr signature as hex."
+      },
+      "type": {
+        "type": "string",
+        "enum": ["p2pk", "p2pkh", "p2sh", "p2wpkh", "p2wsh", "p2tr"],
+        "description": "Script type of the input."
+      },
+      "sighash_flag": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 255,
+        "description": "SIGHASH flag byte."
+      },
+      "value": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "UTXO value in satoshis (0 if unknown)."
+      }
+    },
+    "required": ["txid", "input_index", "signature", "type", "sighash_flag", "value"],
+    "additionalProperties": false
+  }
+}

@@ -215,8 +215,7 @@ class Point:
             y = FIELD_PRIME - y
         # Validate that the decompressed y satisfies the curve equation.
         if (y * y) % FIELD_PRIME != y_sq:
-            raise ValueError(
-                "Decompressed point is not on the secp256k1 curve.")
+            raise ValueError("Decompressed point is not on the secp256k1 curve.")
         return cls(x=x, y=y)
 
     @classmethod

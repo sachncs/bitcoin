@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import logging
 import threading
 
@@ -79,8 +80,7 @@ def set_backend(value: CurveBackend) -> None:
         TypeError: If *value* is not a ``CurveBackend`` instance.
     """
     if not isinstance(value, CurveBackend):
-        raise TypeError(
-            f"Expected CurveBackend instance, got {type(value).__name__}.")
+        raise TypeError(f"Expected CurveBackend instance, got {type(value).__name__}.")
     global backend
     with backend_lock:
         backend = value
@@ -183,6 +183,7 @@ def multiply(scalar: int, point: Point) -> Point:
     return resolve_backend().multiply(scalar, point)
 
 
+@functools.lru_cache(maxsize=4096)
 def is_on_curve(point: Point) -> bool:
     """Return True if *point* lies on the secp256k1 curve.
 
@@ -207,6 +208,7 @@ def sqrt_field(value: int) -> int:
     return resolve_backend().sqrt(value)
 
 
+@functools.lru_cache(maxsize=4096)
 def parse_public_key(data: bytes) -> Point:
     """Parse a SEC-encoded public key into a Point.
 

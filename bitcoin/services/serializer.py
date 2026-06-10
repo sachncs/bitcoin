@@ -85,9 +85,10 @@ def tx_to_json(tx: Tx) -> dict[str, Any]:
                 encode_hex(txin.script_sig),
             "sequence":
                 txin.sequence,
-            "witness": [encode_hex(w) for w in txin.witness.items]
-                       if txin.witness.items else None,
-        } for txin in tx.inputs],
+            "witness": [encode_hex(w)
+                        for w in txin.witness.items] if txin.witness.items else None,
+        }
+                   for txin in tx.inputs],
         "outputs": [{
             "value": txout.value,
             "script_pubkey": encode_hex(txout.script_pubkey),

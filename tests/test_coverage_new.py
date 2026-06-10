@@ -1,6 +1,7 @@
 """Coverage tests for low-coverage modules and new features."""
 from __future__ import annotations
 
+from typing import cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -264,8 +265,8 @@ class TestTransactionBuilder:
     def test_bad_output_value_type(self) -> None:
         b = TransactionBuilder()
         b.add_input(txid=b"\x01" * 32, vout=0)
-        b.add_output(value="lots",
-                     script_pubkey=b"\x00" * 25)  # type: ignore[arg-type]
+        b.add_output(value=cast(int, "lots"),
+                     script_pubkey=b"\x00" * 25)
         with pytest.raises(ValueError, match="value must be int"):
             b.build()
 
@@ -1023,14 +1024,15 @@ class TestMempoolSpaceProvider:
 class TestFetchText:
 
     def test_http_error(self) -> None:
+        from http.client import HTTPMessage
         from urllib.error import HTTPError
         with patch("bitcoin.services.blockchain.urlopen") as mock:
             mock.side_effect = HTTPError(
                 "http://example.com",
                 404,
                 "Not Found",
-                {},
-                None,  # type: ignore[arg-type]
+                HTTPMessage(),
+                None,
             )
             with pytest.raises(OSError, match="HTTP 404"):
                 fetch_text("http://example.com")

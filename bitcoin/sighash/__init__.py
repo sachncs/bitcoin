@@ -2,6 +2,7 @@
 
 This module re-exports all sighash functions and SIGHASH flag constants
 from the submodules:
+
   - ``flag``: SIGHASH constants and validation helpers.
   - ``legacy``:  Pre-SegWit (legacy) sighash.
   - ``segwit``:  BIP-143 SegWit v0 sighash.

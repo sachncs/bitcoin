@@ -50,8 +50,7 @@ class TxIn:
 
     def __post_init__(self) -> None:
         if self.sequence < 0:
-            raise ValueError(
-                f"Sequence must be non-negative, got {self.sequence}.")
+            raise ValueError(f"Sequence must be non-negative, got {self.sequence}.")
 
 
 @dataclass(frozen=True, slots=True)

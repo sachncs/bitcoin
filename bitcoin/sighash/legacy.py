@@ -5,6 +5,7 @@ This is the algorithm used before SegWit, superseded by BIP-143.
 
 from __future__ import annotations
 
+import functools
 from typing import TYPE_CHECKING
 
 from bitcoin.encoding.hasher import hash256
@@ -13,6 +14,7 @@ if TYPE_CHECKING:
     from bitcoin.transaction.models import Tx
 
 
+@functools.lru_cache(maxsize=128)
 def sighash_legacy(transaction: Tx, input_index: int, script: bytes,
                    sighash_flag: int) -> bytes:
     """Compute the legacy (pre-SegWit) sighash for a transaction input.

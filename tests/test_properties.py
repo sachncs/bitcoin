@@ -25,7 +25,9 @@ from bitcoin.encoding.der import decode_der, encode_der
 from bitcoin.encoding.sec import parse_sec, serialize_sec
 from bitcoin.field import inverse
 from bitcoin.services.serializer import serialize_legacy_tx, serialize_tx
-from bitcoin.transaction import OutPoint, Tx, TxIn, TxOut, Witness, parse_tx
+from bitcoin.transaction import OutPoint, Tx, TxIn, TxOut, Witness
+from bitcoin.transaction.models import EMPTY_WITNESS
+from bitcoin.transaction.parser import parse_tx
 
 # ── Strategies ────────────────────────────────────────────────────
 
@@ -225,3 +227,118 @@ def test_legacy_txid_unchanged(tx: Tx) -> None:
     raw = serialize_tx(tx)
     parsed, _ = parse_tx(raw)
     assert parsed.txid() == orig_id
+
+
+# ── Additional ECC properties ────────────────────────────────────────
+
+
+@given(small_scalars, small_scalars, small_scalars)
+def test_add_commutative(a: int, b: int, c: int) -> None:
+    """P + Q == Q + P"""
+    p = multiply(a, GENERATOR)
+    q = multiply(b, GENERATOR)
+    assert add(p, q) == add(q, p)
+
+
+@given(small_scalars, small_scalars, small_scalars)
+def test_add_associative(a: int, b: int, c: int) -> None:
+    """(P + Q) + R == P + (Q + R)"""
+    p = multiply(a, GENERATOR)
+    q = multiply(b, GENERATOR)
+    r = multiply(c, GENERATOR)
+    assert add(add(p, q), r) == add(p, add(q, r))
+
+
+@given(small_scalars)
+def test_identity_element(k: int) -> None:
+    """P + INFINITY == P"""
+    p = multiply(k, GENERATOR)
+    assert add(p, INFINITY) == p
+    assert add(INFINITY, p) == p
+
+
+@given(small_scalars, small_scalars)
+def test_double_add_equivalence(a: int, b: int) -> None:
+    """double(P) == P + P"""
+    p = multiply(a + 1, GENERATOR)  # avoid INFINITY
+    assert double(p) == add(p, p)
+
+
+@given(valid_scalars)
+def test_multiply_zero_returns_infinity(k: int) -> None:
+    """0 * P == INFINITY"""
+    p = multiply(k, GENERATOR)
+    assert multiply(0, p) == INFINITY
+
+
+@given(der_r, der_s)
+def test_der_signature_invariants(r: int, s: int) -> None:
+    """DER-encoded signatures start with 0x30 and end with 0x??."""
+    sig = encode_der(r, s)
+    assert sig[0] == 0x30
+    assert len(sig) >= 6
+    r2, s2 = decode_der(sig)
+    assert r == r2
+    assert s == s2
+
+
+# ── PSBT serialization roundtrip ─────────────────────────────────────
+
+
+@st.composite
+def psbt_input_strategy(draw: st.DrawFn) -> dict[str, object]:
+    """Build a random PSBT input (as dictionary for testing)."""
+    result: dict[str, object] = {}
+    if draw(st.booleans()):
+        result["non_witness_utxo"] = draw(st.binary(min_size=0, max_size=64))
+    if draw(st.booleans()):
+        result["witness_utxo"] = draw(st.binary(min_size=0, max_size=64))
+    if draw(st.booleans()):
+        result["sighash_type"] = draw(st.sampled_from([1, 2, 3, 129, 130, 131]))
+    if draw(st.booleans()):
+        result["redeem_script"] = draw(st.binary(min_size=0, max_size=32))
+    if draw(st.booleans()):
+        result["witness_script"] = draw(st.binary(min_size=0, max_size=32))
+    n_sigs = draw(st.integers(min_value=0, max_value=3))
+    result["partial_sigs"] = {
+        draw(st.binary(min_size=32, max_size=33)):
+        draw(st.binary(min_size=8, max_size=73))
+        for _ in range(n_sigs)
+    }
+    result["bip32_derivations"] = {
+        draw(st.binary(min_size=32, max_size=33)):
+        draw(st.binary(min_size=5, max_size=15))
+        for _ in range(draw(st.integers(min_value=0, max_value=3)))
+    }
+    return result
+
+
+@given(
+    st.lists(st.binary(min_size=0, max_size=64), min_size=1, max_size=3),
+    st.lists(st.binary(min_size=0, max_size=64), min_size=0, max_size=3),
+)
+def test_fee_estimate_non_negative(
+    script_sigs: list[bytes],
+    script_pubkeys: list[bytes],
+) -> None:
+    """Fee estimation returns a non-negative value for any Tx."""
+    from bitcoin.transaction.fee import estimate_vsize
+
+    tx = Tx(
+        version=2,
+        inputs=tuple(
+            TxIn(
+                previous_output=OutPoint(txid=b"\x00" * 32, vout=i),
+                script_sig=s,
+                sequence=0xFFFFFFFF,
+                witness=EMPTY_WITNESS,
+            ) for i, s in enumerate(script_sigs)
+        ),
+        outputs=tuple(
+            TxOut(value=10000, script_pubkey=s)
+            for s in script_pubkeys
+        ),
+        lock_time=0,
+    )
+    vsize = estimate_vsize(tx)
+    assert vsize >= 0

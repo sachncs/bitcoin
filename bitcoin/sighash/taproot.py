@@ -160,9 +160,8 @@ def sighash_taproot(
         data.append(0x00)
     elif base_flag == SIGHASH_SINGLE:
         if input_index >= len(transaction.outputs):
-            raise ValueError(
-                f"Input index {input_index} out of bounds for "
-                f"SIGHASH_SINGLE with {len(transaction.outputs)} outputs.")
+            raise ValueError(f"Input index {input_index} out of bounds for "
+                             f"SIGHASH_SINGLE with {len(transaction.outputs)} outputs.")
         data.extend(encode_varint(1))
         out = transaction.outputs[input_index]
         data.extend(out.value.to_bytes(8, "little"))

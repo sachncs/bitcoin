@@ -6,7 +6,7 @@ from bitcoin.settings import settings
 
 
 @fixture(autouse=True)
-def _reset_settings() -> None:
+def reset_settings() -> None:
     """Reset the global settings singleton before each test.
 
     Prevents test-pollution when tests modify module-level

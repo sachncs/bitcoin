@@ -35,7 +35,7 @@ class DescriptorInfo:
     satisfaction_bytes: int = 0
 
 
-_ESTIMATED_SATISFACTION: dict[str, int] = {
+__ESTIMATED_SATISFACTION: dict[str, int] = {
     "pk": 73 + 1,  # signature + sig length
     "pkh": 73 + 33 + 2,  # sig + pubkey + lengths
     "wpkh": 73 + 33,  # sig + pubkey (witness)
@@ -71,19 +71,19 @@ def analyze_descriptor(expr: str) -> DescriptorInfo:
     has_timelock = False
     has_hash_lock = False
     satisfaction = 0
-    _collect_info(ast, keys, has_timelock=has_timelock, has_hash_lock=has_hash_lock)
+    __collect_info(ast, keys, has_timelock=has_timelock, has_hash_lock=has_hash_lock)
 
-    satisfaction = _estimate_satisfaction(ast)
+    satisfaction = __estimate_satisfaction(ast)
     return DescriptorInfo(
         script_type=ast.op,
-        keys=_sorted_unique(keys),
-        has_timelock=_contains_op(ast, "older") or _contains_op(ast, "after"),
-        has_hash_lock=_contains_op(ast, "sha256") or _contains_op(ast, "ripemd160"),
+        keys=__sorted_unique(keys),
+        has_timelock=__contains_op(ast, "older") or __contains_op(ast, "after"),
+        has_hash_lock=__contains_op(ast, "sha256") or __contains_op(ast, "ripemd160"),
         satisfaction_bytes=satisfaction,
     )
 
 
-def _collect_info(
+def __collect_info(
     node: DescriptorNode,
     keys: list[str],
     has_timelock: bool,
@@ -94,27 +94,27 @@ def _collect_info(
         if isinstance(arg, str) and PUBKEY_PATTERN.match(arg):
             keys.append(arg)
         elif isinstance(arg, DescriptorNode):
-            _collect_info(arg, keys, has_timelock, has_hash_lock)
+            __collect_info(arg, keys, has_timelock, has_hash_lock)
 
 
-def _contains_op(node: DescriptorNode, op: str) -> bool:
+def __contains_op(node: DescriptorNode, op: str) -> bool:
     """Check if any subtree contains a given operation."""
     if node.op == op:
         return True
     for arg in node.args:
-        if isinstance(arg, DescriptorNode) and _contains_op(arg, op):
+        if isinstance(arg, DescriptorNode) and __contains_op(arg, op):
             return True
     return False
 
 
-def _estimate_satisfaction(node: DescriptorNode) -> int:
+def __estimate_satisfaction(node: DescriptorNode) -> int:
     """Estimate minimum satisfaction size in bytes."""
-    base = _ESTIMATED_SATISFACTION.get(node.op, 0)
+    base = __ESTIMATED_SATISFACTION.get(node.op, 0)
 
     child_total = 0
     for arg in node.args:
         if isinstance(arg, DescriptorNode):
-            child_total += _estimate_satisfaction(arg)
+            child_total += __estimate_satisfaction(arg)
 
     if node.op in ("or", "or_b"):
         return base + child_total
@@ -123,7 +123,7 @@ def _estimate_satisfaction(node: DescriptorNode) -> int:
     return base + child_total
 
 
-def _sorted_unique(items: list[str]) -> list[str]:
+def __sorted_unique(items: list[str]) -> list[str]:
     """Return sorted, deduplicated list."""
     seen: set[str] = set()
     result: list[str] = []
@@ -145,17 +145,17 @@ def extract_keys(expr: str) -> list[str]:
     """
     ast = parse_descriptor(expr)
     keys: list[str] = []
-    _collect_keys(ast, keys)
-    return _sorted_unique(keys)
+    __collect_keys(ast, keys)
+    return __sorted_unique(keys)
 
 
-def _collect_keys(node: DescriptorNode, keys: list[str]) -> None:
+def __collect_keys(node: DescriptorNode, keys: list[str]) -> None:
     """Recursively collect keys from AST."""
     for arg in node.args:
         if isinstance(arg, str) and PUBKEY_PATTERN.match(arg):
             keys.append(arg)
         elif isinstance(arg, DescriptorNode):
-            _collect_keys(arg, keys)
+            __collect_keys(arg, keys)
 
 
 __all__ = [

@@ -97,15 +97,13 @@ TEST_PUB_HASH = hash256(TEST_PUB_SEC)[:20]
 def make_test_tx() -> Tx:
     return Tx(
         version=2,
-        inputs=(
-            TxIn(
-                previous_output=OutPoint(txid=b"\x01" * 32, vout=0),
-                script_sig=b"",
-                sequence=0xFFFFFFFF,
-                witness=EMPTY_WITNESS,
-            ),
-        ),
-        outputs=(TxOut(value=10000, script_pubkey=build_p2pkh(TEST_PUB_HASH)),),
+        inputs=(TxIn(
+            previous_output=OutPoint(txid=b"\x01" * 32, vout=0),
+            script_sig=b"",
+            sequence=0xFFFFFFFF,
+            witness=EMPTY_WITNESS,
+        ), ),
+        outputs=(TxOut(value=10000, script_pubkey=build_p2pkh(TEST_PUB_HASH)), ),
         lock_time=0,
     )
 
@@ -133,6 +131,7 @@ class DummyPlugin:
 
 
 class TestPluginRegistry:
+
     def test_register_and_list(self) -> None:
         register_plugin(DummyPlugin())
         assert "dummy" in list_plugins()
@@ -162,27 +161,20 @@ class TestPluginRegistry:
 
 
 class TestTransactionBuilder:
+
     def test_basic_build(self) -> None:
-        tx = (
-            TransactionBuilder()
-            .add_input(txid=b"\x01" * 32, vout=0)
-            .add_output(
-                value=50000,
-                script_pubkey=b"\x76\xa9\x14" + b"\x00" * 20 + b"\x88\xac",
-            )
-            .build()
-        )
+        tx = (TransactionBuilder().add_input(txid=b"\x01" * 32, vout=0).add_output(
+            value=50000,
+            script_pubkey=b"\x76\xa9\x14" + b"\x00" * 20 + b"\x88\xac",
+        ).build())
         assert len(tx.inputs) == 1
         assert len(tx.outputs) == 1
         assert tx.version == 2
 
     def test_custom_version(self) -> None:
-        tx = (
-            TransactionBuilder(version=1)
-            .add_input(txid=b"\x02" * 32, vout=1)
-            .add_output(value=1000, script_pubkey=b"\x00" * 25)
-            .build()
-        )
+        tx = (TransactionBuilder(version=1).add_input(
+            txid=b"\x02" * 32, vout=1).add_output(value=1000,
+                                                  script_pubkey=b"\x00" * 25).build())
         assert tx.version == 1
 
     def test_negative_version(self) -> None:
@@ -198,13 +190,8 @@ class TestTransactionBuilder:
         assert len(tx.outputs) == 2
 
     def test_set_lock_time(self) -> None:
-        tx = (
-            TransactionBuilder()
-            .add_input(txid=b"\x01" * 32, vout=0)
-            .add_output(value=1000, script_pubkey=b"\x00" * 25)
-            .set_lock_time(500000)
-            .build()
-        )
+        tx = (TransactionBuilder().add_input(txid=b"\x01" * 32, vout=0).add_output(
+            value=1000, script_pubkey=b"\x00" * 25).set_lock_time(500000).build())
         assert tx.lock_time == 500000
 
     def test_set_lock_time_negative(self) -> None:
@@ -213,27 +200,19 @@ class TestTransactionBuilder:
 
     def test_build_no_inputs(self) -> None:
         with pytest.raises(ValueError, match="At least one input"):
-            (
-                TransactionBuilder()
-                .add_output(value=100, script_pubkey=b"\x00" * 25)
-                .build()
-            )
+            (TransactionBuilder().add_output(value=100,
+                                             script_pubkey=b"\x00" * 25).build())
 
     def test_build_no_outputs(self) -> None:
         with pytest.raises(ValueError, match="At least one output"):
             TransactionBuilder().add_input(txid=b"\x01" * 32, vout=0).build()
 
     def test_witness_input(self) -> None:
-        tx = (
-            TransactionBuilder()
-            .add_input(
-                txid=b"\x03" * 32,
-                vout=0,
-                witness=(b"\x00" * 64, b"\x01" * 33),
-            )
-            .add_output(value=1000, script_pubkey=b"\x00" * 25)
-            .build()
-        )
+        tx = (TransactionBuilder().add_input(
+            txid=b"\x03" * 32,
+            vout=0,
+            witness=(b"\x00" * 64, b"\x01" * 33),
+        ).add_output(value=1000, script_pubkey=b"\x00" * 25).build())
         assert len(tx.inputs[0].witness.items) == 2
 
     def test_bad_txid_type(self) -> None:
@@ -273,7 +252,8 @@ class TestTransactionBuilder:
 
     def test_bad_witness_item_type(self) -> None:
         b = TransactionBuilder()
-        b.add_input(txid=b"\x01" * 32, vout=0, witness=(123,))  # type: ignore[arg-type]
+        b.add_input(txid=b"\x01" * 32, vout=0,
+                    witness=(123, ))  # type: ignore[arg-type]
         b.add_output(value=100, script_pubkey=b"\x00" * 25)
         with pytest.raises(ValueError, match="witness items must be bytes"):
             b.build()
@@ -294,14 +274,19 @@ class TestTransactionBuilder:
 
 
 class TestTxFromDict:
+
     def test_basic(self) -> None:
-        tx = tx_from_dict(
-            {
-                "version": 2,
-                "inputs": [{"txid": b"\x01" * 32, "vout": 0}],
-                "outputs": [{"value": 1000, "script_pubkey": b"\x00" * 25}],
-            }
-        )
+        tx = tx_from_dict({
+            "version": 2,
+            "inputs": [{
+                "txid": b"\x01" * 32,
+                "vout": 0
+            }],
+            "outputs": [{
+                "value": 1000,
+                "script_pubkey": b"\x00" * 25
+            }],
+        })
         assert len(tx.inputs) == 1
         assert tx.version == 2
 
@@ -331,102 +316,119 @@ class TestTxFromDict:
 
     def test_bad_lock_time(self) -> None:
         with pytest.raises(ValueError, match="lock_time must be an int"):
-            tx_from_dict(
-                {
-                    "version": 2,
-                    "inputs": [],
-                    "outputs": [],
-                    "lock_time": "zero",
-                }
-            )
+            tx_from_dict({
+                "version": 2,
+                "inputs": [],
+                "outputs": [],
+                "lock_time": "zero",
+            })
 
     def test_input_not_dict(self) -> None:
         with pytest.raises(ValueError, match="Each input must be a dict"):
-            tx_from_dict(
-                {
-                    "version": 2,
-                    "inputs": ["not_dict"],
-                    "outputs": [{"value": 100, "script_pubkey": b"\x00"}],
-                }
-            )
+            tx_from_dict({
+                "version": 2,
+                "inputs": ["not_dict"],
+                "outputs": [{
+                    "value": 100,
+                    "script_pubkey": b"\x00"
+                }],
+            })
 
     def test_input_missing_txid(self) -> None:
         with pytest.raises(ValueError, match="Each input must have a bytes txid"):
-            tx_from_dict(
-                {
-                    "version": 2,
-                    "inputs": [{"vout": 0}],
-                    "outputs": [{"value": 100, "script_pubkey": b"\x00"}],
-                }
-            )
+            tx_from_dict({
+                "version": 2,
+                "inputs": [{
+                    "vout": 0
+                }],
+                "outputs": [{
+                    "value": 100,
+                    "script_pubkey": b"\x00"
+                }],
+            })
 
     def test_input_bad_vout(self) -> None:
         with pytest.raises(ValueError, match="Each input must have an int vout"):
-            tx_from_dict(
-                {
-                    "version": 2,
-                    "inputs": [{"txid": b"\x01" * 32, "vout": "zero"}],
-                    "outputs": [{"value": 100, "script_pubkey": b"\x00"}],
-                }
-            )
+            tx_from_dict({
+                "version": 2,
+                "inputs": [{
+                    "txid": b"\x01" * 32,
+                    "vout": "zero"
+                }],
+                "outputs": [{
+                    "value": 100,
+                    "script_pubkey": b"\x00"
+                }],
+            })
 
     def test_output_not_dict(self) -> None:
         with pytest.raises(ValueError, match="Each output must be a dict"):
-            tx_from_dict(
-                {
-                    "version": 2,
-                    "inputs": [{"txid": b"\x01" * 32, "vout": 0}],
-                    "outputs": ["not_dict"],
-                }
-            )
+            tx_from_dict({
+                "version": 2,
+                "inputs": [{
+                    "txid": b"\x01" * 32,
+                    "vout": 0
+                }],
+                "outputs": ["not_dict"],
+            })
 
     def test_output_missing_value(self) -> None:
         with pytest.raises(ValueError, match="Each output must have an int value"):
-            tx_from_dict(
-                {
-                    "version": 2,
-                    "inputs": [{"txid": b"\x01" * 32, "vout": 0}],
-                    "outputs": [{"script_pubkey": b"\x00"}],
-                }
-            )
+            tx_from_dict({
+                "version": 2,
+                "inputs": [{
+                    "txid": b"\x01" * 32,
+                    "vout": 0
+                }],
+                "outputs": [{
+                    "script_pubkey": b"\x00"
+                }],
+            })
 
     def test_output_missing_script(self) -> None:
         with pytest.raises(ValueError, match="bytes script_pubkey"):
-            tx_from_dict(
-                {
-                    "version": 2,
-                    "inputs": [{"txid": b"\x01" * 32, "vout": 0}],
-                    "outputs": [{"value": 100}],
-                }
-            )
+            tx_from_dict({
+                "version": 2,
+                "inputs": [{
+                    "txid": b"\x01" * 32,
+                    "vout": 0
+                }],
+                "outputs": [{
+                    "value": 100
+                }],
+            })
 
     def test_with_lock_time(self) -> None:
-        tx = tx_from_dict(
-            {
-                "version": 2,
-                "inputs": [{"txid": b"\x01" * 32, "vout": 0}],
-                "outputs": [{"value": 1000, "script_pubkey": b"\x00" * 25}],
-                "lock_time": 100,
-            }
-        )
+        tx = tx_from_dict({
+            "version": 2,
+            "inputs": [{
+                "txid": b"\x01" * 32,
+                "vout": 0
+            }],
+            "outputs": [{
+                "value": 1000,
+                "script_pubkey": b"\x00" * 25
+            }],
+            "lock_time": 100,
+        })
         assert tx.lock_time == 100
 
     def test_with_optional_fields(self) -> None:
-        tx = tx_from_dict(
-            {
-                "version": 2,
-                "inputs": [
-                    {
-                        "txid": b"\x01" * 32,
-                        "vout": 0,
-                        "script_sig": b"\x00",
-                        "sequence": 0xFFFFFFFE,
-                        "witness": (b"\x01" * 64,),
-                    }
-                ],
-                "outputs": [{"value": 1000, "script_pubkey": b"\x00" * 25}],
-            }
-        )
+        tx = tx_from_dict({
+            "version":
+            2,
+            "inputs": [{
+                "txid": b"\x01" * 32,
+                "vout": 0,
+                "script_sig": b"\x00",
+                "sequence": 0xFFFFFFFE,
+                "witness": (b"\x01" * 64, ),
+            }],
+            "outputs": [{
+                "value": 1000,
+                "script_pubkey": b"\x00" * 25
+            }],
+        })
         assert tx.inputs[0].sequence == 0xFFFFFFFE
         assert len(tx.inputs[0].witness.items) == 1
 
@@ -437,6 +439,7 @@ class TestTxFromDict:
 
 
 class TestSigner:
+
     def test_sign_and_verify(self) -> None:
         priv = 12345
         msg = sha256(b"hello")
@@ -460,20 +463,20 @@ class TestSigner:
         priv = 99
         tx = Tx(
             version=2,
-            inputs=(
-                TxIn(
-                    previous_output=OutPoint(txid=b"\x01" * 32, vout=0),
-                    script_sig=b"",
-                    sequence=0xFFFFFFFF,
-                    witness=Witness((b"\x02" * 64,)),
-                ),
-            ),
-            outputs=(TxOut(value=10000, script_pubkey=build_p2wpkh(TEST_PUB_HASH)),),
+            inputs=(TxIn(
+                previous_output=OutPoint(txid=b"\x01" * 32, vout=0),
+                script_sig=b"",
+                sequence=0xFFFFFFFF,
+                witness=Witness((b"\x02" * 64, )),
+            ), ),
+            outputs=(TxOut(value=10000, script_pubkey=build_p2wpkh(TEST_PUB_HASH)), ),
             lock_time=0,
         )
-        sig = sign_tx_input(
-            tx, 0, priv, script=build_p2wpkh(TEST_PUB_HASH), value=10000
-        )
+        sig = sign_tx_input(tx,
+                            0,
+                            priv,
+                            script=build_p2wpkh(TEST_PUB_HASH),
+                            value=10000)
         assert sig[-1] == SIGHASH_ALL
 
 
@@ -483,6 +486,7 @@ class TestSigner:
 
 
 class TestPipeline:
+
     def test_batch_extract_single(self) -> None:
         tx = make_test_tx()
         raw = serialize_tx(tx)
@@ -502,9 +506,7 @@ class TestPipeline:
     def test_batch_extract_multiple(self) -> None:
         tx1 = make_test_tx()
         tx2 = make_test_tx()
-        result = batch_extract(
-            [serialize_tx(tx1).hex(), serialize_tx(tx2).hex()],
-        )
+        result = batch_extract([serialize_tx(tx1).hex(), serialize_tx(tx2).hex()], )
         assert result.total_transactions == 2
         assert result.failed == 2
 
@@ -557,12 +559,12 @@ class TestPipeline:
         priv = 42
         txin = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness(()))
         txout = TxOut(1000, build_p2pkh(TEST_PUB_HASH))
-        tx = Tx(2, (txin,), (txout,), 0)
+        tx = Tx(2, (txin, ), (txout, ), 0)
         sig = sign_tx_input(tx, 0, priv, script=build_p2pkh(TEST_PUB_HASH), value=0)
         pubkey = multiply(priv, GENERATOR)
         scriptsig = serialize_script([sig, pubkey.to_sec_compressed()])
         txin2 = TxIn(OutPoint(b"\x01" * 32, 0), scriptsig, 0xFFFFFFFF, Witness(()))
-        tx2 = Tx(2, (txin2,), (txout,), 0)
+        tx2 = Tx(2, (txin2, ), (txout, ), 0)
         raw = serialize_legacy_tx(tx2).hex()
         f = tmp_path / "txs.txt"  # type: ignore[operator]
         f.write_text(f"# comment\n{raw}\n\n{raw}\n")  # type: ignore[union-attr]
@@ -734,12 +736,12 @@ class TestPipeline:
         priv = 42
         txin = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness(()))
         txout = TxOut(1000, build_p2pkh(TEST_PUB_HASH))
-        tx = Tx(2, (txin,), (txout,), 0)
+        tx = Tx(2, (txin, ), (txout, ), 0)
         sig = sign_tx_input(tx, 0, priv, script=build_p2pkh(TEST_PUB_HASH), value=0)
         pubkey = multiply(priv, GENERATOR)
         scriptsig = serialize_script([sig, pubkey.to_sec_compressed()])
         txin2 = TxIn(OutPoint(b"\x01" * 32, 0), scriptsig, 0xFFFFFFFF, Witness(()))
-        tx2 = Tx(2, (txin2,), (txout,), 0)
+        tx2 = Tx(2, (txin2, ), (txout, ), 0)
         raw = serialize_legacy_tx(tx2)
         result = batch_extract([raw, raw], max_workers=2)
         assert result.total_transactions == 2
@@ -759,16 +761,17 @@ class TestPipeline:
         priv = 42
         txin = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness(()))
         txout = TxOut(1000, build_p2pkh(TEST_PUB_HASH))
-        tx = Tx(2, (txin,), (txout,), 0)
+        tx = Tx(2, (txin, ), (txout, ), 0)
         sig = sign_tx_input(tx, 0, priv, script=build_p2pkh(TEST_PUB_HASH), value=0)
         pubkey = multiply(priv, GENERATOR)
         scriptsig = serialize_script([sig, pubkey.to_sec_compressed()])
         txin2 = TxIn(OutPoint(b"\x01" * 32, 0), scriptsig, 0xFFFFFFFF, Witness(()))
-        tx2 = Tx(2, (txin2,), (txout,), 0)
+        tx2 = Tx(2, (txin2, ), (txout, ), 0)
         raw_hex = serialize_legacy_tx(tx2).hex()
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".txt", delete=False, encoding="utf-8"
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w",
+                                         suffix=".txt",
+                                         delete=False,
+                                         encoding="utf-8") as f:
             f.write(raw_hex + "\n")
             f.write("# comment\n")
             f.write(raw_hex + "\n")
@@ -788,24 +791,35 @@ class TestPipeline:
 # ===================================================================
 
 
-def _make_tx_json(txid: str) -> dict:
+def make_tx_json(txid: str) -> dict:
     return {
-        "txid": txid,
+        "txid":
+        txid,
         "vout": [
-            {"scriptpubkey": "0014" + "00" * 20, "value": 10000},
-            {"scriptpubkey": "0014" + "11" * 20, "value": 20000},
+            {
+                "scriptpubkey": "0014" + "00" * 20,
+                "value": 10000
+            },
+            {
+                "scriptpubkey": "0014" + "11" * 20,
+                "value": 20000
+            },
         ],
         "out": [
-            {"script": "76a914" + "00" * 20 + "88ac", "value": 10000},
+            {
+                "script": "76a914" + "00" * 20 + "88ac",
+                "value": 10000
+            },
         ],
     }
 
 
 class TestBlockstreamProvider:
+
     def test_get_transaction_hex(self) -> None:
         with patch(
-            "bitcoin.services.blockchain.fetch_text",
-            return_value="01000000...",
+                "bitcoin.services.blockchain.fetch_text",
+                return_value="01000000...",
         ) as mock_fetch:
             p = BlockstreamProvider()
             result = p.get_transaction_hex("aa" * 32)
@@ -815,9 +829,9 @@ class TestBlockstreamProvider:
     def test_get_utxo_script_pubkey(self) -> None:
         txid = "aa" * 32
         with patch.object(
-            BlockstreamProvider,
-            "fetch_tx_json",
-            return_value=_make_tx_json(txid),
+                BlockstreamProvider,
+                "fetch_tx_json",
+                return_value=make_tx_json(txid),
         ):
             p = BlockstreamProvider()
             script = p.get_utxo_script_pubkey(txid, 0)
@@ -826,9 +840,9 @@ class TestBlockstreamProvider:
     def test_get_utxo_script_pubkey_out_of_range(self) -> None:
         txid = "aa" * 32
         with patch.object(
-            BlockstreamProvider,
-            "fetch_tx_json",
-            return_value=_make_tx_json(txid),
+                BlockstreamProvider,
+                "fetch_tx_json",
+                return_value=make_tx_json(txid),
         ):
             p = BlockstreamProvider()
             with pytest.raises(ValueError, match="out of range"):
@@ -837,9 +851,9 @@ class TestBlockstreamProvider:
     def test_get_utxo_value(self) -> None:
         txid = "bb" * 32
         with patch.object(
-            BlockstreamProvider,
-            "fetch_tx_json",
-            return_value=_make_tx_json(txid),
+                BlockstreamProvider,
+                "fetch_tx_json",
+                return_value=make_tx_json(txid),
         ):
             p = BlockstreamProvider()
             val = p.get_utxo_value(txid, 0)
@@ -848,9 +862,9 @@ class TestBlockstreamProvider:
     def test_get_utxo_value_out_of_range(self) -> None:
         txid = "bb" * 32
         with patch.object(
-            BlockstreamProvider,
-            "fetch_tx_json",
-            return_value=_make_tx_json(txid),
+                BlockstreamProvider,
+                "fetch_tx_json",
+                return_value=make_tx_json(txid),
         ):
             p = BlockstreamProvider()
             with pytest.raises(ValueError, match="out of range"):
@@ -858,8 +872,8 @@ class TestBlockstreamProvider:
 
     def test_fetch_tx_json_invalid_json(self) -> None:
         with patch(
-            "bitcoin.services.blockchain.fetch_text",
-            return_value="not json",
+                "bitcoin.services.blockchain.fetch_text",
+                return_value="not json",
         ):
             p = BlockstreamProvider()
             with pytest.raises(ValueError, match="Invalid JSON"):
@@ -867,10 +881,11 @@ class TestBlockstreamProvider:
 
 
 class TestBlockchainInfoProvider:
+
     def test_get_transaction_hex(self) -> None:
         with patch(
-            "bitcoin.services.blockchain.fetch_text",
-            return_value="01000000...",
+                "bitcoin.services.blockchain.fetch_text",
+                return_value="01000000...",
         ):
             p = BlockchainInfoProvider()
             result = p.get_transaction_hex("aa" * 32)
@@ -879,9 +894,9 @@ class TestBlockchainInfoProvider:
     def test_get_utxo_script_pubkey(self) -> None:
         txid = "cc" * 32
         with patch.object(
-            BlockchainInfoProvider,
-            "fetch_tx_json",
-            return_value=_make_tx_json(txid),
+                BlockchainInfoProvider,
+                "fetch_tx_json",
+                return_value=make_tx_json(txid),
         ):
             p = BlockchainInfoProvider()
             script = p.get_utxo_script_pubkey(txid, 0)
@@ -890,9 +905,9 @@ class TestBlockchainInfoProvider:
     def test_get_utxo_script_pubkey_no_script(self) -> None:
         txid = "dd" * 32
         with patch.object(
-            BlockchainInfoProvider,
-            "fetch_tx_json",
-            return_value={"out": [{}]},
+                BlockchainInfoProvider,
+                "fetch_tx_json",
+                return_value={"out": [{}]},
         ):
             p = BlockchainInfoProvider()
             with pytest.raises(ValueError, match="No script"):
@@ -901,9 +916,9 @@ class TestBlockchainInfoProvider:
     def test_get_utxo_script_pubkey_out_of_range(self) -> None:
         txid = "ee" * 32
         with patch.object(
-            BlockchainInfoProvider,
-            "fetch_tx_json",
-            return_value=_make_tx_json(txid),
+                BlockchainInfoProvider,
+                "fetch_tx_json",
+                return_value=make_tx_json(txid),
         ):
             p = BlockchainInfoProvider()
             with pytest.raises(ValueError, match="out of range"):
@@ -912,9 +927,9 @@ class TestBlockchainInfoProvider:
     def test_get_utxo_value(self) -> None:
         txid = "ff" * 32
         with patch.object(
-            BlockchainInfoProvider,
-            "fetch_tx_json",
-            return_value=_make_tx_json(txid),
+                BlockchainInfoProvider,
+                "fetch_tx_json",
+                return_value=make_tx_json(txid),
         ):
             p = BlockchainInfoProvider()
             val = p.get_utxo_value(txid, 0)
@@ -923,9 +938,9 @@ class TestBlockchainInfoProvider:
     def test_get_utxo_value_out_of_range(self) -> None:
         txid = "00" * 32
         with patch.object(
-            BlockchainInfoProvider,
-            "fetch_tx_json",
-            return_value=_make_tx_json(txid),
+                BlockchainInfoProvider,
+                "fetch_tx_json",
+                return_value=make_tx_json(txid),
         ):
             p = BlockchainInfoProvider()
             with pytest.raises(ValueError, match="out of range"):
@@ -933,10 +948,11 @@ class TestBlockchainInfoProvider:
 
 
 class TestMempoolSpaceProvider:
+
     def test_get_transaction_hex(self) -> None:
         with patch(
-            "bitcoin.services.blockchain.fetch_text",
-            return_value="01000000...",
+                "bitcoin.services.blockchain.fetch_text",
+                return_value="01000000...",
         ):
             p = MempoolSpaceProvider()
             result = p.get_transaction_hex("aa" * 32)
@@ -945,9 +961,9 @@ class TestMempoolSpaceProvider:
     def test_get_utxo_script_pubkey(self) -> None:
         txid = "11" * 32
         with patch.object(
-            MempoolSpaceProvider,
-            "fetch_tx_json",
-            return_value=_make_tx_json(txid),
+                MempoolSpaceProvider,
+                "fetch_tx_json",
+                return_value=make_tx_json(txid),
         ):
             p = MempoolSpaceProvider()
             script = p.get_utxo_script_pubkey(txid, 0)
@@ -956,9 +972,9 @@ class TestMempoolSpaceProvider:
     def test_get_utxo_script_pubkey_out_of_range(self) -> None:
         txid = "22" * 32
         with patch.object(
-            MempoolSpaceProvider,
-            "fetch_tx_json",
-            return_value=_make_tx_json(txid),
+                MempoolSpaceProvider,
+                "fetch_tx_json",
+                return_value=make_tx_json(txid),
         ):
             p = MempoolSpaceProvider()
             with pytest.raises(ValueError, match="out of range"):
@@ -967,9 +983,9 @@ class TestMempoolSpaceProvider:
     def test_get_utxo_value(self) -> None:
         txid = "33" * 32
         with patch.object(
-            MempoolSpaceProvider,
-            "fetch_tx_json",
-            return_value=_make_tx_json(txid),
+                MempoolSpaceProvider,
+                "fetch_tx_json",
+                return_value=make_tx_json(txid),
         ):
             p = MempoolSpaceProvider()
             val = p.get_utxo_value(txid, 0)
@@ -978,9 +994,9 @@ class TestMempoolSpaceProvider:
     def test_get_utxo_value_out_of_range(self) -> None:
         txid = "44" * 32
         with patch.object(
-            MempoolSpaceProvider,
-            "fetch_tx_json",
-            return_value=_make_tx_json(txid),
+                MempoolSpaceProvider,
+                "fetch_tx_json",
+                return_value=make_tx_json(txid),
         ):
             p = MempoolSpaceProvider()
             with pytest.raises(ValueError, match="out of range"):
@@ -988,6 +1004,7 @@ class TestMempoolSpaceProvider:
 
 
 class TestFetchText:
+
     def test_http_error(self) -> None:
         from http.client import HTTPMessage
         from urllib.error import HTTPError
@@ -1021,8 +1038,8 @@ class TestFetchText:
 
     def test_fetch_tx_json_invalid_json(self) -> None:
         with patch(
-            "bitcoin.services.blockchain.fetch_text",
-            return_value="not json",
+                "bitcoin.services.blockchain.fetch_text",
+                return_value="not json",
         ):
             p = MempoolSpaceProvider()
             with pytest.raises(ValueError, match="Invalid JSON"):
@@ -1030,6 +1047,7 @@ class TestFetchText:
 
 
 class TestEnrichTransaction:
+
     def test_basic(self) -> None:
         tx = make_test_tx()
         raw = serialize_tx(tx).hex()
@@ -1044,14 +1062,15 @@ class TestEnrichTransaction:
         tx = make_test_tx()
         raw = serialize_tx(tx).hex()
         with patch(
-            "bitcoin.services.blockchain.fetch_text",
-            return_value="01000000...",
+                "bitcoin.services.blockchain.fetch_text",
+                return_value="01000000...",
         ):
             with pytest.raises((OSError, ValueError)):
                 enrich_transaction(raw)
 
 
 class TestFetchAndExtract:
+
     def test_with_txid(self) -> None:
         mock_provider = MagicMock()
         mock_provider.get_transaction_hex.return_value = "00"
@@ -1076,6 +1095,7 @@ class TestFetchAndExtract:
 
 
 class TestPsbtEditor:
+
     def test_from_tx(self) -> None:
         tx = make_test_tx()
         raw = serialize_legacy_tx(tx)
@@ -1087,7 +1107,7 @@ class TestPsbtEditor:
     def test_from_existing_psbt(self) -> None:
         tx = make_test_tx()
         raw = serialize_legacy_tx(tx)
-        psbt = Psbt(tx=raw, inputs=(PsbtInput(),), outputs=(PsbtOutput(),))
+        psbt = Psbt(tx=raw, inputs=(PsbtInput(), ), outputs=(PsbtOutput(), ))
         editor = PsbtEditor(psbt)
         result = editor.build()
         assert result.tx == raw
@@ -1157,25 +1177,22 @@ class TestPsbtEditor:
         editor.finalize_input(
             0,
             final_script_sig=b"\x00\x01",
-            final_witness=(b"\x02",),
+            final_witness=(b"\x02", ),
         )
         assert editor.inputs[0].final_script_sig == b"\x00\x01"
-        assert editor.inputs[0].final_script_witness == (b"\x02",)
+        assert editor.inputs[0].final_script_witness == (b"\x02", )
 
     def test_chaining(self) -> None:
         tx = make_test_tx()
         raw = serialize_legacy_tx(tx)
-        psbt = (
-            PsbtEditor.from_tx(raw)
-            .set_input_utxo(0, non_witness_utxo=b"\x01")
-            .set_input_sighash_type(0, 1)
-            .add_input_partial_sig(0, b"\x02" * 33, b"\x30" * 70)
-            .build()
-        )
+        psbt = (PsbtEditor.from_tx(raw).set_input_utxo(
+            0, non_witness_utxo=b"\x01").set_input_sighash_type(
+                0, 1).add_input_partial_sig(0, b"\x02" * 33, b"\x30" * 70).build())
         assert psbt.inputs[0].sighash_type == 1
 
 
 class TestMutableInput:
+
     def test_defaults(self) -> None:
         mi = MutableInput()
         assert mi.non_witness_utxo is None
@@ -1195,6 +1212,7 @@ class TestMutableInput:
 
 
 class TestMutableOutput:
+
     def test_defaults(self) -> None:
         mo = MutableOutput()
         assert mo.redeem_script is None
@@ -1211,8 +1229,9 @@ class TestMutableOutput:
 
 
 class TestTaproot:
+
     def test_parse_taproot_witness_key_path(self) -> None:
-        result = parse_taproot_witness_stack((b"\x00" * 64,))
+        result = parse_taproot_witness_stack((b"\x00" * 64, ))
         assert result is None
 
     def test_parse_taproot_witness_empty(self) -> None:
@@ -1284,7 +1303,7 @@ class TestTaproot:
         tsp = TaprootScriptPath(
             script=b"\x01",
             control_block=b"\x02",
-            sigs=(b"\x03",),
+            sigs=(b"\x03", ),
         )
         assert tsp.script == b"\x01"
         assert len(tsp.sigs) == 1
@@ -1296,6 +1315,7 @@ class TestTaproot:
 
 
 class TestClassifierRemaining:
+
     def test_classify_script_pubkey_empty(self) -> None:
         assert classify_script_pubkey(b"") == NON_STANDARD
 
@@ -1363,16 +1383,8 @@ class TestClassifierRemaining:
         assert not is_op_return(b"")
 
     def test_is_bare_multisig(self) -> None:
-        script = (
-            b"\x52"
-            + b"\x21"
-            + b"\x02"
-            + b"\x00" * 32
-            + b"\x21"
-            + b"\x03"
-            + b"\x01" * 32
-            + b"\x53\xae"
-        )
+        script = (b"\x52" + b"\x21" + b"\x02" + b"\x00" * 32 + b"\x21" + b"\x03" +
+                  b"\x01" * 32 + b"\x53\xae")
         assert is_bare_multisig(script)
 
     def test_is_bare_multisig_too_short(self) -> None:
@@ -1382,14 +1394,12 @@ class TestClassifierRemaining:
         assert not is_bare_multisig(b"\x4f" + b"\x00" * 40)
 
     def test_is_bare_multisig_bad_last(self) -> None:
-        assert not is_bare_multisig(
-            b"\x52" + b"\x21" + b"\x02" + b"\x00" * 32 + b"\x53\x00"
-        )
+        assert not is_bare_multisig(b"\x52" + b"\x21" + b"\x02" + b"\x00" * 32 +
+                                    b"\x53\x00")
 
     def test_is_bare_multisig_bad_second_last(self) -> None:
-        assert not is_bare_multisig(
-            b"\x52" + b"\x21" + b"\x02" + b"\x00" * 32 + b"\x4f\xae"
-        )
+        assert not is_bare_multisig(b"\x52" + b"\x21" + b"\x02" + b"\x00" * 32 +
+                                    b"\x4f\xae")
 
     def test_has_timelocks(self) -> None:
         assert has_timelocks(b"\xb1\x00")
@@ -1403,16 +1413,8 @@ class TestClassifierRemaining:
         assert classify_detailed(b"\x6a\x00") == "op_return"
 
     def test_classify_detailed_multisig(self) -> None:
-        script = (
-            b"\x52"
-            + b"\x21"
-            + b"\x02"
-            + b"\x00" * 32
-            + b"\x21"
-            + b"\x03"
-            + b"\x01" * 32
-            + b"\x53\xae"
-        )
+        script = (b"\x52" + b"\x21" + b"\x02" + b"\x00" * 32 + b"\x21" + b"\x03" +
+                  b"\x01" * 32 + b"\x53\xae")
         assert classify_detailed(script) == MULTISIG
 
     def test_classify_detailed_p2pkh(self) -> None:
@@ -1433,6 +1435,7 @@ class TestClassifierRemaining:
 
 
 class TestBatchVerify:
+
     def test_single_sig(self) -> None:
         priv = 42
         pub = multiply(priv, GENERATOR)
@@ -1479,6 +1482,7 @@ class TestBatchVerify:
 
 
 class TestRBF:
+
     def make_txin(self, sequence: int) -> TxIn:
         return TxIn(
             previous_output=OutPoint(txid=b"\x01" * 32, vout=0),
@@ -1490,8 +1494,8 @@ class TestRBF:
     def test_opt_in_rbf_true(self) -> None:
         tx = Tx(
             version=2,
-            inputs=(self.make_txin(0xFFFFFFFD),),
-            outputs=(TxOut(value=1000, script_pubkey=b"\x00"),),
+            inputs=(self.make_txin(0xFFFFFFFD), ),
+            outputs=(TxOut(value=1000, script_pubkey=b"\x00"), ),
             lock_time=0,
         )
         assert is_opt_in_rbf(tx)
@@ -1499,8 +1503,8 @@ class TestRBF:
     def test_opt_in_rbf_false(self) -> None:
         tx = Tx(
             version=2,
-            inputs=(self.make_txin(0xFFFFFFFF),),
-            outputs=(TxOut(value=1000, script_pubkey=b"\x00"),),
+            inputs=(self.make_txin(0xFFFFFFFF), ),
+            outputs=(TxOut(value=1000, script_pubkey=b"\x00"), ),
             lock_time=0,
         )
         assert not is_opt_in_rbf(tx)
@@ -1508,8 +1512,8 @@ class TestRBF:
     def test_has_sequence_lock_true(self) -> None:
         tx = Tx(
             version=2,
-            inputs=(self.make_txin(0xFFFFFFFD),),
-            outputs=(TxOut(value=1000, script_pubkey=b"\x00"),),
+            inputs=(self.make_txin(0xFFFFFFFD), ),
+            outputs=(TxOut(value=1000, script_pubkey=b"\x00"), ),
             lock_time=0,
         )
         assert has_sequence_lock(tx)
@@ -1517,8 +1521,8 @@ class TestRBF:
     def test_has_sequence_lock_false(self) -> None:
         tx = Tx(
             version=2,
-            inputs=(self.make_txin(0xFFFFFFFF),),
-            outputs=(TxOut(value=1000, script_pubkey=b"\x00"),),
+            inputs=(self.make_txin(0xFFFFFFFF), ),
+            outputs=(TxOut(value=1000, script_pubkey=b"\x00"), ),
             lock_time=0,
         )
         assert not has_sequence_lock(tx)
@@ -1526,8 +1530,8 @@ class TestRBF:
     def test_opt_in_rbf_exact_threshold(self) -> None:
         tx = Tx(
             version=2,
-            inputs=(self.make_txin(0xFFFFFFFD),),
-            outputs=(TxOut(value=1000, script_pubkey=b"\x00"),),
+            inputs=(self.make_txin(0xFFFFFFFD), ),
+            outputs=(TxOut(value=1000, script_pubkey=b"\x00"), ),
             lock_time=0,
         )
         assert is_opt_in_rbf(tx)
@@ -1539,6 +1543,7 @@ class TestRBF:
 
 
 class TestMultiplyCache:
+
     def test_multiply_by_zero(self) -> None:
         result = multiply(0, GENERATOR)
         assert result.infinity
@@ -1554,6 +1559,7 @@ class TestMultiplyCache:
 
 
 class TestSchnorrAdditional:
+
     def test_lift_x_invalid(self) -> None:
         from bitcoin.signature.schnorr import lift_x as lift_x_fn
 
@@ -1594,18 +1600,17 @@ class TestSchnorrAdditional:
 
 
 class TestSignerEdge:
+
     def test_sign_tx_input_segwit_zero_value(self) -> None:
         tx = Tx(
             version=2,
-            inputs=(
-                TxIn(
-                    previous_output=OutPoint(txid=b"\x01" * 32, vout=0),
-                    script_sig=b"",
-                    sequence=0xFFFFFFFF,
-                    witness=Witness((b"\x02" * 64,)),
-                ),
-            ),
-            outputs=(TxOut(value=0, script_pubkey=b"\x00"),),
+            inputs=(TxIn(
+                previous_output=OutPoint(txid=b"\x01" * 32, vout=0),
+                script_sig=b"",
+                sequence=0xFFFFFFFF,
+                witness=Witness((b"\x02" * 64, )),
+            ), ),
+            outputs=(TxOut(value=0, script_pubkey=b"\x00"), ),
             lock_time=0,
         )
         sig = sign_tx_input(tx, 0, 42, script=b"\x00", value=0)
@@ -1618,18 +1623,17 @@ class TestSignerEdge:
 
 
 class TestPsbtExtractSignatures:
+
     def test_psbt_extract_signatures(self) -> None:
         from bitcoin.psbt.parser import psbt_extract_signatures
 
         tx = make_test_tx()
         raw = serialize_legacy_tx(tx)
         pubkey_bytes = GENERATOR.to_sec_compressed()
-        inp = PsbtInput(
-            partial_sigs={
-                pubkey_bytes: b"\x30\x06\x02\x01\x01\x02\x01\x01\x01",
-            }
-        )
-        psbt = Psbt(tx=raw, inputs=(inp,), outputs=(PsbtOutput(),))
+        inp = PsbtInput(partial_sigs={
+            pubkey_bytes: b"\x30\x06\x02\x01\x01\x02\x01\x01\x01",
+        })
+        psbt = Psbt(tx=raw, inputs=(inp, ), outputs=(PsbtOutput(), ))
         records = psbt_extract_signatures(psbt)
         assert len(records) == 1
 
@@ -1640,11 +1644,18 @@ class TestPsbtExtractSignatures:
 
 
 class TestMakeTx:
+
     def test_make_tx(self) -> None:
         tx = make_tx(
             version=2,
-            inputs=[{"txid": b"\x01" * 32, "vout": 0}],
-            outputs=[{"value": 1000, "script_pubkey": b"\x00"}],
+            inputs=[{
+                "txid": b"\x01" * 32,
+                "vout": 0
+            }],
+            outputs=[{
+                "value": 1000,
+                "script_pubkey": b"\x00"
+            }],
         )
         assert tx.version == 2
 
@@ -1652,54 +1663,99 @@ class TestMakeTx:
         with pytest.raises(TypeError, match="witness must be a tuple"):
             make_tx(
                 version=2,
-                inputs=[{"txid": b"\x01" * 32, "vout": 0, "witness": [b"x"]}],
-                outputs=[{"value": 1000, "script_pubkey": b"\x00"}],
+                inputs=[{
+                    "txid": b"\x01" * 32,
+                    "vout": 0,
+                    "witness": [b"x"]
+                }],
+                outputs=[{
+                    "value": 1000,
+                    "script_pubkey": b"\x00"
+                }],
             )
 
     def test_make_tx_bad_txid(self) -> None:
         with pytest.raises(TypeError, match="txid must be bytes"):
             make_tx(
                 version=2,
-                inputs=[{"txid": 123, "vout": 0}],
-                outputs=[{"value": 1000, "script_pubkey": b"\x00"}],
+                inputs=[{
+                    "txid": 123,
+                    "vout": 0
+                }],
+                outputs=[{
+                    "value": 1000,
+                    "script_pubkey": b"\x00"
+                }],
             )
 
     def test_make_tx_bad_vout(self) -> None:
         with pytest.raises(TypeError, match="vout must be int"):
             make_tx(
                 version=2,
-                inputs=[{"txid": b"\x01" * 32, "vout": "zero"}],
-                outputs=[{"value": 1000, "script_pubkey": b"\x00"}],
+                inputs=[{
+                    "txid": b"\x01" * 32,
+                    "vout": "zero"
+                }],
+                outputs=[{
+                    "value": 1000,
+                    "script_pubkey": b"\x00"
+                }],
             )
 
     def test_make_tx_bad_script_sig(self) -> None:
         with pytest.raises(TypeError, match="script_sig must be bytes"):
             make_tx(
                 version=2,
-                inputs=[{"txid": b"\x01" * 32, "vout": 0, "script_sig": 123}],
-                outputs=[{"value": 1000, "script_pubkey": b"\x00"}],
+                inputs=[{
+                    "txid": b"\x01" * 32,
+                    "vout": 0,
+                    "script_sig": 123
+                }],
+                outputs=[{
+                    "value": 1000,
+                    "script_pubkey": b"\x00"
+                }],
             )
 
     def test_make_tx_bad_sequence(self) -> None:
         with pytest.raises(TypeError, match="sequence must be int"):
             make_tx(
                 version=2,
-                inputs=[{"txid": b"\x01" * 32, "vout": 0, "sequence": "max"}],
-                outputs=[{"value": 1000, "script_pubkey": b"\x00"}],
+                inputs=[{
+                    "txid": b"\x01" * 32,
+                    "vout": 0,
+                    "sequence": "max"
+                }],
+                outputs=[{
+                    "value": 1000,
+                    "script_pubkey": b"\x00"
+                }],
             )
 
     def test_make_tx_bad_value(self) -> None:
         with pytest.raises(TypeError, match="value must be int"):
             make_tx(
                 version=2,
-                inputs=[{"txid": b"\x01" * 32, "vout": 0}],
-                outputs=[{"value": "lots", "script_pubkey": b"\x00"}],
+                inputs=[{
+                    "txid": b"\x01" * 32,
+                    "vout": 0
+                }],
+                outputs=[{
+                    "value": "lots",
+                    "script_pubkey": b"\x00"
+                }],
             )
 
     def test_make_tx_bad_script_pubkey(self) -> None:
         with pytest.raises(TypeError, match="script_pubkey must be bytes"):
             make_tx(
                 version=2,
-                inputs=[{"txid": b"\x01" * 32, "vout": 0}],
-                outputs=[{"value": 1000, "script_pubkey": 123}],
+                inputs=[{
+                    "txid": b"\x01" * 32,
+                    "vout": 0
+                }],
+                outputs=[{
+                    "value": 1000,
+                    "script_pubkey": 123
+                }],
             )

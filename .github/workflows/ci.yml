@@ -80,6 +80,7 @@ jobs:
           alert-threshold: '110%'
           comment-on-alert: true
           fail-on-alert: true
+          skip-fetch-gh-pages: true
 
   test-coincurve:
     runs-on: ubuntu-latest

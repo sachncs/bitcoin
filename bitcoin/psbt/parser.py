@@ -8,8 +8,7 @@ import logging
 
 from bitcoin.encoding.varint import decode_varint, encode_varint
 from bitcoin.psbt.extraction import (  # noqa: F401
-    extract_pubkey_from_elements,
-    psbt_extract_signatures,
+    extract_pubkey_from_elements, psbt_extract_signatures,
 )
 from bitcoin.psbt.models import Psbt, PsbtInput, PsbtOutput
 from bitcoin.transaction.parser import parse_tx
@@ -54,7 +53,7 @@ def parse_psbt(data: bytes | memoryview) -> Psbt:
     """
     if isinstance(data, memoryview):
         data = bytes(data)
-    return _parse_psbt_impl(data)
+    return __parse_psbt_impl(data)
 
 
 def parse_psbt_from_file(path: str, *, mmap_threshold: int = 100_000_000) -> Psbt:
@@ -76,23 +75,23 @@ def parse_psbt_from_file(path: str, *, mmap_threshold: int = 100_000_000) -> Psb
         FileNotFoundError: If *path* does not exist.
         ValueError: If the PSBT data is invalid.
     """
-    import os as _os
+    import os
 
-    size = _os.path.getsize(path)
+    size = os.path.getsize(path)
     if size > mmap_threshold:
-        import mmap as _mmap
+        import mmap
 
         with open(path, "rb") as f:
-            with _mmap.mmap(f.fileno(), 0, access=_mmap.ACCESS_READ) as m:
+            with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as m:
                 # mmap supports the buffer protocol and is indexable
                 # like bytes; cast to bytes for the parser.
-                return _parse_psbt_impl(bytes(m))  # type: ignore[arg-type]
+                return __parse_psbt_impl(bytes(m))
     else:
         with open(path, "rb") as f:
-            return _parse_psbt_impl(f.read())
+            return __parse_psbt_impl(f.read())
 
 
-def _parse_psbt_impl(data: bytes | memoryview) -> Psbt:
+def __parse_psbt_impl(data: bytes) -> Psbt:
     """Internal PSBT parser implementation.
 
     Shared by :func:`parse_psbt` and :func:`parse_psbt_from_file`.
@@ -177,15 +176,13 @@ def parse_key_value_map(data: bytes, offset: int) -> tuple[dict[int, bytes], int
     result: dict[int, bytes] = {}
     count = 0
     while offset < len(data):
-        if data[offset : offset + 1] == b"\x00":
+        if data[offset:offset + 1] == b"\x00":
             offset += 1
             break
         count += 1
         if count > MAX_KEY_VALUE_MAP_ENTRIES:
-            raise ValueError(
-                f"Key-value map entry count {count} exceeds maximum "
-                f"{MAX_KEY_VALUE_MAP_ENTRIES}"
-            )
+            raise ValueError(f"Key-value map entry count {count} exceeds maximum "
+                             f"{MAX_KEY_VALUE_MAP_ENTRIES}")
         key_len, offset = decode_varint(data, offset)
         if key_len > MAX_KEY_SIZE:
             raise ValueError(f"Key length {key_len} exceeds maximum {MAX_KEY_SIZE}")
@@ -194,9 +191,8 @@ def parse_key_value_map(data: bytes, offset: int) -> tuple[dict[int, bytes], int
         value_len, offset = decode_varint(data, offset)
         if value_len > MAX_VALUE_SIZE:
             raise ValueError(
-                f"Value length {value_len} exceeds maximum {MAX_VALUE_SIZE}"
-            )
-        value = data[offset : offset + value_len]
+                f"Value length {value_len} exceeds maximum {MAX_VALUE_SIZE}")
+        value = data[offset:offset + value_len]
         offset += value_len
         result[key_type] = value
     return result, offset
@@ -246,15 +242,15 @@ def parse_input_map(data: bytes, offset: int) -> tuple[PsbtInput, int]:
     unknown: dict[bytes, bytes] = {}
 
     while offset < len(data):
-        if data[offset : offset + 1] == b"\x00":
+        if data[offset:offset + 1] == b"\x00":
             offset += 1
             break
         key_len, offset = decode_varint(data, offset)
         key_type = data[offset]
-        key_data = data[offset + 1 : offset + key_len]
+        key_data = data[offset + 1:offset + key_len]
         offset += key_len
         value_len, offset = decode_varint(data, offset)
-        value = data[offset : offset + value_len]
+        value = data[offset:offset + value_len]
         offset += value_len
         if key_type == PSBT_IN_NON_WITNESS_UTXO:
             non_witness_utxo = value
@@ -311,8 +307,7 @@ def serialize_input_map(inp: PsbtInput) -> bytes:
     if inp.sighash_type is not None:
         key = PSBT_IN_SIGHASH_TYPE
         result.extend(
-            serialize_key_value(key, inp.sighash_type.to_bytes(4, "little"), [b""])
-        )
+            serialize_key_value(key, inp.sighash_type.to_bytes(4, "little"), [b""]))
     if inp.redeem_script is not None:
         key = PSBT_IN_REDEEM_SCRIPT
         result.extend(serialize_key_value(key, inp.redeem_script, [b""]))
@@ -329,8 +324,7 @@ def serialize_input_map(inp: PsbtInput) -> bytes:
                 key,
                 serialize_witness_stack(inp.final_script_witness),
                 [b""],
-            )
-        )
+            ))
     for pubkey, sig in inp.partial_sigs.items():
         key = PSBT_IN_PARTIAL_SIG
         result.extend(serialize_key_value(key, sig, [pubkey]))
@@ -360,15 +354,15 @@ def parse_output_map(data: bytes, offset: int) -> tuple[PsbtOutput, int]:
     witness_script: bytes | None = None
 
     while offset < len(data):
-        if data[offset : offset + 1] == b"\x00":
+        if data[offset:offset + 1] == b"\x00":
             offset += 1
             break
         key_len, offset = decode_varint(data, offset)
         key_type = data[offset]
-        key_data = data[offset + 1 : offset + key_len]
+        key_data = data[offset + 1:offset + key_len]
         offset += key_len
         value_len, offset = decode_varint(data, offset)
-        value = data[offset : offset + value_len]
+        value = data[offset:offset + value_len]
         offset += value_len
         if key_type == PSBT_OUT_REDEEM_SCRIPT:
             redeem_script = value
@@ -400,12 +394,10 @@ def serialize_output_map(out: PsbtOutput) -> bytes:
     result = bytearray()
     if out.redeem_script is not None:
         result.extend(
-            serialize_key_value(PSBT_OUT_REDEEM_SCRIPT, out.redeem_script, [b""])
-        )
+            serialize_key_value(PSBT_OUT_REDEEM_SCRIPT, out.redeem_script, [b""]))
     if out.witness_script is not None:
         result.extend(
-            serialize_key_value(PSBT_OUT_WITNESS_SCRIPT, out.witness_script, [b""])
-        )
+            serialize_key_value(PSBT_OUT_WITNESS_SCRIPT, out.witness_script, [b""]))
     for pubkey, path in out.bip32_derivations.items():
         result.extend(serialize_key_value(PSBT_OUT_BIP32_DERIVATION, path, [pubkey]))
     for key_data, value in out.unknown.items():
@@ -441,18 +433,16 @@ def parse_keypath_value(value: bytes) -> tuple[str, tuple[str, ...]]:
         element is a string representation of the derivation index.
     """
     offset = 0
-    fingerprint = value[offset : offset + 4].hex()
+    fingerprint = value[offset:offset + 4].hex()
     offset += 4
     count = value[offset]
     offset += 1
     if len(value) < 5 + count * 4:
-        raise ValueError(
-            f"Keypath value too short: {len(value)} bytes "
-            f"for {count} derivations (need {5 + count * 4})"
-        )
+        raise ValueError(f"Keypath value too short: {len(value)} bytes "
+                         f"for {count} derivations (need {5 + count * 4})")
     path: list[str] = []
     for _ in range(count):
-        idx = int.from_bytes(value[offset : offset + 4], "little")
+        idx = int.from_bytes(value[offset:offset + 4], "little")
         offset += 4
         path.append(str(idx))
     return fingerprint, tuple(path)
@@ -476,15 +466,13 @@ def parse_witness_stack(data: bytes) -> tuple[bytes, ...]:
         n, offset = decode_varint(data, offset)
         if n > MAX_PSBT_WITNESS_ITEM_SIZE:
             raise ValueError(
-                f"Witness item size {n} exceeds maximum {MAX_PSBT_WITNESS_ITEM_SIZE}"
-            )
-        items.append(data[offset : offset + n])
+                f"Witness item size {n} exceeds maximum {MAX_PSBT_WITNESS_ITEM_SIZE}")
+        items.append(data[offset:offset + n])
         offset += n
         if len(items) > MAX_PSBT_WITNESS_ITEMS:
             raise ValueError(
                 f"Witness item count {len(items)} exceeds maximum "
-                f"{MAX_PSBT_WITNESS_ITEMS}",
-            )
+                f"{MAX_PSBT_WITNESS_ITEMS}", )
     return tuple(items)
 
 

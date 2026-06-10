@@ -42,9 +42,8 @@ def handle_shutdown(signum: int, frame: object) -> None:
     global shutdown_requested
     with shutdown_lock:
         shutdown_requested = True
-    logger.warning(
-        "Shutdown requested (signal %d). Completing current tasks...", signum
-    )
+    logger.warning("Shutdown requested (signal %d). Completing current tasks...",
+                   signum)
 
 
 def is_shutdown_requested() -> bool:
@@ -58,7 +57,7 @@ def install_shutdown_handlers() -> None:
     signal.signal(signal.SIGINT, handle_shutdown)
 
 
-def _process_single_worker(
+def __process_single_worker(
     tx_input: str | bytes,
     utxo_scripts: Sequence[bytes] | None,
     utxo_values: Sequence[int] | None,
@@ -129,9 +128,8 @@ def process_single(
         utxo_script_pubkeys=list(utxo_scripts) if utxo_scripts is not None else None,
         utxo_values=list(utxo_values) if utxo_values is not None else None,
     )
-    if not records and any(
-        txin.previous_output.txid != b"\x00" * 32 for txin in tx.inputs
-    ):
+    if not records and any(txin.previous_output.txid != b"\x00" * 32
+                           for txin in tx.inputs):
         raise ValueError("No signatures found in transaction")
     return records
 
@@ -192,8 +190,7 @@ def batch_extract(
     if len(scripts) != n or len(values) != n:
         raise ValueError(
             f"utxo_scripts ({len(scripts)}) and utxo_values ({len(values)}) "
-            f"must match transactions ({n})."
-        )
+            f"must match transactions ({n}).")
 
     all_records: list[Record] = []
     errors: list[tuple[str, str]] = []
@@ -213,15 +210,18 @@ def batch_extract(
             return process_single(tx_input, tx_scripts, tx_values)
         except Exception as exc:
             label = tx_input[:64] if isinstance(tx_input, str) else "<bytes>"
-            logger.warning(
-                "[%s] Failed to process %s: %s", rid, label, exc, exc_info=True
-            )
+            logger.warning("[%s] Failed to process %s: %s",
+                           rid,
+                           label,
+                           exc,
+                           exc_info=True)
             return (label, str(exc))
 
     if max_workers <= 1:
-        for tx_input, tx_scripts, tx_values in zip(
-            transactions, scripts, values, strict=True
-        ):
+        for tx_input, tx_scripts, tx_values in zip(transactions,
+                                                   scripts,
+                                                   values,
+                                                   strict=True):
             if is_shutdown_requested():
                 logger.warning("[%s] Shutdown detected, aborting batch.", rid)
                 break
@@ -234,13 +234,13 @@ def batch_extract(
     elif use_process_pool:
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
             future_map = {}
-            for tx_input, tx_scripts, tx_values in zip(
-                transactions, scripts, values, strict=True
-            ):
+            for tx_input, tx_scripts, tx_values in zip(transactions,
+                                                       scripts,
+                                                       values,
+                                                       strict=True):
                 label = tx_input[:64] if isinstance(tx_input, str) else "<bytes>"
-                fut = executor.submit(
-                    _process_single_worker, tx_input, tx_scripts, tx_values
-                )
+                fut = executor.submit(__process_single_worker, tx_input, tx_scripts,
+                                      tx_values)
                 future_map[fut] = label
 
             for future in as_completed(future_map):
@@ -266,20 +266,20 @@ def batch_extract(
                         all_records.extend(fut_result)
                         successful += 1
     else:
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:  # type: ignore[assignment]
+        with ThreadPoolExecutor(  # type: ignore[assignment]
+                max_workers=max_workers) as executor:
             future_map = {}
-            for tx_input, tx_scripts, tx_values in zip(
-                transactions, scripts, values, strict=True
-            ):
+            for tx_input, tx_scripts, tx_values in zip(transactions,
+                                                       scripts,
+                                                       values,
+                                                       strict=True):
                 if is_shutdown_requested():
                     logger.warning(
-                        "[%s] Shutdown detected, skipping remaining submissions.", rid
-                    )
+                        "[%s] Shutdown detected, skipping remaining submissions.", rid)
                     break
                 label = tx_input[:64] if isinstance(tx_input, str) else "<bytes>"
-                fut = executor.submit(
-                    process_one_with_shutdown, tx_input, tx_scripts, tx_values
-                )
+                fut = executor.submit(process_one_with_shutdown, tx_input, tx_scripts,
+                                      tx_values)
                 future_map[fut] = label
 
             for future in as_completed(future_map):
@@ -414,8 +414,7 @@ def extract_r_from_record(record: Record) -> int | None:
 
 
 def correlate_across_transactions(
-    records: list[Record],
-) -> dict[str, list[NonceReuseGroup]]:
+    records: list[Record], ) -> dict[str, list[NonceReuseGroup]]:
     """Detect nonce reuse across multiple transactions.
 
     Groups records by *script_type*, then within each group groups

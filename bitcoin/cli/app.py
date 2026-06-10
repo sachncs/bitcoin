@@ -25,7 +25,7 @@ from bitcoin.transaction import parse_tx
 app = typer.Typer(name="bitcoin")
 
 logger = logging.getLogger("bitcoin.cli")
-_LOGGING_CONFIGURED: bool = False
+__LOGGING_CONFIGURED: bool = False
 
 
 class JSONFormatter(logging.Formatter):
@@ -54,15 +54,15 @@ def configure_logging() -> None:
 
     Idempotent — safe to call from multiple commands.
     """
-    global _LOGGING_CONFIGURED
-    if _LOGGING_CONFIGURED:
+    global __LOGGING_CONFIGURED
+    if __LOGGING_CONFIGURED:
         return
     handler = logging.StreamHandler()
     handler.setFormatter(JSONFormatter())
     root = logging.getLogger("bitcoin")
     level = os.getenv("BITCOIN_LOG_LEVEL", "WARNING").upper()
     root.setLevel(level)
-    _LOGGING_CONFIGURED = True
+    __LOGGING_CONFIGURED = True
 
 
 def parse_input_values(value_str: str) -> list[int | None]:
@@ -127,35 +127,29 @@ def output_records(records: list[Record], fmt: str) -> None:
         raise typer.Exit(0)
 
     if fmt == "json":
-        data = [
-            {
-                "txid": encode_hex(r.txid),
-                "input_index": r.input_index,
-                "signature": encode_hex(r.signature),
-                "type": r.script_type,
-                "sighash_flag": r.sighash_flag,
-                "value": r.amount,
-            }
-            for r in records
-        ]
+        data = [{
+            "txid": encode_hex(r.txid),
+            "input_index": r.input_index,
+            "signature": encode_hex(r.signature),
+            "type": r.script_type,
+            "sighash_flag": r.sighash_flag,
+            "value": r.amount,
+        } for r in records]
         typer.echo(json.dumps(data, indent=2))
     elif fmt == "csv":
         buf = io.StringIO()
         writer = csv.writer(buf)
         writer.writerow(
-            ["txid", "input_index", "signature", "type", "sighash_flag", "value"]
-        )
+            ["txid", "input_index", "signature", "type", "sighash_flag", "value"])
         for r in records:
-            writer.writerow(
-                [
-                    encode_hex(r.txid),
-                    r.input_index,
-                    encode_hex(r.signature),
-                    r.script_type,
-                    r.sighash_flag,
-                    r.amount,
-                ]
-            )
+            writer.writerow([
+                encode_hex(r.txid),
+                r.input_index,
+                encode_hex(r.signature),
+                r.script_type,
+                r.sighash_flag,
+                r.amount,
+            ])
         typer.echo(buf.getvalue().rstrip())
     else:
         for rec in records:
@@ -175,14 +169,11 @@ def output_sorted_records(records: list[Record], fmt: str) -> None:
         raise typer.Exit(0)
 
     if fmt == "json":
-        data = [
-            {
-                "txid": encode_hex(r.txid),
-                "input_index": r.input_index,
-                "signature": encode_hex(r.signature),
-            }
-            for r in records
-        ]
+        data = [{
+            "txid": encode_hex(r.txid),
+            "input_index": r.input_index,
+            "signature": encode_hex(r.signature),
+        } for r in records]
         typer.echo(json.dumps(data, indent=2))
     elif fmt == "csv":
         buf = io.StringIO()
@@ -190,22 +181,21 @@ def output_sorted_records(records: list[Record], fmt: str) -> None:
         writer.writerow(["txid", "input_index", "signature"])
         for r in records:
             writer.writerow(
-                [encode_hex(r.txid), r.input_index, encode_hex(r.signature)]
-            )
+                [encode_hex(r.txid), r.input_index,
+                 encode_hex(r.signature)])
         typer.echo(buf.getvalue().rstrip())
     else:
         for rec in records:
             typer.echo(
-                f"{encode_hex(rec.txid)}:{rec.input_index} {encode_hex(rec.signature)}"
-            )
+                f"{encode_hex(rec.txid)}:{rec.input_index} {encode_hex(rec.signature)}")
 
 
 @app.command()
 def decode(
     tx_hex: str | None = typer.Argument(None, help="Transaction hex"),
-    input_file: Path | None = typer.Option(
-        None, "--input-file", help="Read tx hex from file"
-    ),
+    input_file: Path | None = typer.Option(None,
+                                           "--input-file",
+                                           help="Read tx hex from file"),
 ) -> None:
     """Decode a raw transaction and output as JSON."""
     configure_logging()
@@ -224,17 +214,15 @@ def decode(
 def extract(
     tx_hex: str | None = typer.Argument(None, help="Transaction hex"),
     utxo_scripts: list[str] | None = typer.Option(
-        None, "--utxo-script", help="UTXO scriptPubKey (one per input)"
-    ),
+        None, "--utxo-script", help="UTXO scriptPubKey (one per input)"),
     utxo_values: list[int] | None = typer.Option(
-        None, "--utxo-value", help="UTXO value in satoshis (one per input)"
-    ),
+        None, "--utxo-value", help="UTXO value in satoshis (one per input)"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
     csv_output: bool = typer.Option(False, "--csv", help="Output as CSV"),
     output_format: str = typer.Option("text", "--format", help="Output format"),
-    input_file: Path | None = typer.Option(
-        None, "--input-file", help="Read tx hex from file"
-    ),
+    input_file: Path | None = typer.Option(None,
+                                           "--input-file",
+                                           help="Read tx hex from file"),
     progress: bool = typer.Option(False, "--progress", "-p", help="Show progress dots"),
 ) -> None:
     """Extract ECDSA signatures from a raw transaction hex."""
@@ -275,9 +263,9 @@ def linearize(
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
     csv_output: bool = typer.Option(False, "--csv", help="Output as CSV"),
     output_format: str = typer.Option("text", "--format", help="Output format"),
-    input_file: Path | None = typer.Option(
-        None, "--input-file", help="Read tx hex from file"
-    ),
+    input_file: Path | None = typer.Option(None,
+                                           "--input-file",
+                                           help="Read tx hex from file"),
     progress: bool = typer.Option(False, "--progress", "-p", help="Show progress dots"),
 ) -> None:
     """Extract and linearize (sort) signatures from a raw transaction hex."""
@@ -327,9 +315,9 @@ def broadcast(
         "--provider",
         help="Blockchain provider (blockstream, mempool, blockchain_info)",
     ),
-    input_file: Path | None = typer.Option(
-        None, "--input-file", help="Read tx hex from file"
-    ),
+    input_file: Path | None = typer.Option(None,
+                                           "--input-file",
+                                           help="Read tx hex from file"),
 ) -> None:
     """Broadcast a raw transaction to the Bitcoin network."""
     configure_logging()
@@ -383,9 +371,9 @@ def schema(
             err=True,
         )
         raise typer.Exit(1)
-    from pathlib import Path as _Path
+    from pathlib import Path
 
-    schema_path = _Path(__file__).resolve().parent.parent.parent / path
+    schema_path = Path(__file__).resolve().parent.parent.parent / path
     if not schema_path.exists():
         typer.echo(f"Schema file not found: {schema_path}", err=True)
         raise typer.Exit(1)

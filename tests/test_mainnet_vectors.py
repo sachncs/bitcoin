@@ -19,7 +19,7 @@ from bitcoin.transaction.models import OutPoint, Tx, TxIn, TxOut, Witness
 from bitcoin.transaction.parser import parse_tx
 
 
-def _point_to_xonly(p: Point) -> bytes:
+def point_to_xonly(p: Point) -> bytes:
     """Convert a Point to 32-byte x-only representation."""
     if p.x is None:
         return b"\x00" * 32
@@ -29,7 +29,7 @@ def _point_to_xonly(p: Point) -> bytes:
 # ── Helper ───────────────────────────────────────────────────────────────
 
 
-def _parse_tx(hex_str: str) -> Tx:
+def tx_from_hex(hex_str: str) -> Tx:
     tx, _ = parse_tx(decode_hex(hex_str.strip()))
     return tx
 
@@ -48,13 +48,11 @@ BIP143_P2WPKH_SIGNED = (
     "7faa815988ac000247304402203609e17b84f6a7d30c80bfa610b5b4542f32a8a0d5447a12f"
     "b1366d7f01cc44a0220573a954c4518331561406f90300e8f3358f51928d43c212a8caed02d"
     "e67eebee0121025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee6"
-    "35711000000"
-)
+    "35711000000")
 
 BIP143_P2WPKH_UTXO_SCRIPTS = [
     decode_hex(
-        "2103c9f4836b9a4f77fc0d81f7bcb01b7f1b35916864b9476c241ce9fc198bd25432ac"
-    ),
+        "2103c9f4836b9a4f77fc0d81f7bcb01b7f1b35916864b9476c241ce9fc198bd25432ac"),
     decode_hex("00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1"),
 ]
 BIP143_P2WPKH_UTXO_VALUES = [625_000_000, 600_000_000]
@@ -70,8 +68,7 @@ BIP143_P2SH_P2WPKH_SIGNED = (
     "00001976a914fd270b1ee6abcaea97fea7ad0402e8bd8ad6d77c88ac02473044022047ac8e8"
     "78352d3ebbde1c94ce3a10d057c24175747116f8288e5d794d12d482f0220217f36a485cae9"
     "03c713331d877c1f64677e3622ad4010726870540656fe9dcb012103ad1d8e89212f0b92c74"
-    "d23bb710c00662ad1470198ac48c43f7d6f93a2a2687392040000"
-)
+    "d23bb710c00662ad1470198ac48c43f7d6f93a2a2687392040000")
 
 BIP143_P2SH_P2WPKH_UTXO_SCRIPTS = [
     decode_hex("a9144733f37cf4db86fbc2efed2500b4f4e49f31202387"),
@@ -87,15 +84,14 @@ def build_taproot_keypath_tx() -> tuple[Tx, bytes]:
     """Build a Taproot key-path spending transaction (mock Schnorr sig)."""
     priv = 42
     pub = multiply(priv, GENERATOR)
-    xonly = _point_to_xonly(pub)
+    xonly = point_to_xonly(pub)
     script_pubkey = build_p2tr(xonly)
 
     mock_schnorr_sig = b"\x01" * 64
-    txin = TxIn(
-        OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness((mock_schnorr_sig,))
-    )
+    txin = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness(
+        (mock_schnorr_sig, )))
     txout = TxOut(100_000_000, script_pubkey)
-    tx = Tx(2, (txin,), (txout,), 0)
+    tx = Tx(2, (txin, ), (txout, ), 0)
     return tx, script_pubkey
 
 
@@ -108,7 +104,7 @@ def build_taproot_scriptpath_tx() -> tuple[Tx, bytes]:
     """Build a Taproot script-path spending transaction (mock Schnorr sig)."""
     priv = 42
     pub = multiply(priv, GENERATOR)
-    xonly = _point_to_xonly(pub)
+    xonly = point_to_xonly(pub)
 
     script = serialize_script([xonly, OP_CHECKSIG])
     leaf_version = 0xC0
@@ -123,7 +119,7 @@ def build_taproot_scriptpath_tx() -> tuple[Tx, bytes]:
     if tweak_int >= CURVE_ORDER:
         tweak_int = 1
     Q = add(pub, multiply(tweak_int, GENERATOR))
-    q_xonly = _point_to_xonly(Q)
+    q_xonly = point_to_xonly(Q)
     script_pubkey = build_p2tr(q_xonly)
 
     mock_schnorr_sig = b"\x02" * 64
@@ -131,7 +127,7 @@ def build_taproot_scriptpath_tx() -> tuple[Tx, bytes]:
     witness_items = (mock_schnorr_sig, script, control_block)
     txin = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness(witness_items))
     txout = TxOut(100_000_000, script_pubkey)
-    tx = Tx(2, (txin,), (txout,), 0)
+    tx = Tx(2, (txin, ), (txout, ), 0)
     return tx, script_pubkey
 
 
@@ -144,14 +140,14 @@ class TestBip143P2WPKH:
     """BIP-143 Native P2WPKH test vector — real signed SegWit transaction."""
 
     def test_parse_signed(self) -> None:
-        tx = _parse_tx(BIP143_P2WPKH_SIGNED)
+        tx = tx_from_hex(BIP143_P2WPKH_SIGNED)
         assert tx.version == 1
         assert len(tx.inputs) == 2
         assert len(tx.outputs) == 2
         assert tx.is_segwit()
 
     def test_extract_signatures(self) -> None:
-        tx = _parse_tx(BIP143_P2WPKH_SIGNED)
+        tx = tx_from_hex(BIP143_P2WPKH_SIGNED)
         records = extract_signatures(
             tx,
             utxo_script_pubkeys=BIP143_P2WPKH_UTXO_SCRIPTS,
@@ -165,7 +161,7 @@ class TestBip143P2WPKH:
             assert not r.public_key.infinity, f"Pubkey recovery failed for vin={r.vin}"
 
     def test_signatures_parse_correctly(self) -> None:
-        tx = _parse_tx(BIP143_P2WPKH_SIGNED)
+        tx = tx_from_hex(BIP143_P2WPKH_SIGNED)
         records = extract_signatures(
             tx,
             utxo_script_pubkeys=BIP143_P2WPKH_UTXO_SCRIPTS,
@@ -181,13 +177,13 @@ class TestBip143P2SHP2WPKH:
     """BIP-143 P2SH-P2WPKH test vector."""
 
     def test_parse_signed(self) -> None:
-        tx = _parse_tx(BIP143_P2SH_P2WPKH_SIGNED)
+        tx = tx_from_hex(BIP143_P2SH_P2WPKH_SIGNED)
         assert tx.version == 1
         assert len(tx.inputs) == 1
         assert tx.is_segwit()
 
     def test_extract_signatures(self) -> None:
-        tx = _parse_tx(BIP143_P2SH_P2WPKH_SIGNED)
+        tx = tx_from_hex(BIP143_P2SH_P2WPKH_SIGNED)
         records = extract_signatures(
             tx,
             utxo_script_pubkeys=BIP143_P2SH_P2WPKH_UTXO_SCRIPTS,

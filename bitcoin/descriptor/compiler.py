@@ -76,7 +76,7 @@ def parse_descriptor(expr: str) -> DescriptorNode:
         raise DescriptorError(f"Unknown descriptor op: {op!r}")
 
     _, arity = COMPILER[op]
-    args = _split_args(inner)
+    args = __split_args(inner)
     if len(args) != arity:
         raise DescriptorError(f"{op} expects {arity} argument(s), got {len(args)}.")
 
@@ -93,7 +93,7 @@ def parse_descriptor(expr: str) -> DescriptorNode:
     return DescriptorNode(op, parsed_args)
 
 
-def _split_args(inner: str) -> list[str]:
+def __split_args(inner: str) -> list[str]:
     """Split comma-separated arguments respecting nested parens."""
     args: list[str] = []
     depth = 0
@@ -126,10 +126,10 @@ def compile_descriptor(expr: str) -> str:
         DescriptorError: If the expression is invalid.
     """
     ast = parse_descriptor(expr)
-    return _emit_script(ast)
+    return __emit_script(ast)
 
 
-def _emit_script(node: DescriptorNode) -> str:
+def __emit_script(node: DescriptorNode) -> str:
     """Recursively emit script from a descriptor AST node."""
     template, arity = COMPILER[node.op]
     args = node.args
@@ -140,19 +140,18 @@ def _emit_script(node: DescriptorNode) -> str:
         for pname in ("pubkey", "hash160", "hash", "n"):
             pat = f"<{pname}>"
             if pat in substituted:
-                val = arg if isinstance(arg, str) else _emit_script(arg)
+                val = arg if isinstance(arg, str) else __emit_script(arg)
                 substituted = substituted.replace(pat, val, 1)
                 break
         else:
             # Use positional placeholder.
             if isinstance(arg, DescriptorNode):
-                arg_script = _emit_script(arg)
+                arg_script = __emit_script(arg)
             else:
                 arg_script = arg
             if f"<{['a', 'b', 'c', 'd', 'e'][i]}>" in substituted:
-                substituted = substituted.replace(
-                    f"<{['a', 'b', 'c', 'd', 'e'][i]}>", arg_script, 1
-                )
+                substituted = substituted.replace(f"<{['a', 'b', 'c', 'd', 'e'][i]}>",
+                                                  arg_script, 1)
             else:
                 substituted = substituted.replace(f"<{pname}>", arg_script, 1)
 

@@ -39,7 +39,7 @@ class PsbtBatchResult:
     failed: int = 0
 
 
-def _parse_psbt_worker(path: str) -> Psbt | tuple[str, str]:
+def __parse_psbt_worker(path: str) -> Psbt | tuple[str, str]:
     """Module-level worker for ``ProcessPoolExecutor``."""
     try:
         return parse_psbt_from_file(path)
@@ -65,9 +65,8 @@ def process_psbt_batch(
         A ``PsbtBatchResult`` aggregating all parsed PSBTs and errors.
     """
     rid = request_id or uuid.uuid4().hex[:12]
-    logger.info(
-        "[%s] Processing %d PSBT files (%d workers).", rid, len(paths), max_workers
-    )
+    logger.info("[%s] Processing %d PSBT files (%d workers).", rid, len(paths),
+                max_workers)
 
     all_psbts: list[Psbt] = []
     errors: list[tuple[str, str]] = []
@@ -82,7 +81,7 @@ def process_psbt_batch(
         successful = len(all_psbts)
     else:
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
-            fut_map = {executor.submit(_parse_psbt_worker, p): p for p in paths}
+            fut_map = {executor.submit(__parse_psbt_worker, p): p for p in paths}
             for future in as_completed(fut_map):
                 path = fut_map[future]
                 try:

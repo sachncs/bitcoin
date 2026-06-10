@@ -24,6 +24,8 @@ from bitcoin import (
     extract_signatures,
     linearize_signatures,
     verify_sig,
+    verify_schnorr_sig,
+    verify_all,
     recover_public_key,
     parse_tx,
     make_tx,
@@ -55,6 +57,12 @@ from bitcoin import (
     decode_der,
     encode_varint,
     decode_varint,
+    serialize_tx,
+    serialize_legacy_tx,
+    tx_to_json,
+    is_opt_in_rbf,
+    has_sequence_lock,
+    health,
     sha256,
     hash256,
     hash160,
@@ -212,6 +220,22 @@ def recover_public_key(message_hash: bytes, der_sig: bytes, rec_id: int) -> Poin
 
 Recover the public key from a message hash and signature with recovery ID (0–3).
 
+### `bitcoin.verify_schnorr_sig`
+
+```python
+def verify_schnorr_sig(message_hash: bytes, schnorr_sig: bytes, x_only_pubkey: bytes) -> bool:
+```
+
+Verify a BIP-340 Schnorr signature.
+
+### `bitcoin.verify_all`
+
+```python
+def verify_all(message_hash: bytes, signatures: list[bytes], public_keys: list[Point]) -> bool:
+```
+
+Batch-verify multiple ECDSA signatures against the same message hash.
+
 ---
 
 ## Nonce Reuse & Linearization
@@ -337,6 +361,46 @@ def serialize_psbt(psbt: Psbt) -> bytes:
 
 Serialize a `Psbt` back to binary.
 
+### `bitcoin.serialize_tx`
+
+```python
+def serialize_tx(tx: Tx) -> bytes:
+```
+
+Serialize a transaction with segwit-awareness.
+
+### `bitcoin.serialize_legacy_tx`
+
+```python
+def serialize_legacy_tx(tx: Tx) -> bytes:
+```
+
+Serialize a transaction in legacy (pre-segwit) format.
+
+### `bitcoin.tx_to_json`
+
+```python
+def tx_to_json(tx: Tx) -> dict:
+```
+
+Convert a transaction to a JSON-serializable dict.
+
+### `bitcoin.is_opt_in_rbf`
+
+```python
+def is_opt_in_rbf(tx: Tx) -> bool:
+```
+
+Check if a transaction signals opt-in RBF (sequence &lt; 0xfffffffe on any input).
+
+### `bitcoin.has_sequence_lock`
+
+```python
+def has_sequence_lock(tx: Tx) -> bool:
+```
+
+Check if any input uses a sequence lock (sequence &lt; 0xffffffff with bit 22 set).
+
 ### `bitcoin.psbt.PsbtEditor`
 
 ```python
@@ -432,6 +496,16 @@ class BlockchainInfoProvider:
 
 Fetches transaction data from blockchain.info API.
 
+### `bitcoin.services.MempoolSpaceProvider`
+
+```python
+class MempoolSpaceProvider:
+    def __init__(self, network: str = "mainnet") -> None: ...
+    def fetch_raw_tx(self, txid: str) -> bytes: ...
+```
+
+Fetches transaction data from mempool.space API.
+
 ### `bitcoin.services.enrich_transaction`
 
 ```python
@@ -481,3 +555,15 @@ def get_backend() -> CurveBackend:
 ```
 
 Return the active backend instance.
+
+---
+
+## Health Check
+
+### `bitcoin.health`
+
+```python
+def health() -> dict:
+```
+
+Run health checks and return a JSON status report with version, import info, backend status, and curve operation verification.

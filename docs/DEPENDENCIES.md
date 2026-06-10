@@ -4,8 +4,8 @@
 
 | Package | Version | Required | Condition | Purpose |
 |---------|---------|----------|-----------|---------|
-| `typer` | ≥0.12 | Yes (CLI) | — | CLI argument parsing for `bitcoin extract` etc. |
-| `coincurve` | ≥2.1 | No | `[extra]` | Optional libsecp256k1 C bindings for accelerated curve operations |
+| `typer` | ≥0.12, <1 | Yes (CLI) | — | CLI argument parsing for `bitcoin extract` etc. |
+| `coincurve` | ≥18, <19 | No | `[coincurve]` | Optional libsecp256k1 C bindings for accelerated curve operations |
 
 `typer` is only needed when using the CLI. The Python API has zero runtime dependencies outside the standard library.
 
@@ -20,18 +20,17 @@
 | `ruff` | ≥0.4 | Linter (pyupgrade, bugbear, pycodestyle) |
 | `yapf` | — | Code formatter (pre-commit hook) |
 | `pre-commit` | — | Git hook runner |
-| `coincurve` | ≥2.1 | Libsecp backend tests |
+| `coincurve` | ≥18, <19 | Libsecp backend tests |
 
-## CI (`[ci]` extra)
+## CI
 
-`pip install -e ".[ci]"` installs dev dependencies + any CI-specific tooling.
+`uv sync --extra dev` installs all dev dependencies for CI.
 
 ## Build
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| `setuptools` | ≥74.0 | Build backend |
-| `setuptools-scm` | — | Version from git |
+| `setuptools` | ≥69.0 | Build backend |
 
 ## Transitive
 

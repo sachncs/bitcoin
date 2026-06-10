@@ -12,13 +12,14 @@ Version **0.4.0**.
 ## Install
 
 ```bash
-pip install bitcoin
+uv pip install bitcoin
 ```
 
 For accelerated point multiplication (optional):
 
 ```bash
-pip install bitcoin[coincurve]
+uv pip install bitcoin[coincurve]
+# or: uv sync --extra coincurve
 ```
 
 ## CLI
@@ -442,14 +443,13 @@ lc = derive_linear_coefficients(r, s, z)
 ## Development
 
 ```bash
-pip install -e ".[dev]"
-make test           # pytest
-make typecheck      # mypy
-make lint           # ruff
-make test-cov       # pytest + coverage (99%+)
-
-# Vulnerability scan
-pip-audit
+./setup.sh                          # uv venv + sync + test
+make venv                           # same, without test
+make test                           # pytest
+make typecheck                      # mypy
+make lint                           # ruff
+make test-cov                       # pytest + coverage (99%+)
+./cleanup.sh                        # remove caches, .venv, egg-info
 ```
 
 ### Environment

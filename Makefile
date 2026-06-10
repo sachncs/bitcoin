@@ -8,22 +8,22 @@ setup:
 	./setup.sh
 
 venv:
-	python3 -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]"
+	uv venv && uv sync --extra dev
 
 lint:
-	ruff check .
+	uv run ruff check .
 
 typecheck:
-	mypy -p bitcoin
+	uv run mypy -p bitcoin
 
 test:
-	python3 -m pytest
+	uv run pytest
 
 test-verbose:
-	python3 -m pytest -v --tb=long
+	uv run pytest -v --tb=long
 
 test-cov:
-	python3 -m pytest --cov=bitcoin --cov-report=term-missing
+	uv run pytest --cov=bitcoin --cov-report=term-missing
 
 clean:
 	./cleanup.sh

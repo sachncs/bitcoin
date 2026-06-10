@@ -3,13 +3,13 @@
 ## Running Tests
 
 ```bash
-pytest tests/ -v
+uv run pytest tests/ -v
 ```
 
 With coverage:
 
 ```bash
-pytest tests/ --cov=bitcoin
+uv run pytest tests/ --cov=bitcoin
 ```
 
 ## Test Files
@@ -47,15 +47,15 @@ The project targets **99%+ line coverage**. Current CI gate rejects drops below 
 Run:
 
 ```bash
-pytest tests/ --cov=bitcoin --cov-fail-under=99
+uv run pytest tests/ --cov=bitcoin --cov-fail-under=99
 ```
 
 ## Linting & Type Checking
 
 ```bash
-mypy bitcoin/ tests/ --strict
-ruff check bitcoin/ tests/
-yapf -dr bitcoin/ tests/
+uv run mypy bitcoin/ tests/
+uv run ruff check bitcoin/ tests/
+uv run yapf -d -r bitcoin/
 ```
 
 ## CI Matrix
@@ -64,9 +64,9 @@ GitHub Actions runs three configurations:
 
 | Job | Python | Extras |
 |-----|--------|--------|
-| `test` | 3.11, 3.12, 3.13 | None |
-| `test-coincurve` | 3.11 | `[dev]` |
-| `benchmark` | 3.11 | `[dev]` |
+| `test` | 3.12, 3.13 | None |
+| `test-coincurve` | 3.12, 3.13 | `[dev]` |
+| `benchmark` | 3.13 | `[dev]` |
 
 ## Property-Based Tests
 

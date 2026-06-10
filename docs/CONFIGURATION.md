@@ -19,7 +19,7 @@ Two backends are available:
 | Backend | Class | Availability |
 |---------|-------|-------------|
 | Pure Python | `NativeBackend` | Always (default) |
-| C-backed (libsecp256k1) | `LibsecpBackend` | Requires `pip install coincurve` |
+| C-backed (libsecp256k1) | `LibsecpBackend` | Requires `uv sync --extra coincurve` or `uv pip install coincurve` |
 
 ```python
 from bitcoin import set_backend, get_backend

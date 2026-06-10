@@ -13,6 +13,7 @@
 | `sqrt` | Function | Tonelli-Shanks sqrt (p ≡ 3 mod 4 specialization) |
 | `pow_mod` | Function | Modular exponentiation |
 | `validate_non_negative` | Function | Assert value is non-negative int |
+| `NotInvertible` | Exception | Raised when value has no modular inverse |
 
 **Consumers**: `bitcoin.curve`, `bitcoin.signature`
 
@@ -140,7 +141,7 @@
 
 ## `bitcoin.signature` — Signature Type, Extraction & Linearization
 
-**Submodules**: `record.py`, `collection.py`, `check.py`, `attack.py`, `signer.py`, `pipeline.py`, `extraction/engine.py`, `extraction/plugins.py`, `linearization/engine.py`, `linearization/coefficients.py`
+**Submodules**: `record.py`, `collection.py`, `check.py`, `attack.py`, `signer.py`, `schnorr.py`, `batch_verify.py`, `memzero.py`, `pipeline.py`, `extraction/engine.py`, `extraction/plugins.py`, `linearization/engine.py`, `linearization/coefficients.py`
 
 **Dependencies**: `curve`, `encoding`, `transaction`, `sighash`, `field`, `script`, `exceptions`
 
@@ -152,6 +153,8 @@
 | `extract_signatures` | Function | `Tx` → `list[Record]` |
 | `linearize_signatures` | Function | `list[Record]` → sorted `list[Record]` |
 | `verify_sig` | Function | Verify ECDSA signature |
+| `verify_schnorr_sig` | Function | Verify Schnorr (BIP-340) signature |
+| `verify_all` | Function | Batch verify multiple ECDSA signatures |
 | `recover_public_key` | Function | Recover pubkey from message + signature |
 | `derive_linear_coefficients` | Function | `(r, s, z)` → `LinearCoefficientRecord` |
 | `LinearCoefficientRecord` | Dataclass | Single linearised signature with `alpha`, `beta` |

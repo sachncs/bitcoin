@@ -70,6 +70,8 @@ jobs:
         with:
           name: benchmark
           path: benchmark.json
+      - name: Create gh-pages branch if missing
+        run: git checkout --orphan gh-pages && git reset --hard && git checkout "${{ github.ref_name }}" || true
       - name: Compare benchmarks to main
         uses: benchmark-action/github-action-benchmark@v1
         with:

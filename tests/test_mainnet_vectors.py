@@ -48,11 +48,13 @@ BIP143_P2WPKH_SIGNED = (
     "7faa815988ac000247304402203609e17b84f6a7d30c80bfa610b5b4542f32a8a0d5447a12f"
     "b1366d7f01cc44a0220573a954c4518331561406f90300e8f3358f51928d43c212a8caed02d"
     "e67eebee0121025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee6"
-    "35711000000")
+    "35711000000"
+)
 
 BIP143_P2WPKH_UTXO_SCRIPTS = [
     decode_hex(
-        "2103c9f4836b9a4f77fc0d81f7bcb01b7f1b35916864b9476c241ce9fc198bd25432ac"),
+        "2103c9f4836b9a4f77fc0d81f7bcb01b7f1b35916864b9476c241ce9fc198bd25432ac"
+    ),
     decode_hex("00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1"),
 ]
 BIP143_P2WPKH_UTXO_VALUES = [625_000_000, 600_000_000]
@@ -68,7 +70,8 @@ BIP143_P2SH_P2WPKH_SIGNED = (
     "00001976a914fd270b1ee6abcaea97fea7ad0402e8bd8ad6d77c88ac02473044022047ac8e8"
     "78352d3ebbde1c94ce3a10d057c24175747116f8288e5d794d12d482f0220217f36a485cae9"
     "03c713331d877c1f64677e3622ad4010726870540656fe9dcb012103ad1d8e89212f0b92c74"
-    "d23bb710c00662ad1470198ac48c43f7d6f93a2a2687392040000")
+    "d23bb710c00662ad1470198ac48c43f7d6f93a2a2687392040000"
+)
 
 BIP143_P2SH_P2WPKH_UTXO_SCRIPTS = [
     decode_hex("a9144733f37cf4db86fbc2efed2500b4f4e49f31202387"),
@@ -88,10 +91,11 @@ def build_taproot_keypath_tx() -> tuple[Tx, bytes]:
     script_pubkey = build_p2tr(xonly)
 
     mock_schnorr_sig = b"\x01" * 64
-    txin = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness(
-        (mock_schnorr_sig, )))
+    txin = TxIn(
+        OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness((mock_schnorr_sig,))
+    )
     txout = TxOut(100_000_000, script_pubkey)
-    tx = Tx(2, (txin, ), (txout, ), 0)
+    tx = Tx(2, (txin,), (txout,), 0)
     return tx, script_pubkey
 
 
@@ -127,7 +131,7 @@ def build_taproot_scriptpath_tx() -> tuple[Tx, bytes]:
     witness_items = (mock_schnorr_sig, script, control_block)
     txin = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF, Witness(witness_items))
     txout = TxOut(100_000_000, script_pubkey)
-    tx = Tx(2, (txin, ), (txout, ), 0)
+    tx = Tx(2, (txin,), (txout,), 0)
     return tx, script_pubkey
 
 

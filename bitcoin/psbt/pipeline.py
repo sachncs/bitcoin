@@ -65,8 +65,9 @@ def process_psbt_batch(
         A ``PsbtBatchResult`` aggregating all parsed PSBTs and errors.
     """
     rid = request_id or uuid.uuid4().hex[:12]
-    logger.info("[%s] Processing %d PSBT files (%d workers).", rid, len(paths),
-                max_workers)
+    logger.info(
+        "[%s] Processing %d PSBT files (%d workers).", rid, len(paths), max_workers
+    )
 
     all_psbts: list[Psbt] = []
     errors: list[tuple[str, str]] = []

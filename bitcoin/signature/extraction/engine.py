@@ -63,8 +63,9 @@ class LegacyExtractor:
         script_pubkey: bytes,
         value: int,
     ) -> list[Record]:
-        parsed_sig: Sequence[object] = (list(parse_script(txin.script_sig))
-                                        if txin.script_sig else [])
+        parsed_sig: Sequence[object] = (
+            list(parse_script(txin.script_sig)) if txin.script_sig else []
+        )
         return extract_legacy(tx, vin, script_pubkey, parsed_sig)
 
 
@@ -214,8 +215,9 @@ def extract_signatures(
     from bitcoin.signature.extraction.plugins import get_plugin, list_plugins
 
     for vin, txin in enumerate(tx.inputs):
-        parsed_sig: Sequence[object] = (list(parse_script(txin.script_sig))
-                                        if txin.script_sig else [])
+        parsed_sig: Sequence[object] = (
+            list(parse_script(txin.script_sig)) if txin.script_sig else []
+        )
         script_pubkey = utxo_script_pubkeys[vin] if utxo_script_pubkeys else b""
         script_type = determine_script_type(script_pubkey, parsed_sig)
         script_type_counts[script_type] = script_type_counts.get(script_type, 0) + 1
@@ -321,7 +323,8 @@ def extract_legacy(
                     script_type=determine_script_type(script_pubkey, script_sig),
                     sighash_flag=flag,
                     amount=0,
-                ))
+                )
+            )
             logger.debug("Signature extracted from input %d", vin)
     return records
 
@@ -365,8 +368,9 @@ def extract_p2wpkh(
     Raises:
         AttributeError: If *tx* is malformed.
     """
-    script_code = (p2wpkh_script_code(script_pubkey)
-                   if script_pubkey else default_script_code())
+    script_code = (
+        p2wpkh_script_code(script_pubkey) if script_pubkey else default_script_code()
+    )
     records: list[Record] = []
     for item in witness_items[:-1]:
         if len(item) > 1:
@@ -396,7 +400,8 @@ def extract_p2wpkh(
                     script_type=P2WPKH,
                     sighash_flag=flag,
                     amount=value,
-                ))
+                )
+            )
             logger.debug("P2WPKH signature extracted for input %d", vin)
     return records
 
@@ -457,7 +462,8 @@ def extract_p2wsh(
                     script_type=P2WSH,
                     sighash_flag=flag,
                     amount=value,
-                ))
+                )
+            )
             logger.debug("P2WSH signature extracted for input %d", vin)
     return records
 
@@ -532,7 +538,8 @@ def extract_p2sh_segwit(
                     script_type=f"p2sh_{redeem_type}",
                     sighash_flag=flag,
                     amount=value,
-                ))
+                )
+            )
             logger.debug("P2SH-SegWit signature extracted for input %d", vin)
     return records
 
@@ -595,7 +602,8 @@ def extract_taproot(
                     script_type=P2TR,
                     sighash_flag=flag,
                     amount=value,
-                ))
+                )
+            )
         except ValueError:
             logger.debug("Taproot key-path spend extraction failed for input %d", vin)
         return records
@@ -621,7 +629,8 @@ def extract_taproot(
                         script_type=P2TR,
                         sighash_flag=flag,
                         amount=value,
-                    ))
+                    )
+                )
         except ValueError:
             logger.debug("Taproot script-path item skipped for input %d", vin)
     return records
@@ -641,8 +650,11 @@ def pubkey_from_p2tr_script(script_pubkey: bytes) -> Point:
     Returns:
         The public key ``Point``, or ``INFINITY`` if extraction fails.
     """
-    if (len(script_pubkey) == 34 and script_pubkey[0] == 0x51
-            and script_pubkey[1] == 0x20):
+    if (
+        len(script_pubkey) == 34
+        and script_pubkey[0] == 0x51
+        and script_pubkey[1] == 0x20
+    ):
         xonly = script_pubkey[2:34]
         try:
             return Point.from_sec_compressed(bytes([0x02]) + xonly)

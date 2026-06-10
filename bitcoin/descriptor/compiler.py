@@ -150,8 +150,9 @@ def __emit_script(node: DescriptorNode) -> str:
             else:
                 arg_script = arg
             if f"<{['a', 'b', 'c', 'd', 'e'][i]}>" in substituted:
-                substituted = substituted.replace(f"<{['a', 'b', 'c', 'd', 'e'][i]}>",
-                                                  arg_script, 1)
+                substituted = substituted.replace(
+                    f"<{['a', 'b', 'c', 'd', 'e'][i]}>", arg_script, 1
+                )
             else:
                 substituted = substituted.replace(f"<{pname}>", arg_script, 1)
 

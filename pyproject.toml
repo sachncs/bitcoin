@@ -23,7 +23,7 @@ classifiers = [
     "Topic :: Internet",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-dependencies = ["typer>=0.26.7,<1"]
+dependencies = ["typer>=0.26.8,<1"]
 
 [project.urls]
 Homepage = "https://github.com/sachn-cs/bitcoin"

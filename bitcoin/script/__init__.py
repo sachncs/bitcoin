@@ -64,8 +64,15 @@ from bitcoin.script.parser import (
 )
 from bitcoin.script.parser import parse_script_chunks as parse_script
 from bitcoin.script.taproot import (
+    TaprootControlBlock,
     TaprootScriptPath,
+    compute_tapleaf_hash,
+    compute_tweak,
+    get_key_path_signature,
     get_x_only_pubkey,
+    is_key_path_spend,
+    is_valid_leaf_version,
+    parse_control_block,
     parse_taproot_witness_stack,
 )
 
@@ -100,8 +107,15 @@ __all__ = [
     "Push",
     "ScriptChunk",
     "ScriptElement",
+    "TaprootControlBlock",
     "TaprootScriptPath",
+    "compute_tapleaf_hash",
+    "compute_tweak",
+    "get_key_path_signature",
     "get_x_only_pubkey",
+    "is_key_path_spend",
+    "is_valid_leaf_version",
+    "parse_control_block",
     "parse_taproot_witness_stack",
     "TIMELOCK",
     "build_p2pk",

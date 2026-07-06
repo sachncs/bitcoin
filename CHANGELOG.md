@@ -5,21 +5,24 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- `bitcoin health` CLI command for runtime introspection (runs health checks, prints JSON).
-- JSON structured logging via `JSONFormatter`; configurable via `BITCOIN_LOG_LEVEL` env var.
-- `register_builtin_extractors()` — plugin registration moved from import-time side effect to an explicit idempotent call.
-- Library health module (`health.py`) now logs import failures instead of silently swallowing them.
-- `MAINTAINERS.md`, `SECURITY.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md` governance files.
-- GitHub issue templates (`bug_report.md`, `feature_request.md`) and pull request template.
-- `.github/FUNDING.yml` skeleton for sponsors.
-- `pip-audit` dependency CVE scanning step in CI and release workflows.
-- Concurrency control (`cancel-in-progress: true`) and path filtering on CI.
-- Dependency caching for `astral-sh/setup-uv` in all CI jobs.
-- `workflow_dispatch` trigger on both CI and release workflows.
-- Test PyPI publish and build provenance attestation (`attest-build-provenance`) in release pipeline.
-- Build artifacts uploaded as workflow artifacts in releases.
-- Environment variable reference and JSON logging callout in README.
-- License badge to README.
+- `batch_fetch_transactions()` for parallel HTTP fetching of multiple transactions.
+- `batch_enrich_transactions()` for parallel UTXO enrichment across transactions.
+- `async_batch_fetch_transactions()` async version using `asyncio.gather`.
+- `GenericHttpProvider` for custom blockchain API integration with configurable URL templates.
+- `parse_control_block()` for parsing Taproot control blocks into components.
+- `compute_tapleaf_hash()` for computing BIP-341 tapleaf hashes.
+- `compute_tweak()` for computing Taproot output key tweaks.
+- `is_key_path_spend()` and `get_key_path_signature()` for Taproot key-path detection.
+- `is_valid_leaf_version()` for validating Taproot leaf versions.
+- `TaprootControlBlock` dataclass for structured control block data.
+- Descriptor module (`analyze_descriptor`, `compile_descriptor`, `extract_keys`) exported at package level.
+- Comprehensive descriptor tests (`tests/test_descriptor.py`).
+- Benchmarking documentation (`docs/BENCHMARKING.md`).
+- Getting started guide (`docs/getting-started.md`).
+- FAQ documentation (`docs/faq.md`).
+- `.gitattributes` for line ending normalization.
+- `.env.example` for environment variable documentation.
+- Open source readiness improvements (README, CONTRIBUTING, governance files).
 
 ### Changed
 - CLI error handling: `main()` now returns `1` on unhandled exceptions (was always `0`).

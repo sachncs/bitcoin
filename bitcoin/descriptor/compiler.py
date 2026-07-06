@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from typing import NamedTuple
 
-PUBKEY_PATTERN = re.compile(r"^[02-9][0-9a-fA-F]{64}$")
+PUBKEY_PATTERN = re.compile(r"^[023][0-9a-fA-F]{65}$")
 
 
 class DescriptorError(Exception):

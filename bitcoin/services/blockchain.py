@@ -308,6 +308,90 @@ class MempoolSpaceProvider(BaseBlockchainProvider):
     BASE_URL = "https://mempool.space/api"
 
 
+class GenericHttpProvider(BaseBlockchainProvider):
+    """Generic HTTP blockchain provider for custom APIs.
+
+    Allows configuring URL patterns for transaction fetching,
+    UTXO lookups, and broadcasting.
+
+    Attributes:
+        base_url: Base URL of the API.
+        tx_hex_path: URL path template for fetching tx hex. Use ``{txid}``
+            as placeholder.
+        tx_json_path: URL path template for fetching tx JSON.
+        utxo_script_path: URL path template for UTXO script lookup.
+            Use ``{txid}`` and ``{vout}`` as placeholders.
+        utxo_value_path: URL path template for UTXO value lookup.
+        broadcast_path: URL path for broadcasting transactions.
+        script_json_key: JSON key for script in UTXO response.
+        value_json_key: JSON key for value in UTXO response.
+    """
+
+    def __init__(
+        self,
+        base_url: str,
+        *,
+        tx_hex_path: str = "/tx/{txid}/hex",
+        tx_json_path: str = "/tx/{txid}",
+        utxo_script_path: str | None = None,
+        utxo_value_path: str | None = None,
+        broadcast_path: str = "/tx",
+        script_json_key: str = "scriptpubkey",
+        value_json_key: str = "value",
+        outputs_json_key: str = "vout",
+    ) -> None:
+        self.BASE_URL = base_url.rstrip("/")
+        self._tx_hex_path = tx_hex_path
+        self._tx_json_path = tx_json_path
+        self._utxo_script_path = utxo_script_path
+        self._utxo_value_path = utxo_value_path
+        self._broadcast_path = broadcast_path
+        self.script_key = script_json_key
+        self.value_key = value_json_key
+        self.outputs_key = outputs_json_key
+
+    def do_get_transaction_hex(self, txid: str) -> str:
+        validate_txid(txid)
+        url = f"{self.BASE_URL}{self._tx_hex_path.format(txid=txid)}"
+        return fetch_text(url)
+
+    def tx_json_url(self, txid: str) -> str:
+        return f"{self.BASE_URL}{self._tx_json_path.format(txid=txid)}"
+
+    def get_utxo_script_pubkey(self, txid: str, vout: int) -> bytes:
+        validate_txid(txid)
+        if self._utxo_script_path:
+            path = self._utxo_script_path.format(txid=txid, vout=vout)
+            url = f"{self.BASE_URL}{path}"
+            raw = fetch_text(url)
+            try:
+                data = json.loads(raw)
+                if isinstance(data, str):
+                    return decode_hex(data)
+                return decode_hex(data.get(self.script_key, ""))
+            except (json.JSONDecodeError, KeyError):
+                return decode_hex(raw.strip())
+        return super().get_utxo_script_pubkey(txid, vout)
+
+    def get_utxo_value(self, txid: str, vout: int) -> int:
+        validate_txid(txid)
+        if self._utxo_value_path:
+            path = self._utxo_value_path.format(txid=txid, vout=vout)
+            url = f"{self.BASE_URL}{path}"
+            raw = fetch_text(url)
+            try:
+                data = json.loads(raw)
+                if isinstance(data, (int, float)):
+                    return int(data)
+                return int(data.get(self.value_key, 0))
+            except (json.JSONDecodeError, KeyError):
+                return int(raw.strip())
+        return super().get_utxo_value(txid, vout)
+
+    def broadcast_url(self) -> str:
+        return f"{self.BASE_URL}{self._broadcast_path}"
+
+
 def validate_txid(txid: str) -> str:
     """Validate that *txid* is a 64-character hex string.
 
@@ -600,12 +684,118 @@ async def async_enrich_transaction(
     return list(scripts), list(values)
 
 
+def batch_fetch_transactions(
+    txids: list[str],
+    *,
+    provider: BlockchainProvider | None = None,
+    max_workers: int = 8,
+) -> dict[str, str]:
+    """Fetch multiple transactions in parallel.
+
+    Uses ``concurrent.futures.ThreadPoolExecutor`` for parallel HTTP
+    requests.
+
+    Args:
+        txids: List of 64-character transaction IDs to fetch.
+        provider: A ``BlockchainProvider`` instance. If ``None``,
+            a ``BlockstreamProvider`` is created automatically.
+        max_workers: Maximum number of parallel workers (default 8).
+
+    Returns:
+        A dict mapping txid to hex-encoded transaction data.
+
+    Raises:
+        OSError: On network or HTTP errors.
+        ValueError: If any txid is invalid.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    if provider is None:
+        provider = BlockstreamProvider()
+
+    def _fetch_one(txid: str) -> tuple[str, str]:
+        validate_txid(txid)
+        hex_data = provider.get_transaction_hex(txid)
+        return txid, hex_data
+
+    results: dict[str, str] = {}
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(_fetch_one, txid): txid for txid in txids}
+        for future in as_completed(futures):
+            txid, hex_data = future.result()
+            results[txid] = hex_data
+
+    return results
+
+
+def batch_enrich_transactions(
+    tx_hexes: list[str],
+    *,
+    provider: BlockchainProvider | None = None,
+    max_workers: int = 8,
+) -> list[tuple[list[bytes], list[int]]]:
+    """Enrich multiple transactions with UTXO data in parallel.
+
+    Args:
+        tx_hexes: List of raw transaction hex strings.
+        provider: A ``BlockchainProvider`` instance. If ``None``,
+            a ``BlockstreamProvider`` is created automatically.
+        max_workers: Maximum number of parallel workers (default 8).
+
+    Returns:
+        A list of ``(script_pubkeys, values)`` tuples, one per transaction.
+
+    Raises:
+        OSError: On network or HTTP errors.
+        ValueError: If any transaction hex is invalid.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    if provider is None:
+        provider = BlockstreamProvider()
+
+    def _enrich_one(tx_hex: str) -> tuple[list[bytes], list[int]]:
+        return enrich_transaction(tx_hex, provider=provider)
+
+    results: list[tuple[list[bytes], list[int]]] = []
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(_enrich_one, tx_hex) for tx_hex in tx_hexes]
+        for future in as_completed(futures):
+            results.append(future.result())
+
+    return results
+
+
+async def async_batch_fetch_transactions(
+    txids: list[str],
+    *,
+    provider: BaseBlockchainProvider | None = None,
+) -> dict[str, str]:
+    """Async version of :func:`batch_fetch_transactions`.
+
+    Uses ``asyncio.gather`` for concurrent HTTP requests.
+    """
+    if provider is None:
+        provider = BlockstreamProvider()
+
+    async def _fetch_one(txid: str) -> tuple[str, str]:
+        hex_data = await provider.async_get_transaction_hex(txid)
+        return txid, hex_data
+
+    tasks = [_fetch_one(txid) for txid in txids]
+    results = await asyncio.gather(*tasks)
+    return dict(results)
+
+
 __all__ = [
     "BlockchainInfoProvider",
     "BlockchainProvider",
     "BlockstreamProvider",
     "MempoolSpaceProvider",
+    "async_batch_fetch_transactions",
     "async_enrich_transaction",
+    "batch_enrich_transactions",
+    "batch_fetch_transactions",
     "broadcast_transaction",
     "enrich_transaction",
     "fetch_and_extract",

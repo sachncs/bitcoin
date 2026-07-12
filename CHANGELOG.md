@@ -5,37 +5,74 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- `batch_fetch_transactions()` for parallel HTTP fetching of multiple transactions.
-- `batch_enrich_transactions()` for parallel UTXO enrichment across transactions.
-- `async_batch_fetch_transactions()` async version using `asyncio.gather`.
-- `GenericHttpProvider` for custom blockchain API integration with configurable URL templates.
-- `parse_control_block()` for parsing Taproot control blocks into components.
-- `compute_tapleaf_hash()` for computing BIP-341 tapleaf hashes.
-- `compute_tweak()` for computing Taproot output key tweaks.
-- `is_key_path_spend()` and `get_key_path_signature()` for Taproot key-path detection.
-- `is_valid_leaf_version()` for validating Taproot leaf versions.
-- `TaprootControlBlock` dataclass for structured control block data.
-- Descriptor module (`analyze_descriptor`, `compile_descriptor`, `extract_keys`) exported at package level.
-- Comprehensive descriptor tests (`tests/test_descriptor.py`).
-- Benchmarking documentation (`docs/BENCHMARKING.md`).
-- Getting started guide (`docs/getting-started.md`).
-- FAQ documentation (`docs/faq.md`).
-- `.gitattributes` for line ending normalization.
-- `.env.example` for environment variable documentation.
-- Open source readiness improvements (README, CONTRIBUTING, governance files).
+- Public re-exports from package root: `DescriptorError`, `DescriptorInfo`,
+  `DescriptorNode`, `ESTIMATED_SATISFACTION`, `collect_info`,
+  `collect_keys`, `contains_op`, `emit_script`, `estimate_satisfaction`,
+  `sorted_unique`, `split_args`, `parse_psbt_impl`, `parse_psbt_worker`,
+  `process_psbt_batch`, `process_psbt_batch_with`, `CURVE_A`, `CURVE_B`.
+- Public `BUILTINS_REGISTERED` flag in `bitcoin.signature.extraction.engine`
+  and public `registry` dict in `bitcoin.signature.extraction.plugins`
+  so callers can introspect plugin registration state.
+- Public `LOGGING_CONFIGURED` flag in `bitcoin.cli.app`.
+- `CURVE_A = 0` and `CURVE_B = 7` constants exported from
+  `bitcoin.curve.params` (and the package root) so the documented curve
+  equation `y² = x³ + a·x + b (mod p)` is fully representable in Python.
+- Comprehensive module-, class-, and method-level docstrings (Google
+  style) across every module, including algorithm background sections
+  (RFC-6979 deterministic nonces, BIP-143 amortised hashes, BIP-340
+  tagged-hash discrimination, BIP-341 key-path vs. script-path spends,
+  Straus's interleaved-window multi-exponentiation, RFC-6979 HMAC-DRBG,
+  Template-Method provider pattern).
+- Inline comments for the nonce-reuse `d = α·k − β` algebra, the
+  BIP-341 hash-type byte, the BIP-32 keypath parser, the SegWit
+  witness-stack parser, and the multi-level matching key-path code.
 
 ### Changed
-- CLI error handling: `main()` now returns `1` on unhandled exceptions (was always `0`).
-- CLI exception coverage broadened to `ValueError`, `OSError`, `IndexError`, `TypeError`, `AttributeError`.
-- Logging format switched from plain text to JSON (all log entries are now machine-parseable).
-- `verify_signature()` in `signature/check.py` now logs per-path debug messages on each failure mode.
-- `pyproject.toml`: expanded Ruff ruleset (`I`, `N`), added `maintainers`/`keywords`/`urls`, added `Python 3.14` classifier.
-- `cleanup.sh`: merged redundant `find` calls and fixed `.cover` glob typo.
-- `Makefile`: changed `python` to `python3` in test targets for consistency.
-- `setup.sh`: pins pip version (`>=24,<25`), guards `pre-commit install` behind file existence check.
-- `.gitignore`: added `.env`, `.env.*`, `*.log` patterns.
-- `release.yml`: release notes now sourced from `CHANGELOG.md`.
-- CI test jobs depend on `lint-typecheck` (fail-fast on lint errors).
+- Promoted semi-private (`__name`) helpers to plain public names:
+  - `bitcoin.descriptor.analyzer`: `__ESTIMATED_SATISFACTION` →
+    `ESTIMATED_SATISFACTION`, `__collect_info` → `collect_info`,
+    `__contains_op` → `contains_op`, `__estimate_satisfaction` →
+    `estimate_satisfaction`, `__sorted_unique` → `sorted_unique`,
+    `__collect_keys` → `collect_keys`.
+  - `bitcoin.descriptor.compiler`: `__split_args` → `split_args`,
+    `__emit_script` → `emit_script`.
+  - `bitcoin.psbt.parser`: `__parse_psbt_impl` → `parse_psbt_impl`.
+  - `bitcoin.psbt.pipeline`: `__parse_psbt_worker` → `parse_psbt_worker`.
+  - `bitcoin.signature.pipeline`: `__process_single_worker` →
+    `process_single_worker`.
+  - `bitcoin.signature.extraction.engine`: `__BUILTINS_REGISTERED` →
+    `BUILTINS_REGISTERED`.
+  - `bitcoin.signature.extraction.plugins`: `__registry` → `registry`.
+  - `bitcoin.cli.app`: `__LOGGING_CONFIGURED` → `LOGGING_CONFIGURED`.
+- Each renamed helper received a full Google-style docstring explaining
+  intent, parameters, return values, side effects, and edge cases.
+- Expanded module-level docstrings across every package
+  (`bitcoin.curve`, `bitcoin.encoding`, `bitcoin.field`,
+  `bitcoin.script`, `bitcoin.sighash`, `bitcoin.transaction`,
+  `bitcoin.signature`, `bitcoin.descriptor`, `bitcoin.psbt`,
+  `bitcoin.services`, `bitcoin.cli`) with architecture overviews,
+  design notes, and references to BIPs and RFCs.
+- `services/blockchain.py`: `async_enrich_transaction` and
+  `async_batch_fetch_transactions` now carry full Google-style
+  docstrings matching their sync counterparts.
+- `bitcoin/__init__.py`: rewritten as a layered package overview with
+  deduplicated, alphabetised `__all__` listing 191 public symbols.
+
+### Atomic commits in this release
+
+| Commit  | Date (UTC+05:30)        | Subject |
+|---------|-------------------------|---------|
+| `32fc33c` | 2026-07-12 13:44:20 +0530 | refactor(descriptor): promote semi-private AST helpers to public API |
+| `9679c0e` | 2026-07-12 13:44:42 +0530 | refactor(psbt): promote semi-private parser/pipeline helpers to public API |
+| `37fc931` | 2026-07-12 13:44:57 +0530 | refactor(signature): promote semi-private extraction/pipeline helpers to public API |
+| `ccb0235` | 2026-07-12 13:45:10 +0530 | refactor(cli): promote __LOGGING_CONFIGURED to public module state |
+| `adb304e` | 2026-07-12 13:45:45 +0530 | docs(curve): expand docstrings and define CURVE_A/CURVE_B constants |
+| `12ffee8` | 2026-07-12 13:45:55 +0530 | docs(encoding,field,settings,exceptions,health): expand module docstrings |
+| `1ab0c77` | 2026-07-12 13:46:06 +0530 | docs(script,sighash): expand module docstrings across Script and sighash |
+| `3393c02` | 2026-07-12 13:46:15 +0530 | docs(transaction,services): expand module docstrings |
+| `7b674d2` | 2026-07-12 13:46:34 +0530 | feat: rewrite package-root __init__.py with layered overview and new exports |
+
+## [0.5.0] - 2026-06-05
 
 ### Removed
 - Import-time auto-registration of extraction plugins (replaced by `register_builtin_extractors()`).

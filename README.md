@@ -1,46 +1,66 @@
-[![CI](https://github.com/sachn-cs/bitcoin/actions/workflows/ci.yml/badge.svg)](https://github.com/sachn-cs/bitcoin/actions/workflows/ci.yml)
-[![PyPI version](https://badge.fury.io/py/bitcoin.svg)](https://pypi.org/project/bitcoin/)
-[![Python versions](https://img.shields.io/pypi/pyversions/bitcoin.svg)](https://pypi.org/project/bitcoin/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![codecov](https://codecov.io/gh/sachn-cs/bitcoin/branch/main/graph/badge.svg)](https://codecov.io/gh/sachn-cs/bitcoin)
+<p align="center">
+  <h1 align="center">bitcoin</h1>
+  <p align="center">Pure-Python parsing, signature extraction, and nonce-reuse analysis for the Bitcoin secp256k1 stack.</p>
+  <p align="center">
+    <a href="#installation"><img src="https://img.shields.io/badge/python-3.12%20%7C%203.13%20%7C%203.14-blue" alt="Python"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
+    <a href="https://github.com/sachn-cs/bitcoin/actions"><img src="https://img.shields.io/github/actions/workflow/status/sachn-cs/bitcoin/ci.yml?branch=master" alt="CI"></a>
+    <a href="https://codecov.io/gh/sachn-cs/bitcoin"><img src="https://codecov.io/gh/sachn-cs/bitcoin/branch/main/graph/badge.svg" alt="Coverage"></a>
+    <a href="https://mypy-lang.org/"><img src="https://img.shields.io/badge/mypy-strict-green.svg" alt="Checked with mypy"></a>
+  </p>
+</p>
 
-# bitcoin
+**bitcoin** is a pure-Python library for parsing raw Bitcoin transactions,
+extracting ECDSA and Schnorr signatures (`r`, `s`, `z`), deriving
+linearised ECDSA relations, recovering nonce reuse, and verifying
+signatures — all on the secp256k1 curve.  The core library has **no
+network dependencies**; blockchain data fetching lives behind an
+optional, isolated services layer.
 
-A pure-Python library for parsing raw Bitcoin transactions, extracting ECDSA and Schnorr signatures (`r`, `s`, `z`), deriving linearized ECDSA relations, recovering nonce reuse, and verifying signatures — all on the secp256k1 curve. No network dependencies.
+---
 
 ## Features
 
-- **Transaction Parsing** — Decode raw Bitcoin transactions (legacy, SegWit v0, Taproot)
-- **Signature Extraction** — Extract ECDSA and Schnorr signatures from all standard script types
-- **Nonce Reuse Detection** — Detect and exploit nonce reuse to recover private keys
-- **Sighash Computation** — Legacy, SegWit, and Taproot sighash with all flag combinations
-- **PSBT Support** — Parse, edit, and extract signatures from Partially Signed Bitcoin Transactions
-- **Script Analysis** — Classify, parse, and build Bitcoin scripts (P2PK, P2PKH, P2SH, P2WPKH, P2WSH, P2TR)
-- **Transaction Construction** — Build transactions with fluent API or dict-based construction
-- **Batch Processing** — Parallel extraction and verification across multiple transactions
-- **Pluggable Backends** — Pure Python (default) or accelerated via `coincurve`/libsecp256k1
-- **CLI Tool** — Command-line interface for quick transaction analysis
-- **Blockchain Providers** — Fetch transaction data from Blockstream, Blockchain.info, or Mempool.space
+- **Transaction Parsing** — Legacy, SegWit v0 (BIP-143), and Taproot (BIP-341) wire format
+- **Signature Extraction** — ECDSA and Schnorr from P2PK, P2PKH, P2SH-multisig, P2WPKH, P2WSH, P2SH-P2WPKH/WSH, P2TR key-path and script-path
+- **Nonce Reuse Detection** — `d = α·k − β` algebra with both *same-nonce* and *related-nonce* recovery
+- **Sighash Computation** — Legacy, SegWit v0, and Taproot with all SIGHASH flag combinations
+- **PSBT Support** — BIP-174 parse, edit, sign, and extract
+- **Script Analysis** — Classify, parse, and build standard Bitcoin scripts
+- **Transaction Construction** — Immutable `Tx` models, fluent `TransactionBuilder`, and `PsbtEditor`
+- **Batch Processing** — `ThreadPoolExecutor` and `ProcessPoolExecutor` pipelines with graceful shutdown
+- **Pluggable Backends** — Pure Python (default) or `coincurve`/libsecp256k1
+- **CLI** — Typer-based `decode`, `extract`, `linearize`, `broadcast`, `health` commands
+- **Blockchain Providers** — Blockstream, Mempool.space, blockchain.info, plus a generic HTTP provider
+- **All-public API** — No semi-private `_foo` identifiers; every helper is a documented, importable symbol
+
+---
 
 ## Installation
+
+### From PyPI
 
 ```bash
 pip install bitcoin
 ```
 
-For accelerated point multiplication (optional):
+For accelerated point multiplication via libsecp256k1 (optional):
 
 ```bash
 pip install bitcoin[coincurve]
 ```
 
-From source:
+### From source
 
 ```bash
 git clone https://github.com/sachn-cs/bitcoin.git
 cd bitcoin
 pip install -e ".[dev]"
 ```
+
+**Requirements**: Python ≥ 3.12, no runtime dependencies (Typer is the only runtime requirement; `coincurve` is optional).
+
+---
 
 ## Quick Start
 
@@ -55,7 +75,7 @@ tx, _ = bitcoin.parse_tx(bytes.fromhex(raw_hex))
 # Extract signatures
 records = bitcoin.extract_signatures(tx)
 
-# Linearize (sort) signatures
+# Linearise (sort) signatures
 sorted_records = bitcoin.linearize_signatures(records)
 
 # Verify a signature
@@ -71,18 +91,59 @@ bitcoin decode <tx-hex>
 # Extract signatures
 bitcoin extract <tx-hex>
 
-# With UTXO metadata (needed for segwit v0 sighash)
+# With UTXO metadata (needed for SegWit v0 sighash)
 bitcoin extract <tx-hex> --utxo-value 100000000
 
 # Output as JSON
 bitcoin extract <tx-hex> --json
 
-# Linearize (sort) signatures by txid/vin
+# Linearise (sort) signatures by txid/vin
 bitcoin linearize <tx-hex>
 
 # Run health checks
 bitcoin health
 ```
+
+---
+
+## Public API
+
+The package root re-exports every public symbol so callers can do
+`from bitcoin import name` without reaching into a submodule.  The
+`__all__` list contains 191 deduplicated, alphabetised names spanning
+the curve, encoding, script, sighash, transaction, signature,
+descriptor, PSBT, and services layers.
+
+### Core functions
+
+| Function | Purpose |
+|----------|---------|
+| `parse_tx`, `make_tx`, `TransactionBuilder`, `tx_from_dict` | Transaction construction and parsing |
+| `extract_signatures`, `linearize_signatures`, `batch_extract`, `correlate_across_transactions` | Signature extraction pipeline |
+| `verify_sig`, `verify_schnorr_sig`, `verify_all`, `recover_public_key` | ECDSA / Schnorr verification |
+| `sighash_legacy`, `sighash_segwit`, `sighash_taproot` | Sighash computation |
+| `parse_psbt`, `serialize_psbt`, `psbt_extract_signatures`, `PsbtEditor` | PSBT (BIP-174) |
+| `parse_public_key`, `serialize_public_key`, `multiply`, `add`, `double` | secp256k1 curve ops |
+| `analyze_descriptor`, `compile_descriptor`, `extract_keys` | Miniscript descriptor tools |
+| `BlockstreamProvider`, `BlockchainInfoProvider`, `MempoolSpaceProvider`, `GenericHttpProvider` | Blockchain data fetching |
+
+### Newly promoted helpers
+
+The following helpers are part of the public API and are also
+re-exported from their submodules:
+
+| Helper | Module |
+|--------|--------|
+| `collect_info`, `collect_keys`, `contains_op`, `estimate_satisfaction`, `sorted_unique` | `bitcoin.descriptor` |
+| `split_args`, `emit_script` | `bitcoin.descriptor` |
+| `DescriptorError`, `DescriptorInfo`, `DescriptorNode`, `ESTIMATED_SATISFACTION` | `bitcoin.descriptor` |
+| `parse_psbt_impl`, `parse_psbt_worker`, `process_psbt_batch`, `process_psbt_batch_with` | `bitcoin.psbt` |
+| `process_single_worker`, `BUILTINS_REGISTERED` | `bitcoin.signature` |
+| `registry` | `bitcoin.signature.extraction.plugins` |
+| `LOGGING_CONFIGURED` | `bitcoin.cli` |
+| `CURVE_A`, `CURVE_B` | `bitcoin.curve` |
+
+---
 
 ## Usage
 
@@ -101,24 +162,11 @@ for rec in records:
 SegWit v0 inputs need UTXO values and/or scriptPubKeys:
 
 ```python
-records = extract_signatures(tx,
+records = extract_signatures(
+    tx,
     utxo_script_pubkeys=[bytes.fromhex(script_hex)],
     utxo_values=[100000000],
 )
-```
-
-### Batch Extraction
-
-Extract signatures across multiple transactions in parallel:
-
-```python
-from bitcoin import batch_extract, correlate_across_transactions
-
-tx_hexes = ["...", "..."]
-results = batch_extract(tx_hexes)
-
-# Find nonce-reuse correlations across transactions
-correlations = correlate_across_transactions(results)
 ```
 
 ### Nonce Reuse Detection
@@ -143,25 +191,6 @@ for group in groups:
     # result.private_key, result.nonce
 ```
 
-### Transaction Construction
-
-```python
-from bitcoin import make_tx, Tx, TxIn, TxOut, OutPoint, Witness
-
-tx = make_tx(version=2, inputs=[txin], outputs=[txout], lock_time=0)
-```
-
-Or use the fluent builder:
-
-```python
-from bitcoin.transaction import TransactionBuilder
-
-tx = (TransactionBuilder(version=2)
-      .add_input(txid=b'\x00' * 32, vout=0)
-      .add_output(value=50000, script_pubkey=b'...')
-      .build())
-```
-
 ### Sighash Computation
 
 ```python
@@ -170,19 +199,7 @@ from bitcoin import (
     SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, SIGHASH_ANYONECANPAY,
 )
 
-hash = sighash_segwit(tx, input_index, script_code, amount, SIGHASH_ALL)
-```
-
-### Verification & Key Recovery
-
-```python
-from bitcoin import verify_sig, verify_schnorr_sig, verify_all, recover_public_key
-
-ok = verify_sig(message_hash, der_sig, public_key)
-ok = verify_schnorr_sig(message_hash, schnorr_sig, x_only_pubkey)
-ok = verify_all(message_hash, signatures, public_keys)  # batch verify
-
-pubkey = recover_public_key(message_hash, der_sig, recid)
+h = sighash_segwit(tx, input_index, script_code, amount, SIGHASH_ALL)
 ```
 
 ### Script Classification
@@ -196,17 +213,7 @@ from bitcoin import (
 )
 
 detail = classify_detailed(script)
-print(detail.type)  # P2WPKH, P2SH, P2TR, MULTISIG, ...
-```
-
-### PSBT Support
-
-```python
-from bitcoin import parse_psbt, serialize_psbt, psbt_extract_signatures
-
-psbt = parse_psbt(raw_psbt_bytes)
-raw_out = serialize_psbt(psbt)
-records = psbt_extract_signatures(psbt)
+print(detail)  # P2WPKH, P2SH, P2TR, MULTISIG, ...
 ```
 
 ### Blockchain Data Providers
@@ -215,9 +222,61 @@ records = psbt_extract_signatures(psbt)
 from bitcoin import BlockstreamProvider, BlockchainInfoProvider, MempoolSpaceProvider
 
 provider = BlockstreamProvider()
-tx_hex = provider.fetch_tx_hex("txid...")
-utxo_value = provider.fetch_utxo_value("txid...", vout=0)
+tx_hex = provider.get_transaction_hex("txid...")
+utxo_value = provider.get_utxo_value("txid...", vout=0)
 ```
+
+---
+
+## Architecture
+
+The library is intentionally organised around a layered architecture
+so each layer can be understood and tested in isolation:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  bitcoin.cli            Typer-based command-line interface       │
+├─────────────────────────────────────────────────────────────────┤
+│  bitcoin.services       Blockchain data providers + async batch   │
+├─────────────────────────────────────────────────────────────────┤
+│  bitcoin.signature      Extraction, linearisation, attacks, sig  │
+├─────────────────────────────────────────────────────────────────┤
+│  bitcoin.descriptor     Miniscript parsing, compilation, analyse │
+│  bitcoin.psbt           BIP-174 parse, edit, extract, batch     │
+│  bitcoin.sighash        Legacy, SegWit v0, Taproot sighash        │
+│  bitcoin.transaction    Tx models, parser, builder, fee, RBF     │
+│  bitcoin.script         Script parse, classify, build, Taproot   │
+├─────────────────────────────────────────────────────────────────┤
+│  bitcoin.encoding       hex, varint, DER, SEC, hasher            │
+│  bitcoin.field          inverse, sqrt (Tonelli-Shanks, p≡3 mod 4)│
+│  bitcoin.curve          secp256k1 params, point, operations,     │
+│                         dispatch, batch, pluggable backends      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Layering rules:
+
+- The **curve** and **field** layers are independent of every other
+  layer and have no Bitcoin-specific knowledge.
+- The **encoding** layer is purely byte-level and contains no
+  transaction or script logic.
+- The **script**, **sighash**, and **transaction** layers depend only
+  on the curve, field, and encoding layers.
+- The **signature** layer depends on every layer below it.
+- The **services** layer is the only place that performs network I/O.
+
+### Design invariants
+
+- All public dataclasses are `frozen=True, slots=True` for value
+  semantics and predictable hashing.
+- The package root re-exports every public symbol; no need to
+  chase submodules.
+- No `from bitcoin.foo import _bar` is ever required — every
+  documented helper has a plain public name.
+- Network I/O is opt-in: the core library is import-safe in
+  air-gapped environments.
+
+---
 
 ## Configuration
 
@@ -227,7 +286,7 @@ utxo_value = provider.fetch_utxo_value("txid...", vout=0)
 |----------|---------|-------------|
 | `BITCOIN_LOG_LEVEL` | `WARNING` | Log verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) |
 
-### Settings
+### Settings singleton
 
 ```python
 from bitcoin import settings
@@ -237,32 +296,36 @@ settings.default_backend = "libsecp"      # or "native" / None
 settings.max_extraction_inputs = 5000
 ```
 
-### .env.example
-
-See [`.env.example`](.env.example) for a template configuration file.
+---
 
 ## Project Structure
 
 ```
 bitcoin/
-├── __init__.py          # Public API surface
+├── __init__.py          # Public API surface (191 symbols)
 ├── cli/                 # Typer CLI commands
-├── curve/               # secp256k1 point operations & backends
-├── descriptor/          # Output descriptor parsing
+├── curve/               # secp256k1 point operations & pluggable backends
+│   ├── backend/         # CurveBackend ABC, native (pure-Python), libsec (coincurve)
+│   └── dispatch.py      # Backend singleton + fixed-base multiplication
+├── descriptor/          # Miniscript descriptor parsing & analysis
 ├── encoding/            # Hex, varint, DER, SEC, hashing
 ├── exceptions.py        # Exception hierarchy
 ├── field/               # Modular arithmetic
 ├── health.py            # Runtime health checks
-├── psbt/                # PSBT parse/serialize/edit
-├── script/              # Script parse/classify/build
-├── services/            # Blockchain data providers
+├── psbt/                # BIP-174 parse, serialize, edit, batch
+├── script/              # Script parse, classify, build, Taproot
+├── services/            # Blockchain data providers + async batch
 ├── settings.py          # Settings singleton
-├── sighash/             # Sighash computation
-├── signature/           # Extraction, verification, signing
-└── transaction/         # Tx parse/build/serialize
-tests/                   # Test suite
+├── sighash/             # Legacy, SegWit v0, Taproot sighash
+├── signature/           # Extraction, linearisation, verification, signing
+│   ├── extraction/      # ExtractorPlugin registry + engine
+│   └── linearization/   # (α, β) coefficient derivation
+└── transaction/         # Tx parse, build, serialize, fee, RBF
+tests/                   # Test suite (868 passing)
 docs/                    # Documentation
 ```
+
+---
 
 ## Development
 
@@ -291,35 +354,77 @@ make test-cov                       # pytest + coverage (99%+)
 ./cleanup.sh                        # remove caches, .venv, egg-info
 ```
 
+### Code Style
+
+- Line length: 88 (per `pyproject.toml`)
+- Quotes: double (`"`)
+- Formatting: `ruff format` (PEP 8 + project rules)
+- Type hints: required on all public signatures; mypy runs in strict-ish mode
+- Docstrings: Google-style with "what" and "why"
+- **No semi-private naming (`_foo`)** — every helper is part of the documented public API and is re-exported from the appropriate `__init__.py`
+
+### Commit Conventions
+
+We use [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+feat: add Taproot script-path signature extraction
+fix: handle non-canonical DER encoding
+docs: expand module docstrings across the signature pipeline
+refactor: promote semi-private helpers to public API
+test: add parity tests for cached vs streamed memory
+chore: update ruff config
+```
+
+---
+
 ## Tech Stack
 
-- **Language:** Python 3.12+
-- **CLI:** [Typer](https://typer.tiangolo.com/)
-- **Testing:** [pytest](https://docs.pytest.org/), [Hypothesis](https://hypothesis.readthedocs.io/)
-- **Linting:** [Ruff](https://docs.astral.sh/ruff/)
-- **Type Checking:** [mypy](https://mypy-lang.org/)
-- **Build:** [setuptools](https://setuptools.pypa.io/)
-- **Package Manager:** [uv](https://github.com/astral-sh/uv)
-- **Optional:** [coincurve](https://github.com/ofek/coincurve) (libsecp256k1 bindings)
+| Category | Technology |
+|----------|------------|
+| Language | Python 3.12+ |
+| CLI | [Typer](https://typer.tiangolo.com/) |
+| Testing | [pytest](https://docs.pytest.org/), [Hypothesis](https://hypothesis.readthedocs.io/) |
+| Lint / Format | [Ruff](https://docs.astral.sh/ruff/) |
+| Type Check | [mypy](https://mypy-lang.org/) |
+| Build | [setuptools](https://setuptools.pypa.io/) |
+| Package Manager | [uv](https://github.com/astral-sh/uv) |
+| Optional | [coincurve](https://github.com/ofek/coincurve) (libsecp256k1 bindings) |
+
+---
 
 ## Supported Script Types
 
 - P2PK (legacy)
 - P2PKH (legacy)
 - P2SH multisig (legacy)
-- P2WPKH (segwit v0)
-- P2WSH multisig (segwit v0)
-- P2SH-P2WPKH / P2SH-P2WSH (nested segwit v0)
-- P2TR key-path and script-path (taproot)
+- P2WPKH (SegWit v0)
+- P2WSH multisig (SegWit v0)
+- P2SH-P2WPKH / P2SH-P2WSH (nested SegWit v0)
+- P2TR key-path and script-path (Taproot)
+
+---
+
+## References
+
+- [SEC-2 v2.0](https://www.secg.org/sec2-v2.pdf) — secp256k1 curve parameters
+- [BIP-141](https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki) — Segregated Witness
+- [BIP-143](https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki) — SegWit v0 sighash
+- [BIP-174](https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki) — PSBT format
+- [BIP-340](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki) — Schnorr signatures
+- [BIP-341](https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki) — Taproot
+- [RFC-6979](https://datatracker.ietf.org/doc/html/rfc6979) — Deterministic ECDSA nonces
+
+---
 
 ## Roadmap
 
-- [ ] Full output descriptor support
-- [ ] Miniscript integration
-- [ ] Batch transaction fetching
+- [ ] Full Miniscript integration
 - [ ] Taproot tree parsing
 - [ ] Additional blockchain providers
-- [ ] Rust backend option for maximum performance
+- [ ] Optional Rust backend for maximum performance
+
+---
 
 ## Contributing
 
@@ -332,7 +437,8 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for gu
 
 ## Code of Conduct
 
-This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By participating, you agree to its terms.
+This project follows the [Contributor Covenant v2.1](CODE_OF_CONDUCT.md).
+By participating you agree to abide by its terms.
 
 ## Security
 

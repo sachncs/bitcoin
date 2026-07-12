@@ -1,7 +1,26 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
 # ruff: noqa: B008  # typer uses mutable defaults intentionally
-"""Typer-based CLI app: decode, extract, linearize, health, version commands."""
+"""Typer-based CLI app — decode, extract, linearize, broadcast, health commands.
+
+The CLI is a thin wrapper around the library's Python API.  Each
+command:
+
+1. Calls :func:`configure_logging` to enable structured (JSON) logging
+   at the level selected by the ``BITCOIN_LOG_LEVEL`` env var.
+2. Resolves the transaction hex via :func:`read_tx_hex` (either a
+   positional argument or ``--input-file``).
+3. Invokes the corresponding library function
+   (:func:`parse_tx`, :func:`extract_signatures`, ...).
+4. Formats the result as text, JSON, or CSV per the ``--format`` /
+   ``--json`` / ``--csv`` flags.
+
+Errors are caught and logged via :mod:`logging`; the process exits
+with a non-zero status so shell pipelines can detect failure.
+
+The ``main`` entry point is the function referenced by
+``[project.scripts]`` in ``pyproject.toml`` — ``bitcoin = bitcoin.cli:main``.
+"""
 
 from __future__ import annotations
 
@@ -25,7 +44,13 @@ from bitcoin.transaction import parse_tx
 app = typer.Typer(name="bitcoin")
 
 logger = logging.getLogger("bitcoin.cli")
-__LOGGING_CONFIGURED: bool = False
+LOGGING_CONFIGURED: bool = False
+"""Module-level flag tracking whether :func:`configure_logging` has run.
+
+Public so external scripts (and the test suite) can introspect the
+logging initialisation state without having to parse logger
+configuration.  Mutated only through :func:`configure_logging`.
+"""
 
 
 class JSONFormatter(logging.Formatter):
@@ -52,17 +77,24 @@ def configure_logging() -> None:
     Log level is read from the ``BITCOIN_LOG_LEVEL`` environment variable
     (default: ``WARNING``).
 
-    Idempotent — safe to call from multiple commands.
+    Idempotent — safe to call from multiple commands.  Subsequent
+    calls become no-ops once :data:`LOGGING_CONFIGURED` flips to
+    ``True``.
+
+    Side effects:
+        Sets the module-level :data:`LOGGING_CONFIGURED` flag and
+        installs a :class:`JSONFormatter` handler on the ``bitcoin``
+        logger.
     """
-    global __LOGGING_CONFIGURED
-    if __LOGGING_CONFIGURED:
+    global LOGGING_CONFIGURED
+    if LOGGING_CONFIGURED:
         return
     handler = logging.StreamHandler()
     handler.setFormatter(JSONFormatter())
     root = logging.getLogger("bitcoin")
     level = os.getenv("BITCOIN_LOG_LEVEL", "WARNING").upper()
     root.setLevel(level)
-    __LOGGING_CONFIGURED = True
+    LOGGING_CONFIGURED = True
 
 
 def parse_input_values(value_str: str) -> list[int | None]:

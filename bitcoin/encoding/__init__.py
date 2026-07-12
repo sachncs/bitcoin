@@ -1,6 +1,23 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Re-export encoding primitives for Bitcoin binary protocols."""
+"""Low-level binary encodings and hash primitives for Bitcoin.
+
+A small, dependency-free toolkit covering every binary encoding needed
+to read and write Bitcoin wire-format structures:
+
+- :mod:`bitcoin.encoding.binary` – ``bytes_to_int``/``int_to_bytes``
+  plus :func:`read_exactly` and :func:`iter_bytes`.
+- :mod:`bitcoin.encoding.hex` – :func:`encode_hex` / :func:`decode_hex`.
+- :mod:`bitcoin.encoding.varint` – Bitcoin variable-length integer
+  (``compact size``) codec.
+- :mod:`bitcoin.encoding.der` – DER signature codec used by ECDSA.
+- :mod:`bitcoin.encoding.sec` – SEC-1 public-key codec.
+- :mod:`bitcoin.encoding.hasher` – SHA-256, double-SHA-256, HASH-160,
+  and BIP-340 tagged hash.
+
+None of these helpers perform any I/O or hold any state; they are
+suitable for use in hot paths.
+"""
 
 from bitcoin.encoding.binary import bytes_to_int, int_to_bytes, iter_bytes, read_exactly
 from bitcoin.encoding.der import decode_der, encode_der

@@ -1,6 +1,22 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Hash-function wrappers used by Bitcoin."""
+"""Hash-function wrappers used throughout Bitcoin.
+
+Thin convenience wrappers around ``hashlib`` for the four hash
+functions that appear in every Bitcoin protocol:
+
+- :func:`sha256` – plain SHA-256.
+- :func:`hash256` – double SHA-256, used for transaction IDs (txid /
+  wtxid) and block headers.
+- :func:`hash160` – SHA-256 followed by RIPEMD-160, used wherever
+  Bitcoin wants a 20-byte address-style digest (legacy address hashes,
+  P2SH script hashes, witness program hashes).
+- :func:`tagged_hash` – the BIP-340 domain-separated hash used by
+  Taproot and Schnorr.
+
+All functions return raw ``bytes`` rather than hex strings so they can
+be used directly as inputs to further hashing or as message digests.
+"""
 
 import hashlib
 

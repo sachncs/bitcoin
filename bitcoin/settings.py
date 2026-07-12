@@ -1,6 +1,22 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Application-wide settings singleton for the bitcoin package."""
+"""Application-wide settings singleton for the bitcoin package.
+
+A small, mutable, thread-safe configuration holder exposed as the
+module-level :data:`settings` instance.  Three knobs are currently
+exposed:
+
+- :attr:`Settings.strict_mode` – raise on non-fatal issues instead
+  of returning ``None``/``INFINITY``.
+- :attr:`Settings.default_backend` – preferred curve backend name
+  (``"native"``, ``"libsecp"``, or ``None`` for auto-detect).
+- :attr:`Settings.max_extraction_inputs` – upper limit on the number
+  of transaction inputs processed during a single extraction.
+
+All accessors are guarded by an internal lock so concurrent reads and
+writes from multiple threads are safe.  The class uses ``__slots__``
+to keep the per-instance memory footprint to a handful of bytes.
+"""
 
 from __future__ import annotations
 

@@ -1,6 +1,22 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""SEC-format public-key parsing and serialization."""
+"""SEC-format public-key parsing and serialization.
+
+Implements the SEC-1 compact binary encodings for elliptic-curve
+public keys:
+
+- **Compressed** (33 bytes): a single header byte (``0x02`` for even
+  ``y``, ``0x03`` for odd ``y``) followed by the big-endian
+  ``x``-coordinate.  The ``y`` coordinate is recovered on parse by
+  solving the curve equation and selecting the appropriate root.
+- **Uncompressed** (65 bytes): a single ``0x04`` header byte followed
+  by the full ``(x, y)`` pair, both big-endian.
+
+Both parse helpers validate that the decoded point satisfies the
+curve equation, rejecting malformed or off-curve encodings early.
+Both are also LRU-cached, because the same public key is frequently
+looked up many times during signature extraction.
+"""
 
 from functools import lru_cache
 from typing import TYPE_CHECKING

@@ -1,6 +1,21 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Modular arithmetic over finite fields: inversion and validation."""
+"""Modular arithmetic over finite fields: inversion and validation.
+
+Provides :func:`inverse` (the modular multiplicative inverse, computed
+via the extended Euclidean algorithm) and :func:`validate_non_negative`
+(input validation helper).
+
+Why not just call ``pow(value, -1, modulus)``?  Two reasons:
+
+1. Older Python versions (pre-3.8) did not support negative exponents
+   in :func:`pow`, so this module guarantees a consistent baseline.
+2. :func:`inverse` raises the project-specific
+   :exc:`~bitcoin.exceptions.NotInvertible` exception for non-coprime
+   inputs (including zero), letting callers handle that case
+   explicitly without distinguishing ``ValueError`` from the underlying
+   ``ZeroDivisionError``.
+"""
 
 from bitcoin.exceptions import NotInvertible
 

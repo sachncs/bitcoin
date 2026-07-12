@@ -1,6 +1,20 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Bitcoin variable-length integer (``varint``) encoding."""
+"""Bitcoin variable-length integer (``varint``) encoding.
+
+Implements Bitcoin's ``compact size`` unsigned integer codec, used
+for transaction input/output counts, script sizes, witness item
+counts, and PSBT field sizes.  The encoding is:
+
+- ``0..0xFC`` – single byte.
+- ``0xFD..0xFFFF`` – ``0xFD`` followed by 2 little-endian bytes.
+- ``0x10000..0xFFFFFFFF`` – ``0xFE`` followed by 4 little-endian bytes.
+- ``0x100000000..0xFFFFFFFFFFFFFFFF`` – ``0xFF`` followed by 8
+  little-endian bytes.
+
+Multi-byte segments are little-endian, which is unusual for Bitcoin
+(and a frequent source of bugs).
+"""
 
 
 def encode_varint(value: int) -> bytes:

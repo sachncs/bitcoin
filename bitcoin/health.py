@@ -1,6 +1,23 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Library health check and capability introspection."""
+"""Library health check and capability introspection.
+
+Three diagnostic functions used by the CLI's ``health`` command and
+by external monitoring scripts:
+
+- :func:`check_backend` – report the availability and callability of
+  the pure-Python and ``coincurve``/libsecp256k1 backends.
+- :func:`check_imports` – verify that every public sub-module can be
+  imported without error.  Useful for catching optional-dependency
+  regressions early.
+- :func:`health` – aggregate everything into a single dict: package
+  version, per-module import status, per-backend status, and a
+  smoke test (``multiply(1, GENERATOR)``) that confirms the active
+  backend can perform a real curve operation.
+
+The aggregate report is suitable for direct JSON serialisation and
+contains no sensitive material.
+"""
 
 from __future__ import annotations
 

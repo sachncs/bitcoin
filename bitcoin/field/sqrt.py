@@ -1,6 +1,22 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Field square root via Tonelli-Shanks for p ≡ 3 (mod 4)."""
+"""Field square root via Tonelli-Shanks for ``p ≡ 3 (mod 4)``.
+
+Specialised modular square root for the common cryptographic case of
+primes congruent to 3 modulo 4.  secp256k1's field prime
+(``FIELD_PRIME``) satisfies this condition, which allows a closed-form
+solution::
+
+    sqrt(a) = a ** ((p + 1) // 4)  mod p
+
+rather than the general Tonelli-Shanks loop.
+
+If *a* is not a quadratic residue, :func:`sqrt` raises
+:exc:`~bitcoin.exceptions.PointError` rather than returning a
+non-existent root — callers that need the principal root should
+verify the input is a residue first (e.g. by checking that the result
+squares back to the input).
+"""
 
 from bitcoin.exceptions import PointError
 

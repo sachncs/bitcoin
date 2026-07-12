@@ -1,6 +1,24 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""DER-encoded ECDSA signature parsing and serialization."""
+"""DER-encoded ECDSA signature parsing and serialization.
+
+Implements the subset of ASN.1 DER required by Bitcoin ECDSA
+signatures: a SEQUENCE of two INTEGERs (``r`` then ``s``).  The two
+top-level functions (:func:`encode_der` and :func:`decode_der`) are
+LRU-cached because signature parsing is on the hot path of signature
+extraction pipelines.
+
+Notes:
+
+- DER integers are signed two's-complement, big-endian, with a leading
+  ``0x00`` byte inserted whenever the high bit is set (so the value is
+  not interpreted as negative).  Both encode and decode handle this
+  rule.
+- :func:`encode_der` supports a *low-``s``* canonicalisation toggle
+  (``s_high_ok=False``): when ``s`` exceeds ``CURVE_ORDER / 2`` the
+  encoder flips it to ``CURVE_ORDER - s``, matching Bitcoin Core's
+  default policy and BIP-146.
+"""
 
 from functools import lru_cache
 

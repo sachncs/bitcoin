@@ -1,6 +1,12 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Binary serialization helpers for byte-level encoding and decoding."""
+"""Binary serialization helpers for byte-level encoding and decoding.
+
+The utilities here are intentionally tiny: they wrap Python's
+``int.from_bytes`` / ``int.to_bytes`` and provide slicing-based
+helpers with explicit bounds checking.  Every function is allocation-
+free apart from the result object.
+"""
 
 from __future__ import annotations
 

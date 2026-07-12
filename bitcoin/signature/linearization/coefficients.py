@@ -2,11 +2,40 @@
 # SPDX-License-Identifier: MIT
 """Linear coefficient derivation for ECDSA signature analysis.
 
-Given a signature ``(r, s)`` on message hash ``z``, computes the
-linearisation coefficients:
+Given an ECDSA signature triple ``(r, s, z)``, the standard ECDSA
+verification equation
+
+    s · k ≡ z + r · d    (mod n)
+
+can be rewritten as
+
+    d = α · k − β        (mod n)
+
+where
+
     α ≡ s · r⁻¹  (mod n)
     β ≡ z · r⁻¹  (mod n)
-such that ``d = α · k − β  (mod n)`` for private key ``d`` and nonce ``k``.
+
+This module provides:
+
+- :class:`LinearCoefficientRecord` – a frozen dataclass storing
+  ``(α, β)`` alongside the original ``(r, s, z)`` triple and the
+  input-index / script-type metadata needed for analysis.
+- :class:`LinearCoefficientCollection` – an immutable tuple of
+  :class:`LinearCoefficientRecord` with ``alpha`` / ``beta`` list
+  views.
+- :func:`derive_linear_coefficients` – compute ``α`` and ``β`` for a
+  single signature.
+
+Once a collection is built, the
+:func:`~bitcoin.signature.attack.detect_nonce_reuse` scan finds all
+groups of records sharing an ``r`` value, and
+:func:`~bitcoin.signature.attack.recover_from_nonce_reuse` /
+:func:`~bitcoin.signature.attack.recover_from_related_nonces` use
+the coefficients to recover the private key in microseconds.
+
+Reference: "ECDSA nonce reuse" — see the docstring of
+:mod:`bitcoin.signature.attack` for the algebraic derivation.
 """
 
 from __future__ import annotations

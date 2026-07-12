@@ -2,9 +2,20 @@
 # SPDX-License-Identifier: MIT
 """Sequential ECDSA signature verification for multiple signatures.
 
-Verifies each signature individually for correctness.  This gives the
-same security level as single verification while providing a convenient
-API for verifying multiple signatures at once.
+Provides :func:`verify_all` (also re-exported as :func:`batch_verify`)
+for verifying multiple signatures in one call.  Each signature is
+verified individually via :func:`bitcoin.signature.check.verify_sig`,
+which means verification is sequential and a single invalid
+signature short-circuits the batch via Python's short-circuiting
+``all``.
+
+This is *not* a Bellare–Neven multi-signature verification scheme
+and does **not** achieve the throughput gains of true batch
+verification; the name reflects the convenience of the API rather
+than a cryptographic primitive.  It is, however, simpler and
+safer: a failure in any signature is immediately attributable to
+that signature, with no risk of a false batch failure masking an
+individual forgery.
 """
 
 from __future__ import annotations

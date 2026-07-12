@@ -1,13 +1,42 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Engine for extracting ECDSA signatures from Bitcoin transactions.
+"""Engine for extracting ECDSA and Schnorr signatures from Bitcoin transactions.
 
-Supports legacy (P2PK, P2PKH), SegWit (P2WPKH, P2WSH), P2SH-wrapped
-SegWit, and Taproot (P2TR) input types.  Public-key recovery is attempted
-for each discovered signature.
+Supports every standard script type:
 
-Extraction is dispatched polymorphically via registered ``ExtractorPlugin``
-instances rather than a hard-coded if-elif chain.
+- **Legacy**: P2PK, P2PKH (handled by :class:`LegacyExtractor`).
+- **SegWit v0**: P2WPKH, P2WSH (:class:`P2WPKHExtractor` and
+  :class:`P2WSHExtractor`).
+- **P2SH-wrapped SegWit**: P2SH-P2WPKH, P2SH-P2WSH
+  (:class:`P2SHSegWitExtractor`).
+- **Taproot**: P2TR key-path and script-path spends
+  (:class:`TaprootExtractor`).
+
+Public-key recovery is attempted for each discovered ECDSA signature;
+for Taproot, the x-only public key is recovered directly from the
+P2TR ``scriptPubKey``.
+
+Design: Strategy pattern with plugin registry
+---------------------------------------------
+
+The five built-in extractors are normal classes that satisfy the
+:class:`~bitcoin.signature.extraction.plugins.ExtractorPlugin` protocol.
+They are registered via :func:`register_builtin_extractors` (called
+automatically by :func:`extract_signatures`) and selected per-input
+via the registry.  This avoids a hard-coded ``if/elif`` chain and
+lets external code add custom script-type extractors without
+forking the library.
+
+For each extracted signature, the dispatcher:
+
+1. Looks up the script type from the previous output's
+   ``scriptPubKey`` (if provided).
+2. Selects the first registered plugin whose ``can_handle`` returns
+   ``True``.
+3. Calls ``plugin.extract(tx, vin, txin, script_pubkey, value)`` and
+   appends the returned records.
+4. Falls back to a debug log line if no plugin matches (the input is
+   skipped, but processing of subsequent inputs continues).
 """
 
 from __future__ import annotations
@@ -159,20 +188,29 @@ BUILTIN_EXTRACTOR_CLASSES: list[type] = [
     TaprootExtractor,
 ]
 
-__BUILTINS_REGISTERED: bool = False
+BUILTINS_REGISTERED: bool = False
+"""Whether :func:`register_builtin_extractors` has already run.
+
+Public so callers can introspect registration state.  Mutated only
+through :func:`register_builtin_extractors`.
+"""
 
 
 def register_builtin_extractors() -> None:
     """Register all built-in script-path extractor plugins.
 
     Idempotent — subsequent calls are no-ops once registered.
+
+    Side effects:
+        Sets the module-level :data:`BUILTINS_REGISTERED` flag on
+        success.
     """
-    global __BUILTINS_REGISTERED
-    if __BUILTINS_REGISTERED:
+    global BUILTINS_REGISTERED
+    if BUILTINS_REGISTERED:
         return
     for ext_cls in BUILTIN_EXTRACTOR_CLASSES:
         register_plugin(ext_cls())
-    __BUILTINS_REGISTERED = True
+    BUILTINS_REGISTERED = True
 
 
 # ── Public dispatch ─────────────────────────────────────────────────

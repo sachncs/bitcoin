@@ -1,6 +1,24 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Schnorr signature verification (BIP-340) for Taproot inputs."""
+"""Schnorr signature verification (BIP-340) for Taproot inputs.
+
+Implements BIP-340's Schnorr signature verification used by Taproot
+key-path spends.  Two primitives:
+
+- :func:`lift_x` – lift a 32-byte x-only public-key coordinate into
+  an affine ``(x, y)`` pair with **even** ``y``, per the BIP-340
+  convention.  Returns ``None`` if the x-coordinate does not
+  correspond to a valid curve point.
+- :func:`verify_schnorr_signature` (re-exported as
+  :func:`verify_schnorr_sig`) – full BIP-340 verification:
+
+      R = s·G − e·P
+      check R.y even and R.x == r
+
+  where ``e = tagged_hash("BIP0340/challenge", r || P || m)``.
+
+Reference: BIP-340 "Schnorr Signatures for secp256k1".
+"""
 
 from __future__ import annotations
 

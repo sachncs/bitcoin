@@ -2,14 +2,47 @@
 # SPDX-License-Identifier: MIT
 """ECDSA nonce recovery and private-key recovery from signature weaknesses.
 
-Given two signatures created by the same private key, this module exploits:
+Given two signatures ``(r, s, z)`` produced by the same private key
+``d`` with different nonces ``k₁``, ``k₂``, this module recovers
+``d`` and ``k₁`` (or ``k₂``) in two common scenarios:
 
-- **Nonce reuse** (same ``r``): :math:`k_1 = k_2`
-  :math:`d = \\alpha_1 \\cdot k - \\beta_1 \\pmod{n}`
+- **Nonce reuse** (same ``r`` ⇒ ``k₁ = k₂``):
 
-- **Related nonces** (:math:`k_2 = k_1 + \\delta`):
-  :math:`k_1 = (\\beta_1 - \\beta_2 + \\alpha_2 \\cdot \\delta)`
-  :math:`\\cdot (\\alpha_1 - \\alpha_2)^{-1} \\pmod{n}`
+      k = (β₁ − β₂) · (α₁ − α₂)⁻¹  mod n
+      d = α₁ · k − β₁              mod n
+
+  Implemented by :func:`recover_from_nonce_reuse`.  A single
+  ``r`` value shared between two signatures is enough to recover
+  the private key in microseconds.
+
+- **Related nonces** (``k₂ = k₁ + δ`` for a known difference ``δ``):
+
+      k₁ = (β₁ − β₂ + α₂ · δ) · (α₁ − α₂)⁻¹   mod n
+      d  = α₁ · k₁ − β₁                        mod n
+
+  Implemented by :func:`recover_from_related_nonces`.
+
+:func:`detect_nonce_reuse` scans a
+:class:`~bitcoin.signature.linearization.coefficients.LinearCoefficientCollection`
+and returns all groups of two-or-more signatures sharing an ``r``
+value, sorted by descending group size.
+
+Mathematical background
+-----------------------
+
+From ECDSA's verification equation
+``s · k ≡ z + r · d (mod n)`` we can write
+``d = α · k − β (mod n)`` where ``α = s · r⁻¹`` and
+``β = z · r⁻¹``.  Subtracting two such equations eliminates ``d``,
+leaving a single linear equation in ``k`` that is solvable when the
+two ``α`` values differ.
+
+References:
+
+- "Minerva: The curse of ECDSA nonces", Practical Cryptography
+  for the Bitcoin developer.
+- "Why Unique Nonces Matter in ECDSA" — typical blog write-up of the
+  2010 Sony PS3 incident.
 """
 
 from __future__ import annotations

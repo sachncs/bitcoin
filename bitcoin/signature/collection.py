@@ -1,6 +1,16 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Immutable collection of extracted signature records."""
+"""Immutable collection of extracted signature records.
+
+The :class:`SignatureCollection` dataclass wraps a tuple of
+:class:`Record` instances with sequence-like access (``len``,
+iteration, integer indexing) and a :meth:`sort_records` method that
+returns a new collection sorted by any ``Record`` attribute.
+
+Immutability follows from ``frozen=True, slots=True``; calling
+:meth:`sort_records` therefore returns a new collection rather than
+mutating the receiver.
+"""
 
 from __future__ import annotations
 

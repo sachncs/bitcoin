@@ -2,11 +2,35 @@
 # SPDX-License-Identifier: MIT
 """Batch extraction pipeline for multiple transactions.
 
-Supports parallel processing via ``concurrent.futures.ThreadPoolExecutor``,
-file-based input, and cross-transaction nonce reuse detection.
+The pipeline takes a list of transactions (as hex strings or raw
+bytes), runs :func:`extract_signatures` on each, and returns an
+aggregated :class:`BatchResult`.  It supports:
 
-Includes graceful shutdown via SIGTERM/SIGINT handling and per-batch
-request-ID logging for observability.
+- **Sequential or parallel** execution via
+  :class:`concurrent.futures.ThreadPoolExecutor` (default) or
+  :class:`concurrent.futures.ProcessPoolExecutor` (for CPU-bound
+  workloads).
+- **File-based input** via :func:`batch_extract_from_file`, which
+  reads one transaction per line and ignores blank / ``#``-prefixed
+  comment lines.
+- **Graceful shutdown**: SIGTERM/SIGINT handlers set a flag that
+  worker loops check between tasks, so in-flight tasks complete but
+  no new tasks are submitted.  Process pools are exempt because they
+  do not honour SIGTERM in worker children.
+- **Per-batch logging** with a short request ID (UUID4 first 12 hex
+  digits) for log correlation across worker threads.
+- **Cross-transaction correlation** via :func:`correlate_across_transactions`,
+  which groups records by script type then by ``r`` value and
+  returns any ``r`` shared by two or more records (the trigger for
+  nonce-reuse analysis).
+
+Error handling
+--------------
+
+Failures during extraction are captured into
+:attr:`BatchResult.errors` as ``(txid_or_label, error_message)``
+pairs; the function returns normally even if some transactions fail,
+so a single bad input never aborts a batch.
 """
 
 from __future__ import annotations
@@ -58,14 +82,28 @@ def install_shutdown_handlers() -> None:
     signal.signal(signal.SIGINT, handle_shutdown)
 
 
-def __process_single_worker(
+def process_single_worker(
     tx_input: str | bytes,
     utxo_scripts: Sequence[bytes] | None,
     utxo_values: Sequence[int] | None,
 ) -> list[Record] | tuple[str, str]:
     """Top-level worker function for ``ProcessPoolExecutor``.
 
-    Must be at module level for pickling across process boundaries.
+    Must live at module scope (not as a nested function) so the
+    executor can pickle it for dispatch to worker processes.  Each
+    invocation runs :func:`process_single` on one transaction;
+    exceptions are captured as ``(label, error_message)`` tuples so
+    the parent process can attribute failures without aborting the
+    batch.
+
+    Args:
+        tx_input: A hex string or raw bytes of the transaction.
+        utxo_scripts: Optional ``scriptPubKey`` list for each input.
+        utxo_values: Optional UTXO value list for each input.
+
+    Returns:
+        The list of extracted records on success, or a
+        ``(label, error_message)`` tuple on failure.
     """
     try:
         return process_single(tx_input, utxo_scripts, utxo_values)
@@ -239,7 +277,7 @@ def batch_extract(
             ):
                 label = tx_input[:64] if isinstance(tx_input, str) else "<bytes>"
                 fut = executor.submit(
-                    __process_single_worker, tx_input, tx_scripts, tx_values
+                    process_single_worker, tx_input, tx_scripts, tx_values
                 )
                 future_map[fut] = label
 

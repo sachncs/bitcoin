@@ -1,6 +1,23 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Engine for canonical sorting of extracted signature records."""
+"""Engine for canonical sorting of extracted signature records.
+
+Provides :func:`linearize_signatures`, which returns a new list of
+:class:`~bitcoin.signature.record.Record` instances sorted by
+``(txid, input_index)``.  The sort key is exposed separately as
+:func:`record_sort_key` so callers can use the same ordering in their
+own code.
+
+Why this ordering?
+
+- ``txid`` is the 32-byte little-endian transaction hash.  Sorting by
+  the raw bytes gives a total order that is stable across machines
+  (lexicographic byte order, not display order).
+- Within a transaction, sorting by ``input_index`` matches the
+  in-witness / in-scriptSig order of signatures, which is what most
+  downstream consumers (BIP-340 challenge computation, batch
+  verification, fingerprinting) expect.
+"""
 
 from __future__ import annotations
 

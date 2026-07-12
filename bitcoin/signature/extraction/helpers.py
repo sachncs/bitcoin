@@ -1,6 +1,24 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Shared helpers for signature extraction: pubkey recovery, sighash, script code."""
+"""Shared helpers for signature extraction: pubkey recovery, sighash, script code.
+
+A grab bag of small functions used by the script-type extractors.
+The non-trivial ones are:
+
+- :func:`compute_sighash` – dispatches between the legacy and SegWit
+  sighash algorithms based on whether the *script* argument is a
+  witness program (``OP_0 <20|32 bytes>``).  This is the right
+  discriminator even for P2SH-wrapped SegWit inputs, where the
+  transaction itself may not carry witness data.
+- :func:`recover_or_parse_pubkey` – tries all four ECDSA recovery
+  IDs first (the cheap, accurate path when the message hash and
+  script code are known) and falls back to parsing the
+  *pubkey_bytes* extracted from the scriptSig when recovery fails.
+- :func:`p2wpkh_script_code` / :func:`build_p2pkh_script_code` /
+  :func:`default_script_code` – construct the 25-byte P2PKH script
+  code that BIP-143 requires sighash input to commit to for P2WPKH
+  and nested SegWit inputs.
+"""
 
 from __future__ import annotations
 

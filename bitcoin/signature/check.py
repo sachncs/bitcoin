@@ -1,6 +1,32 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""ECDSA public-key recovery and signature verification."""
+"""ECDSA public-key recovery and signature verification.
+
+Three primitives used throughout the rest of the signature pipeline:
+
+- :func:`recover_public_key` – recover the public key ``Q`` from a
+  signature ``(r, s)``, the message hash, and a 2-bit recovery ID
+  (``rec_id``) using the standard ECDSA public-key recovery formula
+  ``Q = r⁻¹ · (s · R − e · G)``.  Returns a :class:`Point`; raises
+  :exc:`ValueError` if the recovered point is not on the curve or is
+  the point at infinity.
+- :func:`verify_signature` (re-exported as :func:`verify_sig`) –
+  verify a signature against a public key using the standard ECDSA
+  verification equation, with constant-time byte comparison via
+  :func:`hmac.compare_digest`.
+- :func:`constant_time_eq` – a constant-time bytes-equality helper,
+  useful for tests and for callers building their own verification
+  paths.
+
+Security notes
+--------------
+
+:func:`verify_signature` uses :func:`hmac.compare_digest` for the
+final ``r == R.x`` comparison, so the verification time does not
+depend on the value of ``r``.  This is a defence against timing-
+side-channel attacks when verification is performed on attacker-
+supplied signatures.
+"""
 
 from __future__ import annotations
 

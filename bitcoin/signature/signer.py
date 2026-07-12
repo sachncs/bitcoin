@@ -2,9 +2,28 @@
 # SPDX-License-Identifier: MIT
 """ECDSA signing utilities.
 
-Provides ``sign`` for creating DER-encoded signatures from a message
-hash and private key, and ``sign_tx_input`` for signing Bitcoin
-transaction inputs using the appropriate sighash algorithm.
+Two layers:
+
+- :func:`sign` – low-level ECDSA signing primitive.  Takes a 32-byte
+  message hash and a private key, generates a **deterministic**
+  nonce via RFC 6979 (HMAC-DRBG construction, section 3.2), and
+  returns a DER-encoded signature.  Sensitive intermediate values
+  are zeroed after use to limit exposure in memory snapshots.
+- :func:`sign_tx_input` – high-level helper that computes the
+  appropriate sighash (legacy or SegWit, dispatched by the witness
+  presence / script-code format), signs it, and appends the sighash
+  flag byte.
+
+The RFC 6979 deterministic nonce eliminates the catastrophic risk of
+random-nonce bias (the cause of the 2010 Sony PS3 ECDSA key leak
+and similar incidents), at the cost of producing identical
+signatures for the same ``(message_hash, private_key)`` pair — which
+is a *feature* for audit trails but means :func:`sign` must not be
+used to generate randomised nonces.
+
+Reference: RFC 6979 "Deterministic Usage of the Digital Signature
+Algorithm (DSA) and Elliptic Curve Digital Signature Algorithm
+(ECDSA)".
 """
 
 from __future__ import annotations

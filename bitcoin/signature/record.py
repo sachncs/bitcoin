@@ -1,6 +1,25 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Frozen dataclass representing a single extracted ECDSA or Schnorr signature."""
+"""Frozen dataclass representing a single extracted ECDSA or Schnorr signature.
+
+The :class:`Record` dataclass is the primary output type of the
+extraction pipeline: every standard script type (legacy P2PKH, SegWit
+P2WPKH/P2WSH, P2SH-wrapped SegWit, P2TR key-path and script-path)
+produces one ``Record`` per discovered signature.
+
+Invariants enforced in :meth:`Record.__post_init__`:
+
+- ``txid`` is exactly 32 bytes (the little-endian transaction hash).
+- ``input_index`` and ``amount`` are non-negative.
+- ``signature`` is non-empty.
+
+The class also exposes convenience properties:
+
+- :attr:`Record.vin` – alias for ``input_index``.
+- :attr:`Record.sig` – alias for ``signature``.
+- :attr:`Record.r_value` – decode the DER signature on demand and
+  return the ``r`` component.
+"""
 
 from __future__ import annotations
 

@@ -71,6 +71,7 @@ All notable changes to this project will be documented in this file.
 | `1ab0c77` | 2026-07-12 13:46:06 +0530 | docs(script,sighash): expand module docstrings across Script and sighash |
 | `3393c02` | 2026-07-12 13:46:15 +0530 | docs(transaction,services): expand module docstrings |
 | `7b674d2` | 2026-07-12 13:46:34 +0530 | feat: rewrite package-root __init__.py with layered overview and new exports |
+| `f1f0013` | 2026-07-12 13:50:12 +0530 | docs(changelog): record public-API promotion and atomic commits |
 
 ## [0.5.0] - 2026-06-05
 

@@ -1,6 +1,20 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Native pure-Python secp256k1 backend."""
+"""Native pure-Python secp256k1 backend.
+
+This backend delegates every operation to the corresponding pure-Python
+function in :mod:`bitcoin.curve.operations`.  It has no external
+dependencies and is always available.  It is the default backend used
+when no other is configured via :func:`bitcoin.curve.dispatch.set_backend`.
+
+Performance characteristics:
+
+- Pure Python, no C extension.  Suitable for correctness tests,
+  educational use, and environments without libsecp256k1.
+- Scalar multiplication uses the Montgomery ladder (constant-time per
+  scalar) but is roughly an order of magnitude slower than the C
+  libsecp256k1 implementation.
+"""
 
 from __future__ import annotations
 

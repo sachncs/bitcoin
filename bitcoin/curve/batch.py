@@ -2,8 +2,27 @@
 # SPDX-License-Identifier: MIT
 """Batched elliptic-curve operations.
 
-Provides multi-exponentiation (Straus's algorithm) and batch
-verification helpers for secp256k1.
+Provides multi-exponentiation via **Straus's algorithm** (a.k.a.
+interleaved windowing) and batch helpers for on-curve validation and
+coordinate normalisation.  These routines trade a constant-factor
+amount of memory for a substantial speedup when the same point is
+used in many multiplications, or when many independent multiplications
+can be interleaved.
+
+Algorithms:
+
+- :func:`multi_multiply` implements Straus's algorithm: build a
+  4-bit window table per input point, then process all points in lock
+  step across the windows.  Worst case ``O(n · log s)`` group
+  operations for ``n`` pairs ``(scalar, point)`` with maximum scalar
+  bit-length ``s``, much better than ``O(n · s)`` for sequential
+  scalar multiplications.
+- :func:`batch_validate` is a convenience wrapper that calls the
+  (cached) :func:`bitcoin.curve.dispatch.is_on_curve` dispatch for
+  each point.
+- :func:`batch_normalize` reduces every affine coordinate modulo
+  ``FIELD_PRIME`` in a single pass; useful after arithmetic that may
+  have produced values outside the canonical range.
 """
 
 from __future__ import annotations

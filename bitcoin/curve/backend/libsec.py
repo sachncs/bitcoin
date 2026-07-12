@@ -1,6 +1,26 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""libsecp256k1-backed secp256k1 backend via the ``coincurve`` package."""
+"""libsecp256k1-backed secp256k1 backend via the ``coincurve`` package.
+
+Wraps the ``coincurve`` Python bindings around Bitcoin Core's
+libsecp256k1 C library for maximum performance.  Used automatically
+when (a) the ``coincurve`` optional dependency is installed and
+(b) ``settings.default_backend == "libsecp"``.
+
+Because ``coincurve`` does not expose point negation, addition, or
+doubling as standalone primitives, those three methods fall back to
+the pure-Python implementation in :mod:`bitcoin.curve.operations`.
+Scalar multiplication and on-curve validation, however, are routed
+through libsecp256k1 for an order-of-magnitude speedup.
+
+Lifecycle:
+
+- :meth:`__init__` calls :func:`bitcoin.curve.libsecp256k1.check` to
+  verify that ``coincurve`` is importable; this raises
+  :exc:`ImportError` early with a clear message if the optional
+  dependency is missing.
+- All other methods can be assumed safe to call after construction.
+"""
 
 from __future__ import annotations
 

@@ -1,6 +1,24 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Abstract interface for pluggable secp256k1 backends."""
+"""Abstract interface for pluggable secp256k1 backends.
+
+Defines :class:`CurveBackend`, an :class:`~abc.ABC` that every curve
+operation backend must implement.  Each method corresponds to a
+primitive needed by the rest of the library:
+
+- :meth:`~CurveBackend.negate` – additive inverse of a point.
+- :meth:`~CurveBackend.add` – group addition.
+- :meth:`~CurveBackend.double` – point doubling (``2 · P``).
+- :meth:`~CurveBackend.multiply` – scalar multiplication (``k · P``).
+- :meth:`~CurveBackend.is_on_curve` – curve-equation check.
+- :meth:`~CurveBackend.sqrt` – square root modulo the field prime.
+- :meth:`~CurveBackend.parse_sec` – SEC-1 public-key parser.
+- :meth:`~CurveBackend.serialize_sec` – SEC-1 public-key serializer.
+
+Backends are typically used through the module-level dispatch in
+:mod:`bitcoin.curve.dispatch`, which exposes a process-wide singleton
+that callers can swap with :func:`~bitcoin.curve.dispatch.set_backend`.
+"""
 
 from __future__ import annotations
 

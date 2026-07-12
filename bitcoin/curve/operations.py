@@ -1,6 +1,25 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Pure-Python secp256k1 point arithmetic."""
+"""Pure-Python secp256k1 point arithmetic.
+
+This module contains the pure-Python implementation of the curve
+operations required by :class:`~bitcoin.curve.backend.native.NativeBackend`.
+Algorithms used:
+
+- **Point addition / doubling** – standard affine formulas using the
+  modular inverse for the slope ``λ``.
+- **Scalar multiplication** – the **Montgomery ladder**, which keeps a
+  pair ``(R0, R1) = (k·P, (k+1)·P)`` and selects the appropriate half
+  per bit.  This is constant-time *with respect to the scalar*, which
+  provides limited side-channel resistance for ECDSA signing.
+- **On-curve check** – direct evaluation of the curve equation
+  ``y² = x³ + 7 (mod p)``.
+
+The implementations are written for clarity and correctness rather
+than maximum throughput; for performance-critical workloads, prefer
+:class:`~bitcoin.curve.backend.libsec.LibsecpBackend` when the
+``coincurve`` extension is available.
+"""
 
 from __future__ import annotations
 

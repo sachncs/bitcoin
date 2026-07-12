@@ -1,6 +1,29 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Backend selection and dispatch for curve operations."""
+"""Backend selection and public dispatch for curve operations.
+
+This module owns the module-level :data:`backend` singleton and routes
+every public curve operation (``add``, ``double``, ``multiply``,
+``negate``, ``is_on_curve``, ``sqrt``, SEC encode/decode, ``normalize``)
+through it.  It also implements a thread-safe lazy-initialised
+4-bit window table for the generator point, used by :func:`multiply`
+when the operand is ``G`` to avoid a full scalar multiplication.
+
+Dispatch flow:
+
+1. :func:`set_backend` (or :func:`resolve_backend` on first use) chooses
+   either the pure-Python :class:`NativeBackend` or, when ``coincurve``
+   is available and the ``default_backend`` setting requests it, the
+   :class:`LibsecpBackend`.
+2. Public helpers (``add``, ``multiply``, ...) forward to the active
+   backend's methods.
+3. :func:`multiply` short-circuits to the fixed-base table when the
+   operand is the generator.
+
+Thread-safety: backend selection and the generator table are protected
+by :data:`backend_lock` and :data:`g_table_lock` respectively, so
+concurrent first-time callers will see a fully initialised table.
+"""
 
 from __future__ import annotations
 
@@ -27,6 +50,16 @@ g_table_lock = threading.Lock()
 
 
 def build_g_table() -> list[Point]:
+    """Build the fixed-base multiplication table for the generator point.
+
+    Constructs a 16-entry lookup table containing ``i * G`` for
+    ``i = 0..15`` using successive point addition.  Used internally by
+    :func:`multiply_fixed_base` to accelerate generator-point
+    multiplication via 4-bit windowing.
+
+    Returns:
+        A list of 16 ``Point`` instances: ``[0*G, 1*G, 2*G, ..., 15*G]``.
+    """
     from bitcoin.curve.operations import add
     from bitcoin.curve.params import GENERATOR_X, GENERATOR_Y
 
@@ -38,6 +71,15 @@ def build_g_table() -> list[Point]:
 
 
 def get_g_table() -> list[Point]:
+    """Return the generator-point lookup table, initialising on first use.
+
+    Implements double-checked locking for thread-safe lazy initialisation.
+    The table is built once by :func:`build_g_table` and cached for all
+    subsequent calls.
+
+    Returns:
+        The cached 16-entry lookup table for ``i * G``.
+    """
     global G_TABLE, g_table_initialized
     if not g_table_initialized:
         with g_table_lock:
@@ -48,6 +90,18 @@ def get_g_table() -> list[Point]:
 
 
 def is_generator(point: Point) -> bool:
+    """Return ``True`` if *point* equals the secp256k1 generator point ``G``.
+
+    The comparison is structural (coordinates), so callers should ensure
+    the point is already known to be on the curve if strictness matters.
+
+    Args:
+        point: The point to test.
+
+    Returns:
+        ``True`` if *point* is the generator ``G``, else ``False``.
+        The point at infinity is never the generator.
+    """
     from bitcoin.curve.params import GENERATOR_X, GENERATOR_Y
 
     if point.infinity:
@@ -56,6 +110,22 @@ def is_generator(point: Point) -> bool:
 
 
 def multiply_fixed_base(scalar: int) -> Point:
+    """Multiply the generator point by *scalar* using 4-bit windowing.
+
+    Falls back to the public ``multiply`` dispatch for non-generator
+    points, but accepts the optimised table-lookup path when the
+    caller can guarantee the point is ``G``.
+
+    The algorithm scans the scalar four bits at a time from MSB to LSB,
+    doubling the accumulator four times per window and adding the
+    pre-computed table entry for the window value (when non-zero).
+
+    Args:
+        scalar: Non-negative integer multiplier.
+
+    Returns:
+        ``scalar * G`` as a ``Point``.
+    """
     table = get_g_table()
     result = Point(infinity=True)
     num_windows = (scalar.bit_length() + 3) // 4
@@ -250,7 +320,23 @@ def normalize(value: int) -> int:
 
 
 def normalize_non_negative(value: int, label: str = "value") -> int:
-    """Thin wrapper over ``field.modular.validate_non_negative``."""
+    """Validate that *value* is a non-negative integer and return it.
+
+    Convenience re-export of :func:`bitcoin.field.validate_non_negative`
+    so callers working with curve operations can validate inputs without
+    importing from ``bitcoin.field`` directly.
+
+    Args:
+        value: Integer to validate.
+        label: Name used in error messages (default ``"value"``).
+
+    Returns:
+        *value* unchanged on success.
+
+    Raises:
+        TypeError: If *value* is not an ``int``.
+        ValueError: If *value* is negative.
+    """
     from bitcoin.field import validate_non_negative
 
     return validate_non_negative(value, label)

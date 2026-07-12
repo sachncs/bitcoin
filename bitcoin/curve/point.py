@@ -2,8 +2,28 @@
 # SPDX-License-Identifier: MIT
 """The ``Point`` value type — a point on the secp256k1 curve.
 
-Domain-driven composed engine exposed via ``Point.arithmetic`` for
-arithmetic operations (negate, add, double, multiply, is_on_curve).
+Defines the immutable, slot-based :class:`Point` value object and the
+:class:`PointArithmetic` composed engine exposed via
+``point.arithmetic`` for fluent chained arithmetic.
+
+Design choices:
+
+- ``Point`` uses ``__slots__`` for a compact memory footprint — every
+  ``Point`` allocates only two ``int``/``None`` slots plus one flag.
+- Affine coordinates only; we deliberately avoid Jacobian/projective
+  representation to keep the type tiny and the SEC-1 round-trip
+  trivial.  Backend implementations are free to use other coordinate
+  systems internally.
+- :attr:`Point.infinity` is the point at infinity (the secp256k1 group
+  identity); its ``x``/``y`` are always ``None``.
+- The composed :class:`PointArithmetic` engine is the recommended way
+  to perform multi-step arithmetic (``point.arithmetic.multiply(k)
+  .add(other)``), avoiding top-level ``from bitcoin.curve import
+  operations`` at call sites.
+
+Validation is performed eagerly in :meth:`Point.__init__`; points
+constructed without an on-curve check must be verified before use in
+elliptic-curve operations.
 """
 
 from __future__ import annotations

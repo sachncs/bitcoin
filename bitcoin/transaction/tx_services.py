@@ -1,10 +1,20 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Composed engine classes for Tx domain operations.
+"""Composed engine classes for ``Tx`` domain operations.
 
-Provides ``TxSerializer``, ``TxRbf``, and ``TxSighash`` engines
-exposed via properties on the ``Tx`` model for fluent domain-chain
-access.
+Provides three small engines that bind to a :class:`Tx` instance and
+expose its domain operations through a fluent ``tx.<engine>``
+property:
+
+- :class:`TxSerializer` – wire-format serialisation (SegWit-aware
+  and legacy) and JSON conversion.
+- :class:`TxRbf` – opt-in RBF (BIP-125) detection and BIP-68
+  relative sequence-lock inspection.
+- :class:`TxSighash` – legacy, SegWit, and Taproot sighash
+  computation, bound to the parent :class:`Tx`.
+
+Engines are stateless aside from their parent reference and use
+``__slots__`` to keep their per-instance memory to a minimum.
 """
 
 from __future__ import annotations

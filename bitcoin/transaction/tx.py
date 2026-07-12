@@ -2,7 +2,17 @@
 # SPDX-License-Identifier: MIT
 """Convenience utilities for constructing transaction objects.
 
-Provides ``make_tx`` to build a ``Tx`` from simple Python dictionaries.
+A thin wrapper around the dataclass models that lets callers build a
+:class:`Tx` from simple Python dictionaries without first constructing
+:class:`OutPoint`, :class:`TxIn`, etc.  The primary export,
+:func:`build_transaction` (also re-exported as :func:`make_tx`), is
+deliberately permissive: type errors are surfaced as :exc:`TypeError`
+rather than being silently coerced, helping callers detect
+construction bugs at the boundary.
+
+For stricter validation, prefer the :class:`TransactionBuilder` fluent
+API or :func:`tx_from_dict` from :mod:`bitcoin.transaction.builder`,
+which raise :exc:`ValueError` on malformed input.
 """
 
 from __future__ import annotations

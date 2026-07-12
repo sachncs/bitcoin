@@ -3,6 +3,22 @@
 """Deserialise Bitcoin transactions from wire format.
 
 Supports both legacy and SegWit (BIP-144) encoded transactions.
+Auto-detection is performed by looking for the ``0x00 0x01`` SegWit
+marker + flag bytes immediately after the 4-byte version field.
+
+Defensive limits
+----------------
+
+The parser enforces four upper bounds to prevent malicious inputs from
+causing excessive memory allocation or denial-of-service:
+
+- :data:`MAX_TX_SIZE` – overall transaction size (4 MB).
+- :data:`MAX_INPUTS` / :data:`MAX_OUTPUTS` – input/output counts.
+- :data:`MAX_WITNESS_ITEMS` / :data:`MAX_WITNESS_ITEM_SIZE` – per-input
+  witness item count and individual size.
+
+All four limits are conservative (well above any legitimate mainnet
+transaction) and can be tuned per-deployment if needed.
 """
 
 from __future__ import annotations

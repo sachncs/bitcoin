@@ -1,6 +1,23 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Services — serialization, blockchain fetching, and batch operations."""
+"""Services — serialisation, blockchain data fetching, and batch operations.
+
+Two complementary submodules:
+
+- :mod:`bitcoin.services.serializer` – wire-format serialisation for
+  SegWit and legacy transactions, JSON conversion, and the specialised
+  sighash pre-image serializers used by
+  :mod:`bitcoin.sighash.legacy` and :mod:`bitcoin.sighash.taproot`.
+- :mod:`bitcoin.services.blockchain` – pluggable blockchain data
+  providers (Blockstream, blockchain.info, Mempool.space, generic
+  HTTP), convenience enrichment helpers, and parallel/async batch
+  fetchers.
+
+These modules are intentionally isolated from the rest of the
+library: they are the only modules that perform network I/O, so
+they can be avoided entirely in air-gapped or test environments by
+importing only the curve / signature / script layers.
+"""
 
 from bitcoin.services.blockchain import (
     BlockchainInfoProvider,

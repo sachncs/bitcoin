@@ -2,12 +2,38 @@
 # SPDX-License-Identifier: MIT
 """Blockchain data fetching with pluggable backends.
 
-Provides a ``BlockchainProvider`` protocol and concrete implementations
-for Blockstream.info and blockchain.info APIs, plus convenience functions
-to enrich raw transactions with UTXO data.
+Provides a :class:`BlockchainProvider` :class:`~typing.Protocol` and
+concrete implementations for the Blockstream, blockchain.info, and
+Mempool.space APIs, plus convenience functions to enrich raw
+transactions with the UTXO data they need for sighash computation
+(``scriptPubKey`` and value of every input's previous output).
 
-All concrete providers inherit from ``BaseBlockchainProvider`` via the
-Template Method pattern to eliminate ~95% code duplication.
+All concrete providers inherit from :class:`BaseBlockchainProvider`
+via the **Template Method** pattern: shared logic (validation, retry,
+HTTP I/O, JSON parsing) lives in the base, while subclasses override
+small "hook" methods (``outputs_key``, ``script_key``, ``value_key``,
+``do_get_transaction_hex``, ``tx_json_url``) to adapt to each API's
+JSON schema and URL structure.  This keeps concrete providers to a
+handful of class attributes and a couple of short overrides.
+
+The module also exposes two surfaces:
+
+- **Sync**: :func:`enrich_transaction`, :func:`fetch_and_extract`,
+  :func:`broadcast_transaction`, :func:`batch_fetch_transactions`,
+  :func:`batch_enrich_transactions`.
+- **Async**: :func:`async_enrich_transaction` and
+  :func:`async_batch_fetch_transactions`, which use
+  :func:`asyncio.gather` for concurrent I/O.
+
+Networking notes
+----------------
+
+All HTTP requests are issued with the standard library only (``urllib``),
+an explicit :data:`SSL_CONTEXT` for certificate verification, and a
+``User-Agent`` header identifying the package.  Transient errors
+(rate-limit ``429``, server ``5xx``, URL errors) are retried up to
+:data:`MAX_RETRIES` times with exponential backoff
+(:data:`RETRY_BACKOFF`).
 """
 
 from __future__ import annotations
@@ -661,10 +687,28 @@ async def async_enrich_transaction(
     *,
     provider: BaseBlockchainProvider | None = None,
 ) -> tuple[list[bytes], list[int]]:
-    """Async version of :func:`enrich_transaction`.
+    """Fetch UTXO scripts and values for all inputs concurrently.
 
-    Uses ``asyncio.gather`` to fetch all UTXO scripts and values
-    concurrently.
+    Async counterpart of :func:`enrich_transaction`.
+
+    Each input's scriptPubKey and value are awaited via
+    :meth:`BaseBlockchainProvider.async_get_utxo_script_pubkey` and
+    :meth:`BaseBlockchainProvider.async_get_utxo_value`, and the
+    per-input fetches are issued concurrently using
+    :func:`asyncio.gather` for the highest possible throughput.
+
+    Args:
+        tx_hex: The raw transaction as a hex-encoded string.
+        provider: A :class:`BaseBlockchainProvider` instance.  If ``None``,
+            a :class:`BlockstreamProvider` is created automatically.
+
+    Returns:
+        A tuple ``(script_pubkeys, values)`` where each list has one
+        element per input, in input order.
+
+    Raises:
+        OSError: On network or HTTP errors during lookups.
+        ValueError: If *tx_hex* cannot be parsed.
     """
     if provider is None:
         provider = BlockstreamProvider()
@@ -771,9 +815,25 @@ async def async_batch_fetch_transactions(
     *,
     provider: BaseBlockchainProvider | None = None,
 ) -> dict[str, str]:
-    """Async version of :func:`batch_fetch_transactions`.
+    """Fetch multiple transactions concurrently via async I/O.
 
-    Uses ``asyncio.gather`` for concurrent HTTP requests.
+    Async counterpart of :func:`batch_fetch_transactions`.  Each txid
+    is fetched via :meth:`BaseBlockchainProvider.async_get_transaction_hex`
+    and the requests are issued concurrently using
+    :func:`asyncio.gather`, eliminating head-of-line blocking for
+    multi-transaction workloads.
+
+    Args:
+        txids: List of 64-character transaction IDs to fetch.
+        provider: A :class:`BaseBlockchainProvider` instance.  If ``None``,
+            a :class:`BlockstreamProvider` is created automatically.
+
+    Returns:
+        A dict mapping txid to hex-encoded transaction data.
+
+    Raises:
+        OSError: On network or HTTP errors.
+        ValueError: If any txid is invalid.
     """
     if provider is None:
         provider = BlockstreamProvider()

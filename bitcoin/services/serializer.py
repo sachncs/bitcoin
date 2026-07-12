@@ -2,9 +2,22 @@
 # SPDX-License-Identifier: MIT
 """Transaction serialisation to Bitcoin wire format.
 
-Provides SegWit-aware serialisation (``serialize_tx``), legacy
-serialisation (``serialize_legacy_tx``), JSON conversion (``tx_to_json``),
-and specialised helpers for sighash computation.
+Two complete serialisers and two sighash-specific pre-image builders:
+
+- :func:`serialize_tx` – SegWit-aware wire format (BIP-144).  When
+  the transaction has any non-empty witness it emits the ``0x00 0x01``
+  marker + flag and appends witness data after the outputs.
+- :func:`serialize_legacy_tx` – pre-SegWit wire format.  Witness data
+  is omitted entirely.
+- :func:`serialize_legacy_tx_for_sighash` – the legacy sighash
+  pre-image, with input scripts and outputs modified per the
+  SIGHASH flag (the script being signed replaces the input's
+  ``scriptSig``).
+- :func:`serialize_tx_for_sighash_taproot` – the common transaction
+  prefix used by the BIP-341 Taproot sighash.
+
+Plus :func:`tx_to_json`, which converts a :class:`Tx` to a JSON-
+serialisable dict suitable for inspection or HTTP response bodies.
 """
 
 from __future__ import annotations

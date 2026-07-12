@@ -2,9 +2,17 @@
 # SPDX-License-Identifier: MIT
 """Fluent builder and dict-based factory for Bitcoin transactions.
 
-Provides ``TransactionBuilder`` for programmatic construction with
-validation, and ``tx_from_dict`` as a drop-in replacement for
-``make_tx`` with stricter error checking.
+Two complementary APIs:
+
+- :class:`TransactionBuilder` – fluent chained API for programmatic
+  construction with comprehensive type and presence validation in
+  :meth:`TransactionBuilder.build`.
+- :func:`tx_from_dict` – drop-in factory that accepts a single dict
+  describing the full transaction.  Validates types and required keys,
+  raising :exc:`ValueError` on any malformed input.
+
+Both APIs return a frozen :class:`Tx` instance, so further mutation is
+impossible after :meth:`TransactionBuilder.build` returns.
 """
 
 from __future__ import annotations

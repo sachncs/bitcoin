@@ -2,8 +2,26 @@
 # SPDX-License-Identifier: MIT
 """Immutable data models for Bitcoin transaction components.
 
-Provides ``OutPoint``, ``TxIn``, ``TxOut``, ``Witness``, and ``Tx``
-dataclasses with basic validation in ``__post_init__``.
+Defines the core :class:`Tx`, :class:`TxIn`, :class:`TxOut`,
+:class:`OutPoint`, and :class:`Witness` dataclasses plus the
+composed engine classes (:class:`TxSerializer`, :class:`TxRbf`,
+:class:`TxSighash`) that expose domain operations through
+``tx.serializer``, ``tx.rbf``, and ``tx.sighash``.
+
+All dataclasses are ``frozen=True, slots=True``:
+
+- ``frozen`` gives value semantics — two ``Tx`` instances with the
+  same fields hash and compare equal, and they cannot be mutated
+  after construction.
+- ``slots`` removes the per-instance ``__dict__`` and dramatically
+  reduces memory usage (a non-trivial concern when a single
+  extraction pipeline may hold millions of records).
+
+Validation in ``__post_init__`` is intentionally minimal: it checks
+field-level invariants (byte length, non-negativity, supply cap) but
+does **not** verify that the transaction is well-formed for consensus
+or spendable.  Use the parser/builder modules for that level of
+validation.
 """
 
 from __future__ import annotations

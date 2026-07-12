@@ -2,8 +2,22 @@
 # SPDX-License-Identifier: MIT
 """Replace-By-Fee (RBF) detection for Bitcoin transactions.
 
-Provides utilities to detect opt-in RBF (BIP-125) and extract
-sequence-number information relevant to fee bumping.
+Two related sequence-number checks:
+
+- :func:`is_opt_in_rbf` – BIP-125 opt-in RBF.  Returns ``True`` if
+  *any* input has a sequence number ``<= 0xFFFFFFFD`` (the BIP-125
+  signal threshold).
+- :func:`has_sequence_lock` – BIP-68 relative sequence locks.  Returns
+  ``True`` if any input has a sequence number ``< 0xFFFFFFFE`` (the
+  BIP-68 disable flag).
+
+Both functions inspect only the sequence field and never modify the
+input; they are safe to call on any :class:`Tx`.
+
+Reference:
+
+- BIP-125 "Opt-in Full Replace-by-Fee Signaling"
+- BIP-68 "Relative lock-time using consensus-enforced sequence numbers"
 """
 
 from __future__ import annotations

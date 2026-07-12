@@ -1,6 +1,21 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Transaction fee estimation and virtual size calculation."""
+"""Transaction fee estimation and virtual size calculation.
+
+Computes an estimate of a transaction's virtual size (``vbytes``) and
+multiplies it by a fee rate to obtain a fee in satoshis.  The
+estimator follows BIP-141's weight-unit model, where witness bytes
+count as 1 weight unit each and non-witness bytes count as 4, with
+``vbytes = ceil(weight / 4)``.
+
+This is an *estimate*, not an exact measurement.  In particular, the
+estimator assumes standard script sizes for the overhead constants
+(:data:`BASE_VBYTE_SIZE`, :data:`OVERHEAD_PER_INPUT`,
+:data:`OVERHEAD_PER_OUTPUT`); call :func:`serialize_tx` and measure
+the result if you need an exact size.
+
+Reference: BIP-141 "Segregated Witness".
+"""
 
 from __future__ import annotations
 

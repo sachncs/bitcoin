@@ -2,8 +2,34 @@
 # SPDX-License-Identifier: MIT
 """Taproot (BIP-341) sighash computation.
 
-Implements the BIP-341 signature hash algorithm, supporting both key-path
-and script-path spending, with correct handling of all SIGHASH flags.
+Implements BIP-341's signature hash algorithm for Taproot (SegWit v1)
+inputs, supporting both key-path spending (single Schnorr signature)
+and script-path spending (witness stack + control block).  The digest
+is computed as ``tagged_hash("TapSighash", ...)`` over a structured
+pre-image that encodes:
+
+- The sighash flag byte.
+- An extension byte string for forward compatibility.
+- A *hash type* discriminator (key-path vs script-path).
+- All spent outpoints (or just the single one under ``ANYONECANPAY``).
+- All input amounts (BIP-341 requires amounts for **every** input
+  even under ``ANYONECANPAY``).
+- All input ``scriptPubKey`` (always empty for Taproot).
+- All input sequences.
+- The pruned output list (per the SIGHASH base flag).
+- An optional annex.
+
+The function is **not** LRU-cached because its parameter surface is
+much wider than the legacy and SegWit variants — caching would be
+ineffective.
+
+Caveats
+-------
+
+BIP-341 requires UTXO amounts for **every** input.  When ``amounts``
+is ``None`` the implementation substitutes zero amounts, which is
+non-standard and will not validate against any real signer.  Callers
+that intend to verify signatures MUST provide ``amounts``.
 """
 
 from __future__ import annotations

@@ -1,10 +1,19 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Bitcoin script opcode constants and lookup dictionaries.
+"""Bitcoin Script opcode constants and lookup dictionaries.
 
-Provides all named OP_* constants used in Bitcoin Script, along with
-``OPCODES_BY_NAME`` and ``OPCODES_BY_VALUE`` dictionaries for bidirectional
-lookup by mnemonic and numeric value.
+Provides the named ``OP_*`` constants used throughout the library,
+together with the auto-generated ``OPCODES_BY_NAME`` and
+``OPCODES_BY_VALUE`` dictionaries for bidirectional lookup by mnemonic
+and numeric value.
+
+Only the opcodes the library actually needs are exposed as constants
+(``OP_0``, ``OP_PUSHDATA1/2/4``, ``OP_1``–``OP_16``, ``OP_CHECKSIG``,
+``OP_CHECKMULTISIG``, ``OP_RETURN``, ``OP_DUP``, ``OP_HASH160``,
+``OP_EQUAL``, ``OP_EQUALVERIFY``, ``OP_1NEGATE``,
+``OP_CHECKSEQUENCEVERIFY``, ``OP_CHECKLOCKTIMEVERIFY``).  For full
+coverage, callers should consult the Bitcoin Script specification
+directly.
 """
 
 OP_0 = 0x00

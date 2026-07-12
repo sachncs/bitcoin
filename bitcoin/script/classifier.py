@@ -2,9 +2,19 @@
 # SPDX-License-Identifier: MIT
 """Standard script type classification for Bitcoin Script.
 
-Provides ``classify_script_pubkey`` and ``classify_script_sig`` for
-recognising standard output and spending script types, along with
-constants naming each type identifier.
+Pattern-matches raw script bytes against the byte-level templates of
+the standard Bitcoin output and spending script types:
+
+- :func:`classify_script_pubkey` – P2PK, P2PKH, P2SH, P2WPKH, P2WSH,
+  P2TR, or ``NON_STANDARD``.
+- :func:`classify_script_sig` – P2PKH or ``empty`` / ``non_standard``.
+- :func:`classify_detailed` – superset that also recognises
+  ``OP_RETURN``, bare multisig, and timelock scripts.
+
+The classifier uses *byte-level templates*, not full Script execution.
+This is fast and deterministic but cannot recognise non-standard
+constructs; callers needing full Script semantics should evaluate
+the script via a Bitcoin node.
 """
 
 from __future__ import annotations

@@ -2,7 +2,16 @@
 # SPDX-License-Identifier: MIT
 """Legacy (pre-SegWit) sighash computation.
 
-This is the algorithm used before SegWit, superseded by BIP-143.
+Implements the original Bitcoin sighash algorithm — the one that
+serialises the entire transaction (with the scriptSig of every input
+cleared except for the input being signed, which is replaced with the
+*provided script*) and double-SHA256-hashes the result, with output
+pruning based on the SIGHASH flag.  Superseded by BIP-143 for SegWit
+inputs but still required for legacy P2PKH / P2PK / P2SH spends.
+
+The function is :func:`functools.lru_cache`-decorated because
+extraction pipelines typically call it many times for the same
+``(tx, input_index, script, sighash_flag)`` tuple.
 """
 
 from __future__ import annotations

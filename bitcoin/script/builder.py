@@ -1,6 +1,17 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Script building helpers."""
+"""Script building helpers.
+
+Thin wrappers around :func:`bitcoin.script.parser.serialize_script`
+that produce the standard scriptPubKey templates for each output type
+(P2PK, P2PKH, P2WPKH, P2WSH, P2SH, P2TR) and a convenience
+:func:`make_p2pkh_script` that hashes a full public key into the
+correct 20-byte digest before serialising.
+
+Each builder validates its inputs (e.g. ``P2PKH`` rejects hashes
+that are not exactly 20 bytes, ``P2TR`` rejects keys that are not
+exactly 32 bytes) so callers fail fast on programming errors.
+"""
 
 from __future__ import annotations
 

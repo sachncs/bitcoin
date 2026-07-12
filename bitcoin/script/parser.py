@@ -1,10 +1,21 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Bitcoin Script parsing, serialization, and decompilation.
+"""Bitcoin Script parsing, serialisation, and decompilation.
 
-Provides the ``ScriptChunk`` dataclass, low-level parsing of raw script
-bytes into structured elements, serialization back to bytes, and
-utilities for working with multisig redeem scripts.
+Two parsing APIs are provided:
+
+- :func:`parse_script_chunks` returns a list of :class:`ScriptChunk`
+  objects that retain the opcode byte alongside any pushed data.  Use
+  this when you need both opcode and data (e.g. for multisig analysis).
+- :func:`parse_script` returns a flat list of ``(push, opcode)``
+  elements, where pushes are ``bytes`` and opcodes are ``int``.  This
+  is the simpler API most callers want.
+
+Companion functions handle the inverse direction
+(:func:`serialize_script`), pretty-printing (:func:`script_to_string`),
+multisig redeem-script decoding (:func:`parse_multisig_redeem_script`),
+and rejection of the legacy ``OP_CODESEPARATOR`` opcode
+(:func:`reject_code_separators`), which this library does not model.
 """
 
 from __future__ import annotations

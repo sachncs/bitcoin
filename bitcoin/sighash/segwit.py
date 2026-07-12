@@ -2,8 +2,22 @@
 # SPDX-License-Identifier: MIT
 """SegWit v0 sighash computation (BIP-143).
 
-This module implements the BIP-143 signature hash algorithm used for
-SegWit v0 (P2WPKH and P2WSH).
+Implements BIP-143's optimised signature hash for SegWit v0 inputs
+(P2WPKH and P2WSH).  Compared to the legacy algorithm:
+
+- The ``hashPrevouts`` and ``hashSequence`` amortised hashes replace
+  the full input list, making multi-input signature verification
+  roughly 3x faster.
+- The UTXO *amount* is committed to directly, preventing fee sniping
+  across input-value changes.
+- The signed script is the *witness program* (or redeem script for
+  P2SH-P2WPKH), not the scriptPubKey.
+
+Larger inputs first, smaller last: the amortised hashes are computed
+in linear time but the function is still O(N) overall for an N-input
+transaction.  The function is :func:`functools.lru_cache`-decorated
+because repeated calls with the same arguments are common during
+batch extraction.
 """
 
 from __future__ import annotations

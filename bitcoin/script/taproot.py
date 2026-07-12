@@ -2,9 +2,24 @@
 # SPDX-License-Identifier: MIT
 """Taproot script-path support for parsing and extracting script spends.
 
-Provides structured parsing of Taproot witness stacks, control block
-parsing, and helpers for extracting x-only public keys from P2TR
-scriptPubKeys.
+Implements BIP-341 control-block parsing, tapleaf-hash and tweak
+computation, script-path witness parsing, and the helpers used to
+recover an x-only public key from a P2TR ``scriptPubKey``.
+
+Background:
+
+- A P2TR output commits to a single 32-byte tweaked public key, plus
+  an optional Merkle tree of script leaves.
+- Spending the output **key-path** places a single 64-byte Schnorr
+  signature in the witness.
+- Spending it **script-path** places a witness stack of the form
+  ``[sig, ..., leaf_script, control_block]``; the control block
+  contains the parity bit, the internal key, and the Merkle path.
+
+This module handles the script-path side: :func:`parse_control_block`
+decodes a control block into its components, :func:`compute_tapleaf_hash`
+computes the tagged hash of a leaf script, and
+:func:`compute_tweak` computes the BIP-341 output-key tweak.
 """
 
 from __future__ import annotations
@@ -85,8 +100,8 @@ def parse_control_block(control_block: bytes) -> TaprootControlBlock | None:
     parity = control_block[0] & 0x01
     leaf_version = control_block[0] & 0xFE
     is_leaf = (
-        (control_block[0] & CONTROL_BLOCK_LEAF_MARKER) == CONTROL_BLOCK_LEAF_MARKER
-    )
+        control_block[0] & CONTROL_BLOCK_LEAF_MARKER
+    ) == CONTROL_BLOCK_LEAF_MARKER
     internal_key = control_block[1:33]
 
     merkle_path = []

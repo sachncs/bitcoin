@@ -1,9 +1,32 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Re-exports all Bitcoin script types, classifiers, builders, and opcodes.
+"""Bitcoin Script parsing, classification, building, and Taproot helpers.
 
-Aggregates the public API from the submodules: parser, classifier, builder,
-and opcodes.
+This subpackage owns every aspect of Bitcoin Script that the rest of
+the library needs:
+
+- :mod:`bitcoin.script.opcodes` – the small subset of opcodes used by
+  the classifiers and builders, plus the ``OPCODES_BY_NAME`` /
+  ``OPCODES_BY_VALUE`` lookup dicts.
+- :mod:`bitcoin.script.parser` – low-level parsing of raw script bytes
+  into :class:`ScriptChunk` or flat ``(push, opcode)`` element lists,
+  plus decompilation to a human-readable string and multisig redeem
+  script decoding.
+- :mod:`bitcoin.script.classifier` – pattern-matching helpers that
+  identify standard output (P2PK, P2PKH, P2SH, P2WPKH, P2WSH, P2TR)
+  and spending (scriptSig) script types, and detect OP_RETURN,
+  multisig, and timelock scripts.
+- :mod:`bitcoin.script.builder` – :func:`build_p2pk`,
+  :func:`build_p2pkh`, :func:`build_p2wpkh`, :func:`build_p2wsh`,
+  :func:`build_p2sh`, :func:`build_p2tr`, :func:`make_p2pkh_script`
+  constructors.
+- :mod:`bitcoin.script.taproot` – Taproot control-block parsing,
+  tapleaf-hash and tweak computation, script-path witness parsing,
+  and x-only public-key extraction.
+
+Public re-exports of the most useful names are kept here so callers
+can ``from bitcoin.script import classify_script_pubkey`` without
+reaching into a submodule.
 """
 
 from bitcoin.script.builder import (

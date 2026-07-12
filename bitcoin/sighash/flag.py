@@ -2,22 +2,29 @@
 # SPDX-License-Identifier: MIT
 """SIGHASH flag constants, validation, and human-readable names.
 
+Defines the eight standard SIGHASH combinations, where the *base flag*
+determines which outputs are committed to (``ALL``, ``NONE``,
+``SINGLE``) and the ``ANYONECANPAY`` modifier (ORed into the high bit)
+restricts commitment to a single input.
+
 Constants
 ---------
-SIGHASH_ALL
-SIGHASH_NONE
-SIGHASH_SINGLE
-SIGHASH_ANYONECANPAY
-SIGHASH_MASK
-SIGHASH_ALL_ANYONECANPAY
-SIGHASH_NONE_ANYONECANPAY
-SIGHASH_SINGLE_ANYONECANPAY
-SIGHASH_NAMES
+
+- :data:`SIGHASH_ALL` (0x01), :data:`SIGHASH_NONE` (0x02),
+  :data:`SIGHASH_SINGLE` (0x03) – base flags.
+- :data:`SIGHASH_ANYONECANPAY` (0x80) – input modifier.
+- :data:`SIGHASH_ALL_ANYONECANPAY`, :data:`SIGHASH_NONE_ANYONECANPAY`,
+  :data:`SIGHASH_SINGLE_ANYONECANPAY` – pre-composed combinations.
+- :data:`SIGHASH_MASK` (0x1F) – mask isolating the base flag bits.
+- :data:`SIGHASH_NAMES` – mapping from flag value to human-readable
+  name.
 
 Functions
 ---------
-sighash_name
-require_sighash_flag
+
+- :func:`sighash_name` – return the human-readable name for a flag.
+- :func:`require_sighash_flag` – validate a flag's base component
+  and raise :exc:`ValueError` if it is not a known base flag.
 """
 
 from __future__ import annotations

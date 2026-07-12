@@ -1,6 +1,33 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""PSBT binary parsing and serialization (BIP-174)."""
+"""PSBT binary parsing and serialisation (BIP-174).
+
+Implements the BIP-174 wire format:
+
+- 5-byte magic header (``b"psbt\\xff"``).
+- A *global* key-value map (mandatory: contains the unsigned
+  transaction).
+- One *input* key-value map per transaction input.
+- One *output* key-value map per transaction output.
+- ``0x00`` separator bytes between maps.
+
+Each key-value map is a sequence of ``(key_length, key, value_length,
+value)`` records terminated by a zero-length key (``0x00``).  Key
+lengths are varint-prefixed; values are arbitrary bytes.
+
+Specialised helpers:
+
+- :func:`parse_witness_stack` / :func:`serialize_witness_stack` for
+  the varint-prefixed witness item lists used by the
+  ``PSBT_IN_FINAL_SCRIPTWITNESS`` field.
+- :func:`parse_keypath_value` for the BIP-32 keypath blob format
+  (4-byte fingerprint + varint count + ``count * 4``-byte LE uint32
+  indices).
+
+References:
+
+- BIP-174 "Partially Signed Bitcoin Transaction Format"
+"""
 
 from __future__ import annotations
 
@@ -22,20 +49,21 @@ MAX_VALUE_SIZE = 10_000_000
 MAX_PSBT_WITNESS_ITEMS = 10000
 MAX_PSBT_WITNESS_ITEM_SIZE = 10_000_000
 
-# Key type constants (BIP-174)
-PSBT_GLOBAL_UNSIGNED_TX = 0x00  #: Global: unsigned transaction.
-PSBT_IN_NON_WITNESS_UTXO = 0x00  #: Input: non-witness UTXO.
-PSBT_IN_WITNESS_UTXO = 0x01  #: Input: witness UTXO.
-PSBT_IN_PARTIAL_SIG = 0x02  #: Input: partial signature.
-PSBT_IN_SIGHASH_TYPE = 0x03  #: Input: sighash type.
-PSBT_IN_REDEEM_SCRIPT = 0x04  #: Input: redeem script.
-PSBT_IN_WITNESS_SCRIPT = 0x05  #: Input: witness script.
-PSBT_IN_BIP32_DERIVATION = 0x06  #: Input: BIP-32 derivation.
-PSBT_IN_FINAL_SCRIPTSIG = 0x07  #: Input: final scriptSig.
-PSBT_IN_FINAL_SCRIPTWITNESS = 0x08  #: Input: final scriptWitness.
-PSBT_OUT_REDEEM_SCRIPT = 0x00  #: Output: redeem script.
-PSBT_OUT_WITNESS_SCRIPT = 0x01  #: Output: witness script.
-PSBT_OUT_BIP32_DERIVATION = 0x02  #: Output: BIP-32 derivation.
+# BIP-174 key-type identifiers.  Values 0x00–0x0B are reserved by the
+# specification; unknown keys are still preserved in the ``unknown`` map.
+PSBT_GLOBAL_UNSIGNED_TX = 0x00  # Global: unsigned transaction (mandatory).
+PSBT_IN_NON_WITNESS_UTXO = 0x00  # Input: full non-witness UTXO (previous tx).
+PSBT_IN_WITNESS_UTXO = 0x01  # Input: witness UTXO (value + scriptPubKey).
+PSBT_IN_PARTIAL_SIG = 0x02  # Input: partial signature {pubkey -> sig}.
+PSBT_IN_SIGHASH_TYPE = 0x03  # Input: 4-byte little-endian sighash type.
+PSBT_IN_REDEEM_SCRIPT = 0x04  # Input: redeem script (for P2SH).
+PSBT_IN_WITNESS_SCRIPT = 0x05  # Input: witness script (for P2WSH).
+PSBT_IN_BIP32_DERIVATION = 0x06  # Input: BIP-32 derivation paths.
+PSBT_IN_FINAL_SCRIPTSIG = 0x07  # Input: finalised scriptSig.
+PSBT_IN_FINAL_SCRIPTWITNESS = 0x08  # Input: finalised scriptWitness.
+PSBT_OUT_REDEEM_SCRIPT = 0x00  # Output: redeem script (for P2SH).
+PSBT_OUT_WITNESS_SCRIPT = 0x01  # Output: witness script (for P2WSH).
+PSBT_OUT_BIP32_DERIVATION = 0x02  # Output: BIP-32 derivation paths.
 
 
 def parse_psbt(data: bytes | memoryview) -> Psbt:
@@ -54,7 +82,7 @@ def parse_psbt(data: bytes | memoryview) -> Psbt:
     """
     if isinstance(data, memoryview):
         data = bytes(data)
-    return __parse_psbt_impl(data)
+    return parse_psbt_impl(data)
 
 
 def parse_psbt_from_file(path: str, *, mmap_threshold: int = 100_000_000) -> Psbt:
@@ -86,16 +114,31 @@ def parse_psbt_from_file(path: str, *, mmap_threshold: int = 100_000_000) -> Psb
             with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as m:
                 # mmap supports the buffer protocol and is indexable
                 # like bytes; cast to bytes for the parser.
-                return __parse_psbt_impl(bytes(m))
+                return parse_psbt_impl(bytes(m))
     else:
         with open(path, "rb") as f:
-            return __parse_psbt_impl(f.read())
+            return parse_psbt_impl(f.read())
 
 
-def __parse_psbt_impl(data: bytes) -> Psbt:
-    """Internal PSBT parser implementation.
+def parse_psbt_impl(data: bytes) -> Psbt:
+    """Low-level PSBT parser used by the public entry points.
 
-    Shared by :func:`parse_psbt` and :func:`parse_psbt_from_file`.
+    Parses a complete BIP-174 PSBT starting at the magic header and
+    returns the constructed :class:`Psbt`.  This function performs
+    **no** I/O — the raw bytes must already be in memory — so it is
+    also suitable for callers that have already loaded the PSBT (for
+    instance over the network or from an in-memory cache) and want
+    to share a single implementation with the file-based entry point.
+
+    Args:
+        data: The full PSBT bytes (must start with ``b"psbt\\xff"``).
+
+    Returns:
+        A :class:`Psbt` instance.
+
+    Raises:
+        ValueError: If the magic bytes are missing, the unsigned
+            transaction is absent, or parsing otherwise fails.
     """
     if data[:5] != b"psbt\xff":
         raise ValueError("Invalid PSBT magic bytes.")

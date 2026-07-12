@@ -2,8 +2,27 @@
 # SPDX-License-Identifier: MIT
 """Fluent builder for constructing and editing PSBTs (BIP-174).
 
-Provides ``PsbtEditor`` for programmatic creation, signing, and
-finalization of ``Psbt`` instances.
+Provides :class:`PsbtEditor` and the mutable helper classes
+:class:`MutableInput` / :class:`MutableOutput` for programmatic
+construction, signing, and finalisation of :class:`Psbt` instances.
+
+The editor mutates its own ``inputs`` / ``outputs`` lists freely and
+returns ``self`` from every setter for chaining.  Calling
+:meth:`PsbtEditor.build` snapshots the current state into a frozen
+:class:`Psbt`, after which the editor can be discarded or reused for
+further edits.
+
+Typical usage:
+
+1. Construct from an unsigned transaction via
+   :meth:`PsbtEditor.from_tx`.
+2. Attach UTXO data, redeem/witness scripts, and BIP-32 derivations
+   via the ``set_input_*`` methods.
+3. Add partial signatures with
+   :meth:`PsbtEditor.add_input_partial_sig` or sign directly with
+   :meth:`PsbtEditor.sign_input`.
+4. Finalise inputs with :meth:`PsbtEditor.finalize_input`.
+5. Build the final :class:`Psbt` with :meth:`PsbtEditor.build`.
 """
 
 from __future__ import annotations

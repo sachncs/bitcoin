@@ -1,6 +1,27 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""Frozen dataclass models for PSBT (BIP-174) structures."""
+"""Frozen dataclass models for PSBT (BIP-174) structures.
+
+Defines :class:`Psbt`, :class:`PsbtInput`, and :class:`PsbtOutput`
+— the in-memory representation of a BIP-174 Partially Signed Bitcoin
+Transaction.
+
+Design notes:
+
+- ``frozen=True, slots=True`` everywhere: PSBTs are routinely
+  compared and hashed, and the slot optimisation matters when
+  parsing large files.
+- All fields are stored as raw ``bytes`` (not parsed structures), so
+  round-tripping is bit-exact and unknown fields are preserved in
+  the ``unknown`` dicts for forward compatibility with new BIP-174
+  extensions (Taproot, etc.).
+- :meth:`Psbt.__post_init__` validates that the input and output
+  counts match (a structural BIP-174 invariant that prevents the
+  silent data loss that would result from truncating one side).
+- The :meth:`PsbtInput.serialize` / :meth:`PsbtOutput.serialize` /
+  :meth:`Psbt.serialize` methods are thin convenience wrappers
+  around the parser module's serialisation functions.
+"""
 
 from __future__ import annotations
 

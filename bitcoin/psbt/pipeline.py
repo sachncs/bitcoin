@@ -2,8 +2,19 @@
 # SPDX-License-Identifier: MIT
 """Multi-process PSBT processing pipeline.
 
-Handles batch parsing, validation, and extraction from multiple PSBT
-files using ``ProcessPoolExecutor`` for CPU-bound work.
+Provides :func:`process_psbt_batch` for parsing multiple PSBT files in
+parallel (with ``ProcessPoolExecutor`` for CPU-bound work) and
+:func:`process_psbt_batch_with` for parsing and then applying a
+caller-supplied transform to each result.
+
+Both functions return a :class:`PsbtBatchResult` aggregating the
+successfully parsed PSBTs alongside any errors, so a single malformed
+file does not abort the whole batch.  Each batch is tagged with a
+short request ID (UUID4 first 12 hex digits) for log correlation.
+
+The worker function :func:`parse_psbt_worker` is intentionally
+defined at module scope so it can be pickled and dispatched across
+process boundaries by :class:`concurrent.futures.ProcessPoolExecutor`.
 """
 
 from __future__ import annotations
@@ -39,8 +50,22 @@ class PsbtBatchResult:
     failed: int = 0
 
 
-def __parse_psbt_worker(path: str) -> Psbt | tuple[str, str]:
-    """Module-level worker for ``ProcessPoolExecutor``."""
+def parse_psbt_worker(path: str) -> Psbt | tuple[str, str]:
+    """Module-level worker for ``ProcessPoolExecutor``.
+
+    Must live at module scope (not as a nested function) so the
+    executor can pickle it for dispatch to worker processes.  Each
+    invocation parses a single PSBT file; any exception is captured
+    into a ``(path, error_message)`` tuple so the parent process can
+    attribute failures without aborting the batch.
+
+    Args:
+        path: Path to a PSBT file.
+
+    Returns:
+        The parsed :class:`Psbt`, or a ``(path, error_message)``
+        tuple if parsing failed.
+    """
     try:
         return parse_psbt_from_file(path)
     except Exception as exc:
@@ -82,7 +107,7 @@ def process_psbt_batch(
         successful = len(all_psbts)
     else:
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
-            fut_map = {executor.submit(__parse_psbt_worker, p): p for p in paths}
+            fut_map = {executor.submit(parse_psbt_worker, p): p for p in paths}
             for future in as_completed(fut_map):
                 path = fut_map[future]
                 try:

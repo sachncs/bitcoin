@@ -1,6 +1,27 @@
 # Copyright (c) 2026 secp contributors
 # SPDX-License-Identifier: MIT
-"""PSBT signature extraction utilities."""
+"""PSBT signature extraction utilities.
+
+Provides :func:`psbt_extract_signatures`, which pulls every ECDSA
+signature out of a :class:`~bitcoin.psbt.models.Psbt` (whether it
+lives in ``partial_sigs`` or the final ``final_script_sig`` /
+``final_script_witness``) and returns a
+:class:`~bitcoin.signature.collection.SignatureCollection`.
+
+Two source paths:
+
+- **Partial signatures** – the canonical BIP-174 ``PSBT_IN_PARTIAL_SIG``
+  fields, keyed by pubkey.
+- **Finalised scripts** – when ``partial_sigs`` is empty but
+  ``final_script_sig`` is populated, the function parses the
+  scriptSig and recovers the pubkey via
+  :func:`extract_pubkey_from_elements`.
+
+Both paths produce :class:`~bitcoin.signature.record.Record`
+instances suitable for the same downstream analysis (nonce-reuse
+detection, linearisation, batch verification) as raw-transaction
+extraction.
+"""
 
 from __future__ import annotations
 

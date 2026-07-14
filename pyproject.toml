@@ -9,8 +9,8 @@ description = "Extract and linearize ECDSA and Schnorr signatures (r, s, z) from
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
-authors = [{ name = "secp contributors" }]
-maintainers = [{ name = "Sachin", email = "chakravarthy1393966@gmail.com" }]
+authors = [{ name = "Sachin", email = "sachncs@gmail.com" }]
+maintainers = [{ name = "Sachin", email = "sachncs@gmail.com" }]
 keywords = ["bitcoin", "secp256k1", "cryptography", "ecdsa", "schnorr", "signature"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -26,11 +26,11 @@ classifiers = [
 dependencies = ["typer>=0.26.8,<1"]
 
 [project.urls]
-Homepage = "https://github.com/sachn-cs/bitcoin"
-Repository = "https://github.com/sachn-cs/bitcoin"
-Documentation = "https://github.com/sachn-cs/bitcoin#readme"
-"Bug Tracker" = "https://github.com/sachn-cs/bitcoin/issues"
-Changelog = "https://github.com/sachn-cs/bitcoin/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/sachncs/bitcoin"
+Repository = "https://github.com/sachncs/bitcoin"
+Documentation = "https://github.com/sachncs/bitcoin#readme"
+"Bug Tracker" = "https://github.com/sachncs/bitcoin/issues"
+Changelog = "https://github.com/sachncs/bitcoin/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 coincurve = ["coincurve>=21.0.0,<22"]

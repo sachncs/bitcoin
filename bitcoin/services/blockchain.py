@@ -55,7 +55,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-USER_AGENT = "bitcoin/0.4.0 (+https://github.com/sachn-cs/bitcoin)"
+USER_AGENT = "bitcoin/0.4.0 (+https://github.com/sachncs/bitcoin)"
 HTTP_TIMEOUT = 30
 MAX_RETRIES = 3
 RETRY_BACKOFF = 1.0  # seconds

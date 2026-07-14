@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/sachn-cs/bitcoin/docs/schemas/extraction.json",
+  "$id": "https://github.com/sachncs/bitcoin/docs/schemas/extraction.json",
   "title": "Bitcoin Signature Extraction Output",
   "description": "Schema for the JSON output of `bitcoin extract` and `bitcoin linearize` commands.",
   "type": "array",

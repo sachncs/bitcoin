@@ -4,8 +4,8 @@
   <p align="center">
     <a href="#installation"><img src="https://img.shields.io/badge/python-3.12%20%7C%203.13%20%7C%203.14-blue" alt="Python"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
-    <a href="https://github.com/sachn-cs/bitcoin/actions"><img src="https://img.shields.io/github/actions/workflow/status/sachn-cs/bitcoin/ci.yml?branch=master" alt="CI"></a>
-    <a href="https://codecov.io/gh/sachn-cs/bitcoin"><img src="https://codecov.io/gh/sachn-cs/bitcoin/branch/main/graph/badge.svg" alt="Coverage"></a>
+    <a href="https://github.com/sachncs/bitcoin/actions"><img src="https://img.shields.io/github/actions/workflow/status/sachncs/bitcoin/ci.yml?branch=master" alt="CI"></a>
+    <a href="https://codecov.io/gh/sachncs/bitcoin"><img src="https://codecov.io/gh/sachncs/bitcoin/branch/main/graph/badge.svg" alt="Coverage"></a>
     <a href="https://mypy-lang.org/"><img src="https://img.shields.io/badge/mypy-strict-green.svg" alt="Checked with mypy"></a>
   </p>
 </p>
@@ -53,7 +53,7 @@ pip install bitcoin[coincurve]
 ### From source
 
 ```bash
-git clone https://github.com/sachn-cs/bitcoin.git
+git clone https://github.com/sachncs/bitcoin.git
 cd bitcoin
 pip install -e ".[dev]"
 ```

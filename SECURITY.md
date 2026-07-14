@@ -38,5 +38,5 @@ This policy covers the `bitcoin` Python package (PyPI: [`bitcoin`][pypi]).
 Vulnerabilities in **transitive dependencies** should be reported to their
 respective maintainers.
 
-[gh-advisory]: https://github.com/sachn-cs/bitcoin/security/advisories/new
+[gh-advisory]: https://github.com/sachncs/bitcoin/security/advisories/new
 [pypi]: https://pypi.org/project/bitcoin/

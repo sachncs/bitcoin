@@ -19,7 +19,7 @@ pip install bitcoin[coincurve]
 ### From Source
 
 ```bash
-git clone https://github.com/sachn-cs/bitcoin.git
+git clone https://github.com/sachncs/bitcoin.git
 cd bitcoin
 pip install -e ".[dev]"
 ```
@@ -27,7 +27,7 @@ pip install -e ".[dev]"
 ### Using uv (Recommended for Development)
 
 ```bash
-git clone https://github.com/sachn-cs/bitcoin.git
+git clone https://github.com/sachncs/bitcoin.git
 cd bitcoin
 ./setup.sh  # Creates venv, installs deps, runs tests
 ```

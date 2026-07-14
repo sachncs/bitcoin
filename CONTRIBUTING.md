@@ -29,7 +29,7 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
    ```
 3. **Add the upstream remote**:
    ```bash
-   git remote add upstream https://github.com/sachn-cs/bitcoin.git
+   git remote add upstream https://github.com/sachncs/bitcoin.git
    ```
 4. **Create a branch** for your changes:
    ```bash
@@ -47,7 +47,7 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
 
 ```bash
 # Clone and set up
-git clone https://github.com/sachn-cs/bitcoin.git
+git clone https://github.com/sachncs/bitcoin.git
 cd bitcoin
 ./setup.sh
 ```
@@ -296,6 +296,6 @@ The release workflow will automatically:
 
 ## Questions?
 
-- Open a [GitHub Discussion](https://github.com/sachn-cs/bitcoin/discussions)
-- Check existing [issues](https://github.com/sachn-cs/bitcoin/issues)
+- Open a [GitHub Discussion](https://github.com/sachncs/bitcoin/discussions)
+- Check existing [issues](https://github.com/sachncs/bitcoin/issues)
 - Review the [architecture documentation](docs/ARCHITECTURE.md)

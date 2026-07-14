@@ -5,15 +5,15 @@
     <a href="#installation"><img src="https://img.shields.io/badge/python-3.12%20%7C%203.13%20%7C%203.14-blue" alt="Python"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
     <a href="https://github.com/sachncs/bitcoin/actions"><img src="https://img.shields.io/github/actions/workflow/status/sachncs/bitcoin/ci.yml?branch=master" alt="CI"></a>
-    <a href="https://codecov.io/gh/sachncs/bitcoin"><img src="https://codecov.io/gh/sachncs/bitcoin/branch/main/graph/badge.svg" alt="Coverage"></a>
-    <a href="https://mypy-lang.org/"><img src="https://img.shields.io/badge/mypy-strict-green.svg" alt="Checked with mypy"></a>
+    <a href="https://pypi.org/project/bitcoin/"><img src="https://img.shields.io/pypi/v/bitcoin" alt="PyPI"></a>
+    <a href="https://github.com/sachncs/bitcoin/stargazers"><img src="https://img.shields.io/github/stars/sachncs/bitcoin" alt="Stars"></a>
   </p>
 </p>
 
 **bitcoin** is a pure-Python library for parsing raw Bitcoin transactions,
 extracting ECDSA and Schnorr signatures (`r`, `s`, `z`), deriving
 linearised ECDSA relations, recovering nonce reuse, and verifying
-signatures — all on the secp256k1 curve.  The core library has **no
+signatures — all on the secp256k1 curve. The core library has **no
 network dependencies**; blockchain data fetching lives behind an
 optional, isolated services layer.
 
@@ -64,24 +64,6 @@ pip install -e ".[dev]"
 
 ## Quick Start
 
-### Python API
-
-```python
-import bitcoin
-
-# Parse a raw transaction
-tx, _ = bitcoin.parse_tx(bytes.fromhex(raw_hex))
-
-# Extract signatures
-records = bitcoin.extract_signatures(tx)
-
-# Linearise (sort) signatures
-sorted_records = bitcoin.linearize_signatures(records)
-
-# Verify a signature
-ok = bitcoin.verify_sig(message_hash, der_sig, public_key)
-```
-
 ### CLI
 
 ```bash
@@ -104,48 +86,27 @@ bitcoin linearize <tx-hex>
 bitcoin health
 ```
 
----
+### Python API
 
-## Public API
+```python
+import bitcoin
 
-The package root re-exports every public symbol so callers can do
-`from bitcoin import name` without reaching into a submodule.  The
-`__all__` list contains 191 deduplicated, alphabetised names spanning
-the curve, encoding, script, sighash, transaction, signature,
-descriptor, PSBT, and services layers.
+# Parse a raw transaction
+tx, _ = bitcoin.parse_tx(bytes.fromhex(raw_hex))
 
-### Core functions
+# Extract signatures
+records = bitcoin.extract_signatures(tx)
 
-| Function | Purpose |
-|----------|---------|
-| `parse_tx`, `make_tx`, `TransactionBuilder`, `tx_from_dict` | Transaction construction and parsing |
-| `extract_signatures`, `linearize_signatures`, `batch_extract`, `correlate_across_transactions` | Signature extraction pipeline |
-| `verify_sig`, `verify_schnorr_sig`, `verify_all`, `recover_public_key` | ECDSA / Schnorr verification |
-| `sighash_legacy`, `sighash_segwit`, `sighash_taproot` | Sighash computation |
-| `parse_psbt`, `serialize_psbt`, `psbt_extract_signatures`, `PsbtEditor` | PSBT (BIP-174) |
-| `parse_public_key`, `serialize_public_key`, `multiply`, `add`, `double` | secp256k1 curve ops |
-| `analyze_descriptor`, `compile_descriptor`, `extract_keys` | Miniscript descriptor tools |
-| `BlockstreamProvider`, `BlockchainInfoProvider`, `MempoolSpaceProvider`, `GenericHttpProvider` | Blockchain data fetching |
+# Linearise (sort) signatures
+sorted_records = bitcoin.linearize_signatures(records)
 
-### Newly promoted helpers
-
-The following helpers are part of the public API and are also
-re-exported from their submodules:
-
-| Helper | Module |
-|--------|--------|
-| `collect_info`, `collect_keys`, `contains_op`, `estimate_satisfaction`, `sorted_unique` | `bitcoin.descriptor` |
-| `split_args`, `emit_script` | `bitcoin.descriptor` |
-| `DescriptorError`, `DescriptorInfo`, `DescriptorNode`, `ESTIMATED_SATISFACTION` | `bitcoin.descriptor` |
-| `parse_psbt_impl`, `parse_psbt_worker`, `process_psbt_batch`, `process_psbt_batch_with` | `bitcoin.psbt` |
-| `process_single_worker`, `BUILTINS_REGISTERED` | `bitcoin.signature` |
-| `registry` | `bitcoin.signature.extraction.plugins` |
-| `LOGGING_CONFIGURED` | `bitcoin.cli` |
-| `CURVE_A`, `CURVE_B` | `bitcoin.curve` |
+# Verify a signature
+ok = bitcoin.verify_sig(message_hash, der_sig, public_key)
+```
 
 ---
 
-## Usage
+## Examples
 
 ### Extract Signatures
 
@@ -298,6 +259,37 @@ settings.max_extraction_inputs = 5000
 
 ---
 
+## API
+
+| Symbol | Type | Description |
+|--------|------|-------------|
+| `parse_tx`, `make_tx`, `TransactionBuilder`, `tx_from_dict` | function / class | Transaction construction and parsing |
+| `extract_signatures`, `linearize_signatures`, `batch_extract`, `correlate_across_transactions` | function | Signature extraction pipeline |
+| `verify_sig`, `verify_schnorr_sig`, `verify_all`, `recover_public_key` | function | ECDSA / Schnorr verification |
+| `sighash_legacy`, `sighash_segwit`, `sighash_taproot` | function | Sighash computation |
+| `parse_psbt`, `serialize_psbt`, `psbt_extract_signatures`, `PsbtEditor` | function / class | PSBT (BIP-174) |
+| `parse_public_key`, `serialize_public_key`, `multiply`, `add`, `double` | function | secp256k1 curve ops |
+| `analyze_descriptor`, `compile_descriptor`, `extract_keys` | function | Miniscript descriptor tools |
+| `BlockstreamProvider`, `BlockchainInfoProvider`, `MempoolSpaceProvider`, `GenericHttpProvider` | class | Blockchain data fetching |
+
+### Newly promoted helpers
+
+The following helpers are part of the public API and are also
+re-exported from their submodules:
+
+| Helper | Module |
+|--------|--------|
+| `collect_info`, `collect_keys`, `contains_op`, `estimate_satisfaction`, `sorted_unique` | `bitcoin.descriptor` |
+| `split_args`, `emit_script` | `bitcoin.descriptor` |
+| `DescriptorError`, `DescriptorInfo`, `DescriptorNode`, `ESTIMATED_SATISFACTION` | `bitcoin.descriptor` |
+| `parse_psbt_impl`, `parse_psbt_worker`, `process_psbt_batch`, `process_psbt_batch_with` | `bitcoin.psbt` |
+| `process_single_worker`, `BUILTINS_REGISTERED` | `bitcoin.signature` |
+| `registry` | `bitcoin.signature.extraction.plugins` |
+| `LOGGING_CONFIGURED` | `bitcoin.cli` |
+| `CURVE_A`, `CURVE_B` | `bitcoin.curve` |
+
+---
+
 ## Project Structure
 
 ```
@@ -328,21 +320,6 @@ docs/                    # Documentation
 ---
 
 ## Development
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `make setup` | Create venv and install dependencies |
-| `make venv` | Create venv without running tests |
-| `make lint` | Run ruff linter |
-| `make typecheck` | Run mypy type checker |
-| `make test` | Run pytest |
-| `make test-cov` | Run tests with coverage report |
-| `make docs` | Build Sphinx documentation |
-| `make clean` | Remove caches and build artifacts |
-
-### Quick Start
 
 ```bash
 ./setup.sh                          # uv venv + sync + test
@@ -378,18 +355,31 @@ chore: update ruff config
 
 ---
 
-## Tech Stack
+## Testing
 
-| Category | Technology |
-|----------|------------|
-| Language | Python 3.12+ |
-| CLI | [Typer](https://typer.tiangolo.com/) |
-| Testing | [pytest](https://docs.pytest.org/), [Hypothesis](https://hypothesis.readthedocs.io/) |
-| Lint / Format | [Ruff](https://docs.astral.sh/ruff/) |
-| Type Check | [mypy](https://mypy-lang.org/) |
-| Build | [setuptools](https://setuptools.pypa.io/) |
-| Package Manager | [uv](https://github.com/astral-sh/uv) |
-| Optional | [coincurve](https://github.com/ofek/coincurve) (libsecp256k1 bindings) |
+```bash
+pytest                       # 868 tests
+pytest --cov=bitcoin         # With coverage report
+make test-cov                # Via Makefile
+```
+
+---
+
+## Build
+
+```bash
+python -m build
+make clean                   # Remove caches and build artifacts
+```
+
+---
+
+## Release
+
+1. Bump version in `pyproject.toml`
+2. Update `CHANGELOG.md`
+3. Commit with a `version:X.Y.Z` message
+4. Tag and push — CI publishes to PyPI
 
 ---
 
@@ -417,6 +407,21 @@ chore: update ruff config
 
 ---
 
+## Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| Language | Python 3.12+ |
+| CLI | [Typer](https://typer.tiangolo.com/) |
+| Testing | [pytest](https://docs.pytest.org/), [Hypothesis](https://hypothesis.readthedocs.io/) |
+| Lint / Format | [Ruff](https://docs.astral.sh/ruff/) |
+| Type Check | [mypy](https://mypy-lang.org/) |
+| Build | [setuptools](https://setuptools.pypa.io/) |
+| Package Manager | [uv](https://github.com/astral-sh/uv) |
+| Optional | [coincurve](https://github.com/ofek/coincurve) (libsecp256k1 bindings) |
+
+---
+
 ## Roadmap
 
 - [ ] Full Miniscript integration
@@ -428,12 +433,9 @@ chore: update ruff config
 
 ## Contributing
 
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
-
-- Development setup
-- Code style and conventions
-- Pull request process
-- Testing requirements
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md)
+for guidelines on development setup, code style, the pull request
+process, and testing requirements.
 
 ## Code of Conduct
 
@@ -446,7 +448,7 @@ For reporting security vulnerabilities, please see [SECURITY.md](SECURITY.md).
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+[MIT](LICENSE) © 2026 Sachin
 
 ## Acknowledgments
 
